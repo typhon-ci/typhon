@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block body %}
+<h2>Jobset <a href="{{root}}/projects/{{project_name}}">{{project_name}}</a>:{{jobset_name}}</h2>
+
+<table>
+  <tr>
+    <td>Flake:</td>
+    <td>{{jobset_info.flake}}</td>
+  </tr>
+  {% if admin %}
+  <tr>
+    <td>Evaluate:</td>
+    <td>
+      <form action="{{root}}/projects/{{project_name}}/jobsets/{{jobset_name}}/evaluate" method="post" id="evaluate"></form>
+      <button type="submit" form="evaluate">Evaluate</button>
+    </td>
+  </tr>
+  {% endif %}
+</table>
+
+<h3>Evaluations</h3>
+<ul>
+  {% for (evaluation,timestamp) in jobset_info.evaluations %}
+  <li><a href="{{root}}/projects/{{project_name}}/jobsets/{{jobset_name}}/evaluations/{{evaluation}}">{{timestamp|strftime}}</li>
+  {% endfor %}
+</ul>
+
+{% endblock body %}

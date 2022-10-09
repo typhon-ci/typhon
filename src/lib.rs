@@ -1,0 +1,326 @@
+mod actions;
+mod builds;
+mod error;
+mod evaluations;
+mod jobs;
+mod jobsets;
+mod models;
+mod nix;
+mod projects;
+mod schema;
+mod time;
+
+pub mod api;
+pub mod tasks;
+pub mod web;
+
+use builds::*;
+use error::Error;
+use evaluations::*;
+use jobs::*;
+use jobsets::*;
+use models::*;
+use projects::*;
+
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
+use log::*;
+use once_cell::sync::OnceCell;
+use rocket::Responder;
+use sha256;
+use std::env;
+
+#[derive(Debug)]
+pub struct Settings {
+    pub hashed_password: String,
+    pub webroot: String,
+}
+
+// Typhon's state
+pub static SETTINGS: OnceCell<Settings> = OnceCell::new();
+pub static EVALUATIONS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
+pub static BUILDS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
+pub static JOBS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
+
+pub fn connection() -> SqliteConnection {
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    SqliteConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum User {
+    Admin,
+    Anonymous,
+}
+
+impl User {
+    pub fn is_admin(&self) -> bool {
+        match self {
+            User::Admin => true,
+            _ => false,
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> rocket::request::FromRequest<'r> for User {
+    type Error = ();
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        rocket::request::Outcome::Success(
+            //request
+            //    .cookies()
+            //    .get_private("admin")
+            //    .map_or(User::Anonymous, |_| User::Admin),
+            request
+                .headers()
+                .get("password")
+                .last()
+                .map_or(User::Anonymous, |password| {
+                    let hash = sha256::digest(password);
+                    if hash == SETTINGS.get().unwrap().hashed_password {
+                        User::Admin
+                    } else {
+                        User::Anonymous
+                    }
+                }),
+        )
+    }
+}
+
+pub mod requests {
+    use crate::builds::BuildHandle;
+    use crate::error::Error;
+    use crate::evaluations::EvaluationHandle;
+    use crate::jobs::JobHandle;
+    use crate::jobsets::JobsetHandle;
+    use crate::projects::ProjectHandle;
+
+    #[derive(Clone, Debug)]
+    pub enum Project {
+        Delete,
+        Info,
+        Refresh,
+        SetDecl(String),
+        SetPrivateKey(String),
+        UpdateJobsets,
+    }
+
+    #[derive(Clone, Debug)]
+    pub enum Jobset {
+        Evaluate,
+        Info,
+    }
+
+    #[derive(Clone, Debug)]
+    pub enum Evaluation {
+        Cancel,
+        Info,
+    }
+
+    #[derive(Clone, Debug)]
+    pub enum Job {
+        Cancel,
+        Info,
+    }
+
+    #[derive(Clone, Debug)]
+    pub enum Build {
+        Cancel,
+        Info,
+        Log,
+    }
+
+    #[derive(Clone, Debug)]
+    pub enum Request {
+        ListProjects,
+        CreateProject(ProjectHandle),
+        Project(ProjectHandle, Project),
+        Jobset(JobsetHandle, Jobset),
+        Evaluation(EvaluationHandle, Evaluation),
+        Job(JobHandle, Job),
+        Build(BuildHandle, Build),
+    }
+}
+
+#[derive(Responder)]
+pub enum ResponseError {
+    #[response(status = 404)]
+    ResourceNotFound(String),
+    #[response(status = 500)]
+    InternalError(()),
+    #[response(status = 400)]
+    BadRequest(String),
+}
+
+impl From<error::Error> for ResponseError {
+    fn from(e: error::Error) -> ResponseError {
+        use {error::Error::*, ResponseError::*};
+        match e {
+            BuildNotFound(_)
+            | EvaluationNotFound(_)
+            | JobNotFound(_)
+            | JobsetNotFound(_)
+            | ProjectNotFound(_) => ResourceNotFound(format!("{}", e)),
+            AccessDenied
+            | ActionError(_)
+            | BadJobsetDecl(_)
+            | BuildNotRunning(_)
+            | EvaluationNotRunning(_)
+            | NixError(_)
+            | ProjectAlreadyExists(_) => BadRequest(format!("{}", e)),
+            Todo | UnexpectedDatabaseError(_) => InternalError(()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Response {
+    Ok,
+    ListProjects(Vec<String>),
+    ProjectInfo(ProjectInfo),
+    ProjectUpdateJobsets(Vec<String>),
+    JobsetEvaluate(i32),
+    JobsetInfo(JobsetInfo),
+    EvaluationInfo(EvaluationInfo),
+    JobInfo(JobInfo),
+    BuildInfo(BuildInfo),
+    BuildLog(std::fs::File),
+}
+
+impl<'r> rocket::response::Responder<'r, 'static> for crate::Response {
+    fn respond_to(self, req: &'r rocket::Request<'_>) -> rocket::response::Result<'static> {
+        use crate::Response::*;
+        use rocket::serde::json::Json;
+        match self {
+            Ok => Json(true).respond_to(req),
+            ListProjects(payload) => Json(payload).respond_to(req),
+            ProjectInfo(payload) => Json(payload).respond_to(req),
+            ProjectUpdateJobsets(payload) => Json(payload).respond_to(req),
+            JobsetInfo(payload) => Json(payload).respond_to(req),
+            JobsetEvaluate(payload) => Json(payload).respond_to(req),
+            EvaluationInfo(payload) => Json(payload).respond_to(req),
+            JobInfo(payload) => Json(payload).respond_to(req),
+            BuildInfo(payload) => Json(payload).respond_to(req),
+            BuildLog(payload) => payload.respond_to(req),
+        }
+    }
+}
+
+pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
+    match req {
+        requests::Request::ListProjects
+        | requests::Request::Project(_, requests::Project::Info)
+        | requests::Request::Jobset(_, requests::Jobset::Info)
+        | requests::Request::Evaluation(_, requests::Evaluation::Info)
+        | requests::Request::Job(_, requests::Job::Info)
+        | requests::Request::Build(_, requests::Build::Info) => true,
+        _ => user.is_admin(),
+    }
+}
+
+pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Response, Error> {
+    if authorize_request(user, req) {
+        Ok(match req {
+            requests::Request::ListProjects => Response::ListProjects(Project::list()?),
+            requests::Request::CreateProject(project_handle) => {
+                Project::create(&project_handle.project)?;
+                Response::Ok
+            }
+            requests::Request::Project(project_handle, req) => {
+                let project = Project::get(&project_handle.project)?;
+                match req {
+                    requests::Project::Delete => {
+                        project.delete()?;
+                        Response::Ok
+                    }
+                    requests::Project::Info => Response::ProjectInfo(project.info()?),
+                    requests::Project::Refresh => {
+                        project.refresh()?;
+                        Response::Ok
+                    }
+                    requests::Project::SetDecl(flake) => {
+                        project.set_decl(&flake)?;
+                        Response::Ok
+                    }
+                    requests::Project::SetPrivateKey(key) => {
+                        project.set_private_key(&key)?;
+                        Response::Ok
+                    }
+                    requests::Project::UpdateJobsets => {
+                        let jobsets = project.update_jobsets()?;
+                        Response::ProjectUpdateJobsets(jobsets)
+                    }
+                }
+            }
+            requests::Request::Jobset(jobset_handle, req) => {
+                let jobset = Jobset::get(&jobset_handle.project, &jobset_handle.jobset)?;
+                match req {
+                    requests::Jobset::Evaluate => {
+                        let evaluation_num = jobset.evaluate()?;
+                        Response::JobsetEvaluate(evaluation_num)
+                    }
+                    requests::Jobset::Info => Response::JobsetInfo(jobset.info()?),
+                }
+            }
+            requests::Request::Evaluation(evaluation_handle, req) => {
+                let evaluation = Evaluation::get(
+                    &evaluation_handle.project,
+                    &evaluation_handle.jobset,
+                    evaluation_handle.evaluation,
+                )?;
+                match req {
+                    requests::Evaluation::Cancel => {
+                        evaluation.cancel()?;
+                        Response::Ok
+                    }
+                    requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info()?),
+                }
+            }
+            requests::Request::Job(job_handle, req) => {
+                let job = Job::get(
+                    &job_handle.project,
+                    &job_handle.jobset,
+                    job_handle.evaluation,
+                    &job_handle.job,
+                )?;
+                match req {
+                    requests::Job::Cancel => {
+                        job.cancel()?;
+                        Response::Ok
+                    }
+                    requests::Job::Info => Response::JobInfo(job.info()?),
+                }
+            }
+            requests::Request::Build(build_handle, req) => {
+                let build = Build::get(&build_handle.build_hash)?;
+                match req {
+                    requests::Build::Cancel => {
+                        build.cancel()?;
+                        Response::Ok
+                    }
+                    requests::Build::Info => Response::BuildInfo(build.info()?),
+                    requests::Build::Log => Response::BuildLog(build.log()?),
+                }
+            }
+        })
+    } else {
+        Err(Error::AccessDenied)
+    }
+}
+
+/// Main entry point for Typhon requests
+pub fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
+    info!("handling request {:?} for user {:?}", req, user);
+    Ok(handle_request_aux(&user, &req).map_err(|e| {
+        if e.is_internal() {
+            error!(
+                "request {:?} for user {:?} raised error: {:?}",
+                req, user, e
+            );
+        }
+        e
+    })?)
+}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block body %}
+<h2>Project {{project_name}}</h2>
+
+<h3>Information</h3>
+<p><a href="{{project_info.metadata.homepage}}">{{project_info.metadata.homepage}}</a></p>
+<p>{{project_info.metadata.description}}</p>
+
+<h3>Settings</h3>
+<table>
+  <tr><td>Public key:</td><td>{{project_info.public_key}}</td></tr>
+  <tr><td>Decl:</td><td>{{project_info.decl}}</td></tr>
+  <tr><td>Locked decl:</td><td>{{project_info.decl_locked}}</td></tr>
+  <tr><td>Actions path:</td><td>{{project_info.actions_path}}</td></tr>
+</table>
+
+<h3>Jobsets</h3>
+<ul>
+  {% for jobset in project_info.jobsets %}
+  <li><a href="{{root}}/projects/{{project_name}}/jobsets/{{jobset}}">{{jobset}}</a></li>
+  {% endfor %}
+</ul>
+
+{% if admin %}
+<h3>Admin</h3>
+<table>
+  <tr>
+    <td>Update jobsets:</td>
+    <td>
+      <form action="{{root}}/projects/{{project_name}}/update_jobsets" method="post" id="update_jobsets"></form>
+      <button type="submit" form="update_jobsets">Update</button>
+    </td>
+  </tr>
+  <tr>
+    <td>Set declaration:</td>
+    <td>
+      <form action="{{root}}/projects/{{project_name}}/set_decl" method="post" id="set_decl">
+        <input type="text" id="flake" name="flake">
+      </form>
+    </td>
+    <td>
+      <button type="submit" form="set_decl">Set</button>
+    </td>
+  </tr>
+  <tr>
+    <td>Refresh:</td>
+    <td>
+      <form action="{{root}}/projects/{{project_name}}/refresh" method="post" id="refresh"></form>
+      <button type="submit" form="refresh">Refresh</button>
+    </td>
+  </tr>
+  <tr>
+    <td>Set private key:</td>
+    <td>
+      <form action="{{root}}/projects/{{project_name}}/set_private_key" method="post" id="set_private_key">
+        <input type="text" id="private_key" name="private_key">
+      </form>
+    </td>
+    <td>
+      <button type="submit" form="set_private_key">Set</button>
+    </td>
+  </tr>
+  <tr>
+    <td>Delete:</td>
+    <td>
+      <form action="{{root}}/projects/{{project_name}}/delete" method="post" id="delete"></form>
+      <button type="submit" form="delete">Delete</button>
+    </td>
+  </tr>
+</table>
+{% endif %}
+
+{% endblock body %}

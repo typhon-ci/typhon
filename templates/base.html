@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Typhon</title>
+  </head>
+  <body>
+    {% if root == "" %}
+    <a href="/">
+    {% else %}
+    <a href="{{root}}">
+    {% endif %}
+    <h1>Typhon</h1></a>
+
+    <table>
+      {% if admin %}
+      <tr>
+        <td>
+          <form action="{{root}}/logout" method="post" id="logout"></form>
+        </td>
+        <td>
+          <button type="submit" form="logout">Log Out</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td>
+          <form action="{{root}}/login" method="post" id="login">
+            <input type="password" id="password" name="password">
+          </form>
+        </td>
+        <td>
+          <button type="submit" form="login">Log in</button>
+        </td>
+      </tr>
+      {% endif %}
+    </table>
+
+    {% block body %}{% endblock body %}
+  </body>
+</html>

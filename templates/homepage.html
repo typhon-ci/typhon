@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<h3>Projects</h3>
+<ul>
+  {% for project_name in projects %}
+  <li><a href="{{root}}/projects/{{project_name}}">{{project_name}}</a></li>
+  {% endfor %}
+</ul>
+
+{% if admin %}
+<h3>Admin</h3>
+<table>
+  <tr>
+    <td>Create project:</td>
+    <td>
+      <form action="{{root}}/create_project" method="post" id="create_project">
+        <input type="text" id="project_name" name="project_name">
+      </form>
+    </td>
+    <td>
+      <button type="submit" form="create_project">Create</button>
+    </td>
+  </tr>
+</table>
+{% endif %}
+
+{% endblock body %}

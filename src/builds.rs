@@ -1,0 +1,86 @@
+use crate::error::Error;
+use crate::jobs::JobHandle;
+use crate::models::*;
+use crate::nix;
+use crate::schema::builds::dsl::*;
+use crate::{connection, BUILDS};
+use diesel::prelude::*;
+use serde::Serialize;
+use std::fs::File;
+use std::process::{Command, Stdio};
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BuildHandle {
+    pub build_hash: String,
+}
+
+impl std::fmt::Display for BuildHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.build_hash)
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct BuildInfo {
+    pub drv: String,
+    pub status: String,
+    pub jobs: Vec<JobHandle>,
+}
+
+impl Build {
+    pub fn cancel(&self) -> Result<(), Error> {
+        let r = BUILDS.get().unwrap().cancel(self.build_id);
+        if r {
+            Ok(())
+        } else {
+            Err(Error::BuildNotRunning(BuildHandle {
+                build_hash: self.build_hash.clone(),
+            }))
+        }
+    }
+
+    pub fn get(hash: &String) -> Result<Self, Error> {
+        let conn = &mut connection();
+        Ok(builds
+            .filter(build_hash.eq(hash))
+            .first::<Build>(conn)
+            .map_err(|_| {
+                Error::BuildNotFound(BuildHandle {
+                    build_hash: hash.to_string(),
+                })
+            })?)
+    }
+
+    pub fn info(&self) -> Result<BuildInfo, Error> {
+        Ok(BuildInfo {
+            drv: self.build_drv.clone(),
+            status: self.build_status.clone(),
+            jobs: todo!(),
+        })
+    }
+
+    pub fn log(&self) -> Result<File, Error> {
+        todo!()
+    }
+
+    pub fn run(self) -> () {
+        let id = self.build_id;
+        let drv = self.build_drv.clone();
+        let task = async move {
+            nix::build(drv)?;
+            Ok::<(), Error>(())
+        };
+        let f = move |r| {
+            let status = match r {
+                Some(Ok(())) => "success",
+                Some(Err(_)) => "error", // TODO: log error
+                None => "canceled",
+            };
+            let conn = &mut connection();
+            let _ = diesel::update(builds.find(id))
+                .set(build_status.eq(status))
+                .execute(conn);
+        };
+        BUILDS.get().unwrap().run(id, task, f);
+    }
+}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block body %}
+<h2>Evaluation <a href="{{root}}/projects/{{evaluation_info.project}}">{{evaluation_info.project}}</a>:<a href="{{root}}/projects/{{evaluation_info.project}}/jobsets/{{evaluation_info.jobset}}">{{ evaluation_info.jobset }}</a>:{{evaluation_num}}</h2>
+
+<table>
+  <tr>
+    <td>Date:</td>
+    <td>{{evaluation_info.time_created|strftime}}</td>
+  </tr>
+  <tr>
+    <td>Locked flake:</td>
+    <td>{{evaluation_info.locked_flake}}</td>
+  </tr>
+  <tr>
+    <td>Status:</td>
+    <td>
+      {{evaluation_info.status}}
+      {% if admin %}
+        {% if evaluation_info.status == "pending" %}
+        ( cancel )
+        {% endif %}
+      {% endif %}
+    </td>
+  </tr>
+</table>
+
+{% if evaluation_info.status == "success" %}
+  <h3>Jobs</h3>
+  <table>
+    {% for (job, build_id, build_status) in jobs %}
+      <tr>
+        <td><a href="{{root}}/projects/{{evaluation_info.project}}/jobsets/{{evaluation_info.jobset}}/evaluations/{{evaluation_num}}/jobs/{{job}}">{{job}}</a></li></td>
+        <td><a href="{{root}}/builds/{{build_id}}">
+          {% if build_status == "success" %}
+            ✅
+          {% else if build_status == "error" %}
+            ❌
+          {% else if build_status == "canceled" %}
+            🛑
+          {% else %}
+            ⌛
+          {% endif %}
+        </a></td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endif %}
+
+{% endblock body %}
