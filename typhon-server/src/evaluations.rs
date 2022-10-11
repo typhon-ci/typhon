@@ -10,29 +10,7 @@ use diesel::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
 use substring::Substring;
-
-#[derive(Clone, Debug, Serialize)]
-pub struct EvaluationHandle {
-    pub project: String,
-    pub jobset: String,
-    pub evaluation: i32,
-}
-
-impl std::fmt::Display for EvaluationHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}:{}:{}", self.project, self.jobset, self.evaluation)
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct EvaluationInfo {
-    pub project: String,
-    pub jobset: String,
-    pub locked_flake: String,
-    pub time_created: i64,
-    pub status: String,
-    pub jobs: HashMap<String, String>,
-}
+use crate::{handles, responses};
 
 fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error> {
     let conn = &mut connection();
@@ -96,7 +74,7 @@ impl Evaluation {
             .filter(evaluation_num.eq(evaluation_num_))
             .first::<Evaluation>(conn)
             .map_err(|_| {
-                Error::EvaluationNotFound(EvaluationHandle {
+                Error::EvaluationNotFound(handles::Evaluation {
                     project: project_name_.to_string(),
                     jobset: jobset_name_.to_string(),
                     evaluation: evaluation_num_,
@@ -104,10 +82,10 @@ impl Evaluation {
             })?)
     }
 
-    pub fn info(&self) -> Result<EvaluationInfo, Error> {
+    pub fn info(&self) -> Result<responses::EvaluationInfo, Error> {
         let jobset = self.jobset()?;
         let project = jobset.project()?;
-        Ok(EvaluationInfo {
+        Ok(responses::EvaluationInfo {
             project: project.project_name.clone(),
             jobset: jobset.jobset_name.clone(),
             locked_flake: self.evaluation_locked_flake.clone(),

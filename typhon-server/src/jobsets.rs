@@ -9,24 +9,7 @@ use crate::time;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
-
-#[derive(Clone, Debug, Serialize)]
-pub struct JobsetHandle {
-    pub project: String,
-    pub jobset: String,
-}
-
-impl std::fmt::Display for JobsetHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}:{}", self.project, self.jobset)
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct JobsetInfo {
-    pub flake: String,
-    pub evaluations: Vec<(i32, i64)>,
-}
+use crate::{handles, responses};
 
 #[derive(Deserialize)]
 pub struct JobsetDecl {
@@ -74,14 +57,14 @@ impl Jobset {
             .filter(jobset_name.eq(jobset_name_))
             .first::<Jobset>(conn)
             .map_err(|_| {
-                Error::JobsetNotFound(JobsetHandle {
+                Error::JobsetNotFound(handles::Jobset {
                     project: project_name_.to_string(),
                     jobset: jobset_name_.to_string(),
                 })
             })?)
     }
 
-    pub fn info(&self) -> Result<JobsetInfo, Error> {
+    pub fn info(&self) -> Result<responses::JobsetInfo, Error> {
         let conn = &mut connection();
         let evals = evaluations
             .filter(evaluation_jobset.eq(self.jobset_id))
@@ -95,7 +78,7 @@ impl Jobset {
                 )
             })
             .collect();
-        Ok(JobsetInfo {
+        Ok(responses::JobsetInfo {
             flake: self.jobset_flake.clone(),
             evaluations: evals,
         })

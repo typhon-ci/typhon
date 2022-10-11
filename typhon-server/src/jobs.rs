@@ -4,33 +4,7 @@ use crate::schema::jobs::dsl::*;
 use crate::{connection, JOBS};
 use diesel::prelude::*;
 use serde::Serialize;
-
-#[derive(Clone, Debug, Serialize)]
-pub struct JobHandle {
-    pub project: String,
-    pub jobset: String,
-    pub evaluation: i32,
-    pub job: String,
-}
-
-impl std::fmt::Display for JobHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}:{}:{}:{}",
-            self.project, self.jobset, self.evaluation, self.job
-        )
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct JobInfo {
-    pub project: String,
-    pub jobset: String,
-    pub evaluation: i64,
-    pub build: String,
-    pub status: String,
-}
+use crate::{responses};
 
 impl Job {
     pub fn cancel(&self) -> Result<(), Error> {
@@ -46,7 +20,7 @@ impl Job {
         todo!()
     }
 
-    pub fn info(&self) -> Result<JobInfo, Error> {
+    pub fn info(&self) -> Result<responses::JobInfo, Error> {
         todo!()
     }
 

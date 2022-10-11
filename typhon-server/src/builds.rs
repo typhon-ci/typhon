@@ -1,31 +1,13 @@
 use crate::error::Error;
-use crate::jobs::JobHandle;
 use crate::models::*;
 use crate::nix;
 use crate::schema::builds::dsl::*;
 use crate::{connection, BUILDS};
+use crate::{handles, responses};
 use diesel::prelude::*;
 use serde::Serialize;
 use std::fs::File;
 use std::process::{Command, Stdio};
-
-#[derive(Clone, Debug, Serialize)]
-pub struct BuildHandle {
-    pub build_hash: String,
-}
-
-impl std::fmt::Display for BuildHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.build_hash)
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct BuildInfo {
-    pub drv: String,
-    pub status: String,
-    pub jobs: Vec<JobHandle>,
-}
 
 impl Build {
     pub fn cancel(&self) -> Result<(), Error> {
@@ -33,7 +15,7 @@ impl Build {
         if r {
             Ok(())
         } else {
-            Err(Error::BuildNotRunning(BuildHandle {
+            Err(Error::BuildNotRunning(handles::Build {
                 build_hash: self.build_hash.clone(),
             }))
         }
@@ -45,14 +27,14 @@ impl Build {
             .filter(build_hash.eq(hash))
             .first::<Build>(conn)
             .map_err(|_| {
-                Error::BuildNotFound(BuildHandle {
+                Error::BuildNotFound(handles::Build {
                     build_hash: hash.to_string(),
                 })
             })?)
     }
 
-    pub fn info(&self) -> Result<BuildInfo, Error> {
-        Ok(BuildInfo {
+    pub fn info(&self) -> Result<responses::BuildInfo, Error> {
+        Ok(responses::BuildInfo {
             drv: self.build_drv.clone(),
             status: self.build_status.clone(),
             jobs: todo!(),

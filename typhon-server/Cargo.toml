@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 authors = [ "Paul-Nicolas Madelaine <pnm@pnm.tf>" ]
 
+[dependencies.typhon-api]
+path = "../typhon-api"
+
 [dependencies.age]
 version = "0.8"
 features = [ "armor" ]

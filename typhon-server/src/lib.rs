@@ -10,6 +10,13 @@ mod projects;
 mod schema;
 mod time;
 
+pub use typhon_api::{
+    requests,
+    responses,
+    handles,
+    responses::Response
+};
+
 pub mod api;
 pub mod tasks;
 pub mod web;
@@ -90,61 +97,6 @@ impl<'r> rocket::request::FromRequest<'r> for User {
     }
 }
 
-pub mod requests {
-    use crate::builds::BuildHandle;
-    use crate::error::Error;
-    use crate::evaluations::EvaluationHandle;
-    use crate::jobs::JobHandle;
-    use crate::jobsets::JobsetHandle;
-    use crate::projects::ProjectHandle;
-
-    #[derive(Clone, Debug)]
-    pub enum Project {
-        Delete,
-        Info,
-        Refresh,
-        SetDecl(String),
-        SetPrivateKey(String),
-        UpdateJobsets,
-    }
-
-    #[derive(Clone, Debug)]
-    pub enum Jobset {
-        Evaluate,
-        Info,
-    }
-
-    #[derive(Clone, Debug)]
-    pub enum Evaluation {
-        Cancel,
-        Info,
-    }
-
-    #[derive(Clone, Debug)]
-    pub enum Job {
-        Cancel,
-        Info,
-    }
-
-    #[derive(Clone, Debug)]
-    pub enum Build {
-        Cancel,
-        Info,
-        Log,
-    }
-
-    #[derive(Clone, Debug)]
-    pub enum Request {
-        ListProjects,
-        CreateProject(ProjectHandle),
-        Project(ProjectHandle, Project),
-        Jobset(JobsetHandle, Jobset),
-        Evaluation(EvaluationHandle, Evaluation),
-        Job(JobHandle, Job),
-        Build(BuildHandle, Build),
-    }
-}
-
 #[derive(Responder)]
 pub enum ResponseError {
     #[response(status = 404)]
@@ -172,39 +124,6 @@ impl From<error::Error> for ResponseError {
             | NixError(_)
             | ProjectAlreadyExists(_) => BadRequest(format!("{}", e)),
             Todo | UnexpectedDatabaseError(_) => InternalError(()),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Response {
-    Ok,
-    ListProjects(Vec<String>),
-    ProjectInfo(ProjectInfo),
-    ProjectUpdateJobsets(Vec<String>),
-    JobsetEvaluate(i32),
-    JobsetInfo(JobsetInfo),
-    EvaluationInfo(EvaluationInfo),
-    JobInfo(JobInfo),
-    BuildInfo(BuildInfo),
-    BuildLog(std::fs::File),
-}
-
-impl<'r> rocket::response::Responder<'r, 'static> for crate::Response {
-    fn respond_to(self, req: &'r rocket::Request<'_>) -> rocket::response::Result<'static> {
-        use crate::Response::*;
-        use rocket::serde::json::Json;
-        match self {
-            Ok => Json(true).respond_to(req),
-            ListProjects(payload) => Json(payload).respond_to(req),
-            ProjectInfo(payload) => Json(payload).respond_to(req),
-            ProjectUpdateJobsets(payload) => Json(payload).respond_to(req),
-            JobsetInfo(payload) => Json(payload).respond_to(req),
-            JobsetEvaluate(payload) => Json(payload).respond_to(req),
-            EvaluationInfo(payload) => Json(payload).respond_to(req),
-            JobInfo(payload) => Json(payload).respond_to(req),
-            BuildInfo(payload) => Json(payload).respond_to(req),
-            BuildLog(payload) => payload.respond_to(req),
         }
     }
 }
@@ -302,7 +221,7 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                         Response::Ok
                     }
                     requests::Build::Info => Response::BuildInfo(build.info()?),
-                    requests::Build::Log => Response::BuildLog(build.log()?),
+                    requests::Build::Log => Response::BuildLog, // build.log()?
                 }
             }
         })

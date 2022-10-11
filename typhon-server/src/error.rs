@@ -1,25 +1,21 @@
 use crate::actions;
-use crate::builds::BuildHandle;
-use crate::evaluations::EvaluationHandle;
-use crate::jobs::JobHandle;
-use crate::jobsets::JobsetHandle;
 use crate::nix;
-use crate::projects::ProjectHandle;
+use crate::handles;
 
 #[derive(Debug)]
 pub enum Error {
     AccessDenied,
     ActionError(actions::Error),
     BadJobsetDecl(String),
-    BuildNotFound(BuildHandle),
-    BuildNotRunning(BuildHandle),
-    EvaluationNotFound(EvaluationHandle),
-    EvaluationNotRunning(EvaluationHandle),
-    JobNotFound(JobHandle),
-    JobsetNotFound(JobsetHandle),
+    BuildNotFound(handles::Build),
+    BuildNotRunning(handles::Build),
+    EvaluationNotFound(handles::Evaluation),
+    EvaluationNotRunning(handles::Evaluation),
+    JobNotFound(handles::Job),
+    JobsetNotFound(handles::Jobset),
     NixError(nix::Error),
     ProjectAlreadyExists(String),
-    ProjectNotFound(ProjectHandle),
+    ProjectNotFound(handles::Project),
     Todo,
     UnexpectedDatabaseError(diesel::result::Error),
 }

@@ -15,34 +15,7 @@ use std::fs::File;
 use std::io::Read;
 use std::iter;
 use std::str::FromStr;
-
-#[derive(Clone, Debug, Serialize)]
-pub struct ProjectHandle {
-    pub project: String,
-}
-
-impl std::fmt::Display for ProjectHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.project)
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct ProjectMetadata {
-    pub title: String,
-    pub homepage: String,
-    pub description: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ProjectInfo {
-    pub metadata: ProjectMetadata,
-    pub jobsets: Vec<String>,
-    pub public_key: String,
-    pub decl: String,
-    pub decl_locked: String,
-    pub actions_path: String,
-}
+use crate::{handles, responses};
 
 impl Project {
     pub fn create(name: &String) -> Result<(), Error> {
@@ -78,13 +51,13 @@ impl Project {
             .filter(project_name.eq(project_name_))
             .first::<Project>(conn)
             .map_err(|_| {
-                Error::ProjectNotFound(ProjectHandle {
+                Error::ProjectNotFound(handles::Project {
                     project: project_name_.clone(),
                 })
             })?)
     }
 
-    pub fn info(&self) -> Result<ProjectInfo, Error> {
+    pub fn info(&self) -> Result<responses::ProjectInfo, Error> {
         let conn = &mut connection();
         let jobsets_names = jobsets
             .filter(jobset_project.eq(self.project_id))
@@ -96,8 +69,8 @@ impl Project {
             .map_err(|_| Error::Todo)?
             .to_public()
             .to_string();
-        Ok(ProjectInfo {
-            metadata: ProjectMetadata {
+        Ok(responses::ProjectInfo {
+            metadata: responses::ProjectMetadata {
                 title: self.project_title.clone(),
                 description: self.project_description.clone(),
                 homepage: self.project_homepage.clone(),
