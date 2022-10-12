@@ -150,11 +150,8 @@ r!(
         );
 );
 
-#[get("/raw-request", format = "application/json", data = "<body>")]
-async fn raw_request(
-    user: User,
-    body: Json<crate::requests::Request>,
-) -> Result<Json<crate::Response>, ResponseError> {
+#[post("/raw-request", format = "application/json", data = "<body>")]
+async fn raw_request(user: User, body: Json<Request>) -> Result<Json<Response>, ResponseError> {
     handle_request(user, body.into_inner()).map(Json)
 }
 
