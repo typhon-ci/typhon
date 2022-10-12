@@ -39,7 +39,7 @@ macro_rules! r {
 r!(
     #[post("/create_project/<project>")]
     create_project(project: String)
-        => Request::CreateProject( handles::Project { project });
+        => Request::CreateProject(handles::project(project));
 
     #[get("/list_projects")]
     list_projects() => Request::ListProjects;
@@ -47,105 +47,105 @@ r!(
     #[post("/projects/<project>/delete")]
     project_delete(project: String)
         => Request::Project(
-            handles::Project { project },
+            handles::project(project),
             Project::Delete,
         );
 
     #[get("/projects/<project>")]
     project_info(project: String)
         => Request::Project(
-            handles::Project { project },
+            handles::project(project),
             Project::Info,
         );
 
     #[post("/projects/<project>/refresh")]
     project_refresh(project: String)
         => Request::Project(
-            handles::Project { project },
+            handles::project(project),
             Project::Refresh,
         );
 
     #[post("/projects/<project>/set_decl", format = "application/json", data = "<body>")]
     project_set_decl(project: String, body: Json<String>)
         => Request::Project(
-            handles::Project { project },
+            handles::project(project),
             Project::SetDecl(body.into_inner()),
         );
 
     #[post("/projects/<project>/set_private_key", format = "application/json", data = "<body>")]
     project_set_private_key(project: String, body: Json<String>)
         => Request::Project(
-            handles::Project { project },
+            handles::project(project),
             Project::SetPrivateKey(body.into_inner()),
         );
 
     #[post("/projects/<project>/update_jobsets")]
     project_update_jobsets(project: String)
         => Request::Project(
-            handles::Project { project },
+            handles::project(project),
             Project::UpdateJobsets,
         );
 
     #[post("/projects/<project>/jobsets/<jobset>/evaluate")]
     jobset_evaluate(project: String, jobset: String)
         => Request::Jobset(
-            handles::Jobset { project, jobset },
+            handles::jobset(project, jobset),
             Jobset::Evaluate,
         );
 
     #[get("/projects/<project>/jobsets/<jobset>")]
     jobset_info(project: String, jobset: String)
         => Request::Jobset(
-            handles::Jobset { project, jobset },
+            handles::jobset(project, jobset),
             Jobset::Info,
         );
 
     #[post("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>/cancel")]
     evaluation_cancel(project: String, jobset: String, evaluation: i32)
         => Request::Evaluation(
-            handles::Evaluation { project, jobset, evaluation },
+            handles::evaluation(project, jobset, evaluation),
             Evaluation::Cancel,
         );
 
     #[get("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>")]
     evaluation_info(project: String, jobset: String,evaluation: i32)
         => Request::Evaluation(
-            handles::Evaluation { project, jobset, evaluation },
+            handles::evaluation(project, jobset, evaluation),
             Evaluation::Info,
         );
 
     #[post("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>/jobs/<job>/cancel")]
     job_cancel(project: String, jobset: String, evaluation: i32, job: String)
         => Request::Job(
-            handles::Job { project, jobset, evaluation, job },
+            handles::job(project, jobset, evaluation, job),
             Job::Cancel,
         );
 
     #[get("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>/jobs/<job>")]
     job_info(project: String, jobset: String, evaluation: i32, job: String)
         => Request::Job(
-            handles::Job { project, jobset, evaluation, job },
+            handles::job(project, jobset, evaluation, job),
             Job::Info,
         );
 
     #[post("/builds/<build_hash>/cancel")]
     build_cancel(build_hash: String)
         => Request::Build(
-            handles::Build { build_hash },
+            handles::build(build_hash),
             Build::Cancel,
         );
 
     #[get("/builds/<build_hash>")]
     build_info(build_hash: String)
         => Request::Build(
-            handles::Build { build_hash },
+            handles::build(build_hash),
             Build::Info,
         );
 
     #[get("/builds/<build_hash>/log")]
     build_log(build_hash: String)
         => Request::Build(
-            handles::Build { build_hash },
+            handles::build(build_hash),
             Build::Log,
         );
 );

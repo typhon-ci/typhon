@@ -72,11 +72,11 @@ impl Evaluation {
             .filter(evaluation_num.eq(evaluation_num_))
             .first::<Evaluation>(conn)
             .map_err(|_| {
-                Error::EvaluationNotFound(handles::Evaluation {
-                    project: project_name_.to_string(),
-                    jobset: jobset_name_.to_string(),
-                    evaluation: evaluation_num_,
-                })
+                Error::EvaluationNotFound(handles::evaluation(
+                    project_name_.to_string(),
+                    jobset_name_.to_string(),
+                    evaluation_num_,
+                ))
             })?)
     }
 
