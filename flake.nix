@@ -44,6 +44,7 @@
               src = craneLib.cleanCargoSource ./.;
               cargoBuildCommand = "cargo build -p typhon-webapp";
             };
+        common-devShell-packages = [pkgs.rustfmt];
       in {
         packages = {
           inherit typhon;
@@ -53,12 +54,12 @@
           default = pkgs.mkShell {
             name = "typhon-shell";
             packages = [ pkgs.diesel-cli pkgs.sqlite ];
-            inputsFrom = [ typhon ];
+            inputsFrom = [ typhon ] ++ common-devShell-packages;
             DATABASE_URL = "sqlite:typhon.sqlite";
           };
           typhon-webapp = pkgs.mkShell {
             name = "typhon-webapp-shell";
-            packages = [ ];
+            packages = [ ] ++ common-devShell-packages;
             inputsFrom = [ typhon-webapp ];
           };
         };
