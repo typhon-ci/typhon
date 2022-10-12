@@ -6,26 +6,23 @@ pub mod handles {
         pub project: String,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct Evaluation {
-        pub project: String,
+    pub struct Jobset {
+        pub project: Project,
         pub jobset: String,
+    }
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct Evaluation {
+        pub jobset: Jobset,
         pub evaluation: i32,
+    }
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct Job {
+        pub evaluation: Evaluation,
+        pub job: String,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Build {
         pub build_hash: String,
-    }
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct Jobset {
-        pub project: String,
-        pub jobset: String,
-    }
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct Job {
-        pub project: String,
-        pub jobset: String,
-        pub evaluation: i32,
-        pub job: String,
     }
 
     impl std::fmt::Display for Build {
@@ -35,16 +32,12 @@ pub mod handles {
     }
     impl std::fmt::Display for Job {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(
-                f,
-                "{}:{}:{}:{}",
-                self.project, self.jobset, self.evaluation, self.job
-            )
+            write!(f, "{}:{}", self.evaluation, self.job)
         }
     }
     impl std::fmt::Display for Evaluation {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}:{}:{}", self.project, self.jobset, self.evaluation)
+            write!(f, "{}:{}", self.jobset, self.evaluation)
         }
     }
     impl std::fmt::Display for Jobset {
@@ -57,6 +50,59 @@ pub mod handles {
             write!(f, "{}", self.project)
         }
     }
+
+    use crate::handles as selfmod;
+    pub const fn project(project: String) -> Project {
+        Project { project }
+    }
+    pub const fn jobset(project: String, jobset: String) -> Jobset {
+        Jobset {
+            project: selfmod::project(project),
+            jobset,
+        }
+    }
+    pub const fn evaluation(project: String, jobset: String, evaluation: i32) -> Evaluation {
+        Evaluation {
+            jobset: selfmod::jobset(project, jobset),
+            evaluation,
+        }
+    }
+    pub const fn job(project: String, jobset: String, evaluation: i32, job: String) -> Job {
+        Job {
+            evaluation: selfmod::evaluation(project, jobset, evaluation),
+            job,
+        }
+    }
+    pub const fn build(build_hash: String) -> Build {
+        Build { build_hash }
+    }
+
+    #[macro_export]
+    macro_rules! pattern {
+        ($p:pat, $js:pat, $e:pat, $j:pat) => {
+            crate::handles::Job {
+                evaluation: crate::handles::pattern!($p, $js, $e),
+                job: $j,
+            }
+        };
+        ($p:pat, $js:pat, $e:pat) => {
+            crate::handles::Evaluation {
+                jobset: crate::handles::pattern!($p, $js),
+                evaluation: $e,
+            }
+        };
+        ($p:pat, $js:pat) => {
+            crate::handles::Jobset {
+                project: crate::handles::pattern!($p),
+                jobset: $js,
+            }
+        };
+        ($p:pat) => {
+            crate::handles::Project { project: $p }
+        };
+    }
+
+    pub use pattern;
 }
 
 pub mod requests {

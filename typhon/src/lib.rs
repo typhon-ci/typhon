@@ -10,12 +10,7 @@ mod projects;
 mod schema;
 mod time;
 
-pub use typhon_api::{
-    requests,
-    responses,
-    handles,
-    responses::Response
-};
+pub use typhon_api::{handles, requests, responses, responses::Response};
 
 pub mod api;
 pub mod tasks;
@@ -174,8 +169,8 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                     }
                 }
             }
-            requests::Request::Jobset(jobset_handle, req) => {
-                let jobset = Jobset::get(&jobset_handle.project, &jobset_handle.jobset)?;
+            requests::Request::Jobset(handles::pattern!(project, jobset), req) => {
+                let jobset = Jobset::get(&project, &jobset)?;
                 match req {
                     requests::Jobset::Evaluate => {
                         let evaluation_num = jobset.evaluate()?;
@@ -184,12 +179,8 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                     requests::Jobset::Info => Response::JobsetInfo(jobset.info()?),
                 }
             }
-            requests::Request::Evaluation(evaluation_handle, req) => {
-                let evaluation = Evaluation::get(
-                    &evaluation_handle.project,
-                    &evaluation_handle.jobset,
-                    evaluation_handle.evaluation,
-                )?;
+            requests::Request::Evaluation(handles::pattern!(project, jobset, evaluation), req) => {
+                let evaluation = Evaluation::get(&project, &jobset, *evaluation)?;
                 match req {
                     requests::Evaluation::Cancel => {
                         evaluation.cancel()?;
@@ -198,13 +189,8 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                     requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info()?),
                 }
             }
-            requests::Request::Job(job_handle, req) => {
-                let job = Job::get(
-                    &job_handle.project,
-                    &job_handle.jobset,
-                    job_handle.evaluation,
-                    &job_handle.job,
-                )?;
+            requests::Request::Job(handles::pattern!(proj, jobset, eval, job), req) => {
+                let job = Job::get(&proj, &jobset, *eval, &job)?;
                 match req {
                     requests::Job::Cancel => {
                         job.cancel()?;
