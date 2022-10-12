@@ -75,7 +75,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "typhon-api"
+name = "typhon-types"
 version = "0.1.0"
 dependencies = [
  "serde",
