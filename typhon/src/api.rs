@@ -25,7 +25,6 @@ impl<'r> rocket::response::Responder<'r, 'static> for ResponseWrapper {
     }
 }
 
-
 /// A macro to generate api endpoints
 macro_rules! r {
     ($_:tt $attr:tt $name: ident($($i: ident : $t: ty),*) => $e: expr

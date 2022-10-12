@@ -6,11 +6,11 @@ use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
 use crate::schema::jobsets::dsl::*;
 use crate::{connection, EVALUATIONS};
+use crate::{handles, responses};
 use diesel::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
 use substring::Substring;
-use crate::{handles, responses};
 
 fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error> {
     let conn = &mut connection();
