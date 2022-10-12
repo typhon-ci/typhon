@@ -62,6 +62,7 @@ async fn main() -> Result<(), rocket::Error> {
 
     let rocket = rocket::build()
         .mount(format!("{}/api", webroot), typhon::api::routes())
+        .attach(typhon::api::CORS)
         .ignite()
         .await?;
     let _ = rocket.launch().await?;

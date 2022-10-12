@@ -1,7 +1,7 @@
 use crate::requests::*;
 use crate::{handle_request, handles, ResponseError, User};
 use rocket::serde::json::Json;
-use rocket::{get, post, routes, Route};
+use rocket::{get, options, post, routes, Route};
 
 struct ResponseWrapper(crate::Response);
 
@@ -158,6 +158,9 @@ async fn raw_request(
     handle_request(user, body.into_inner()).map(Json)
 }
 
+#[options("/<_..>")]
+fn options_cors() {}
+
 pub fn routes() -> Vec<Route> {
     routes![
         list_projects,
@@ -178,5 +181,34 @@ pub fn routes() -> Vec<Route> {
         build_info,
         build_log,
         raw_request,
+        options_cors,
     ]
+}
+
+use rocket::fairing::{Fairing, Info, Kind};
+pub struct CORS;
+
+#[rocket::async_trait]
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Add CORS headers to responses",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(
+        &self,
+        _: &'r rocket::Request<'_>,
+        response: &mut rocket::Response<'r>,
+    ) {
+        use rocket::http::Header;
+        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+        response.set_header(Header::new(
+            "Access-Control-Allow-Methods",
+            "POST, GET, PATCH, OPTIONS",
+        ));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+    }
 }
