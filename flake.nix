@@ -24,6 +24,7 @@
         typhonShell = pkgs.mkShell {
           name = "typhon-shell";
           packages = [ pkgs.diesel-cli pkgs.sqlite ];
+          inputsFrom = [ typhon ];
           DATABASE_URL = "sqlite:typhon.sqlite";
         };
       in {
