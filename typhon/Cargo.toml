@@ -1,0 +1,53 @@
+[package]
+name = "typhon"
+version = "0.0.1"
+edition = "2021"
+authors = [ "Paul-Nicolas Madelaine <pnm@pnm.tf>" ]
+
+[dependencies.typhon-types]
+path = "../typhon-types"
+
+[dependencies.age]
+version = "0.8"
+features = [ "armor" ]
+
+[dependencies.askama]
+version = "0.11"
+#features = [ "with-rocket" ]
+
+[dependencies.clap]
+version = "4.0"
+features = [ "derive" ]
+
+[dependencies.diesel]
+version = "2.0"
+features = [ "sqlite", "returning_clauses_for_sqlite_3_35" ]
+
+[dependencies.log]
+version = "0.4.11"
+
+[dependencies.once_cell]
+version = "1"
+
+[dependencies.rocket]
+version = "0.5.0-rc.2"
+features = [ "json" ]
+
+[dependencies.stderrlog]
+version = "0.5"
+
+[dependencies.serde]
+version = "1.0"
+
+[dependencies.serde_json]
+version = "1.0"
+
+[dependencies.sha256]
+version = "1.0"
+
+[dependencies.substring]
+version = "1.4"
+
+[dependencies.tokio]
+version = "1"
+features = [ "full" ]

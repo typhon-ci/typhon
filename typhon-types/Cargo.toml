@@ -1,0 +1,11 @@
+[package]
+name = "typhon-types"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies.serde]
+version = "1.0"
+features = ["derive"]
+
+[dependencies.serde_json]
+version = "1.0"

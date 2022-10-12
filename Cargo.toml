@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "typhon",
+  "typhon-types",
+]
+default-members = [
+  "typhon"
+]
