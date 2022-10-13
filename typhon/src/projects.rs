@@ -10,6 +10,7 @@ use crate::{handles, responses};
 use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
 use std::collections::HashMap;
+use std::path::Path;
 use std::str::FromStr;
 
 impl Project {
@@ -154,16 +155,26 @@ impl Project {
 
     pub fn update_jobsets(&self) -> Result<Vec<String>, Error> {
         // run action `jobsets`
-        let action_input = serde_json::json!(null);
-        let action_output = actions::run(
-            &self.project_key,
-            &format!("{}/jobsets", &self.project_actions_path),
-            &format!("{}/secrets", &self.project_actions_path),
-            &action_input,
-        )?;
         let decls: HashMap<String, JobsetDecl> =
-            serde_json::from_str(&action_output.to_string())
-                .map_err(|_| Error::BadJobsetDecl(action_output.to_string()))?;
+            if Path::new(&format!("{}/jobsets", &self.project_actions_path)).exists() {
+                let action_input = serde_json::json!(null);
+                let action_output = actions::run(
+                    &self.project_key,
+                    &format!("{}/jobsets", &self.project_actions_path),
+                    &format!("{}/secrets", &self.project_actions_path),
+                    &action_input,
+                )?;
+                let m = serde_json::from_str(&action_output.to_string())
+                    .map_err(|_| Error::BadJobsetDecl(action_output.to_string()))?;
+                m
+            } else {
+                HashMap::from([(
+                    "main".to_string(),
+                    JobsetDecl {
+                        flake: self.project_decl.clone(),
+                    },
+                )])
+            };
 
         let conn = &mut *connection();
 
