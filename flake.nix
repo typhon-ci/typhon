@@ -21,7 +21,10 @@
   outputs = { self, flake-utils, nixpkgs, crane, rust-overlay }:
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) ];
+        };
         typhon = let craneLib = crane.lib.${system};
         in craneLib.buildPackage {
           name = "typhon";
@@ -43,7 +46,7 @@
         common-devShell-packages = [ pkgs.rustfmt ];
       in {
         packages = {
-          inherit typhon;
+          inherit typhon typhon-webapp;
           default = typhon;
         };
         devShells = {

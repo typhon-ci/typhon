@@ -2,6 +2,7 @@
 members = [
   "typhon",
   "typhon-types",
+  "typhon-webapp",
 ]
 default-members = [
   "typhon"
