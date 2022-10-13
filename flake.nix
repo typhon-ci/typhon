@@ -63,7 +63,7 @@
           };
           typhon-webapp = pkgs.mkShell {
             name = "typhon-webapp-shell";
-            packages = [ ] ++ common-devShell-packages;
+            packages = [ pkgs.trunk ] ++ common-devShell-packages;
             inputsFrom = [ typhon-webapp ];
           };
         };
