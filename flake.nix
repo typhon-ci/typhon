@@ -67,5 +67,7 @@
             inputsFrom = [ typhon-webapp ];
           };
         };
-      });
+      }) // {
+        nixosModules.default = import ./nixos/typhon.nix self;
+      };
 }
