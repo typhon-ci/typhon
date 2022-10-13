@@ -22,29 +22,25 @@
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        craneLib = crane.lib.${system};
-        typhon = craneLib.buildPackage {
+        typhon = let craneLib = crane.lib.${system};
+        in craneLib.buildPackage {
           name = "typhon";
           buildInputs = [ pkgs.sqlite.dev ];
           src = craneLib.cleanCargoSource ./.;
         };
-        typhon-webapp =
-          let
-            rust-wasm = pkgs.rust-bin.stable.latest.default.override {
-              targets = [ "wasm32-unknown-unknown" ];
-            };
-            craneLibWasm = (crane.mkLib pkgs).overrideToolchain rust-wasm;
-          in
-            craneLibWasm.buildPackage {
-              name = "typhon-webapp";
-              buildInputs = [
-                pkgs.pkg-config pkgs.openssl.dev
-                pkgs.nodePackages.sass
-              ];
-              src = craneLib.cleanCargoSource ./.;
-              cargoBuildCommand = "cargo build -p typhon-webapp";
-            };
-        common-devShell-packages = [pkgs.rustfmt];
+        typhon-webapp = let
+          rust-wasm = pkgs.rust-bin.stable.latest.default.override {
+            targets = [ "wasm32-unknown-unknown" ];
+          };
+          craneLibWasm = (crane.mkLib pkgs).overrideToolchain rust-wasm;
+        in craneLibWasm.buildPackage {
+          name = "typhon-webapp";
+          buildInputs =
+            [ pkgs.pkg-config pkgs.openssl.dev pkgs.nodePackages.sass ];
+          src = craneLibWasm.cleanCargoSource ./.;
+          cargoBuildCommand = "cargo build -p typhon-webapp";
+        };
+        common-devShell-packages = [ pkgs.rustfmt ];
       in {
         packages = {
           inherit typhon;
