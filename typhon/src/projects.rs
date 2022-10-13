@@ -13,16 +13,16 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 impl Project {
-    pub fn create(name: &String) -> Result<(), Error> {
-        match Self::get(name) {
-            Ok(_) => Err(Error::ProjectAlreadyExists(name.clone())),
+    pub fn create(project_handle: &handles::Project) -> Result<(), Error> {
+        match Self::get(project_handle) {
+            Ok(_) => Err(Error::ProjectAlreadyExists(project_handle.clone())),
             Err(_) => {
                 let key = age::x25519::Identity::generate()
                     .to_string()
                     .expose_secret()
                     .clone();
                 let new_project = NewProject {
-                    project_name: name,
+                    project_name: &project_handle.project,
                     project_key: &key,
                 };
                 let conn = &mut *connection();
@@ -40,7 +40,8 @@ impl Project {
         Ok(())
     }
 
-    pub fn get(project_name_: &String) -> Result<Self, Error> {
+    pub fn get(project_handle: &handles::Project) -> Result<Self, Error> {
+        let handles::pattern!(project_name_) = project_handle;
         let conn = &mut *connection();
         Ok(projects
             .filter(project_name.eq(project_name_))

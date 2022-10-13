@@ -46,8 +46,9 @@ impl Jobset {
         Ok(num)
     }
 
-    pub fn get(project_name_: &String, jobset_name_: &String) -> Result<Self, Error> {
-        let project = Project::get(project_name_)?;
+    pub fn get(jobset_handle: &handles::Jobset) -> Result<Self, Error> {
+        let handles::pattern!(project_name_, jobset_name_) = jobset_handle;
+        let project = Project::get(&jobset_handle.project)?;
         let conn = &mut *connection();
         Ok(jobsets
             .filter(jobset_project.eq(project.project_id))

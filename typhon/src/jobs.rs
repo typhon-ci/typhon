@@ -11,13 +11,9 @@ impl Job {
         todo!()
     }
 
-    pub fn get(
-        project_name_: &String,
-        jobset_name_: &String,
-        evaluation_num_: i32,
-        job_name_: &String,
-    ) -> Result<Self, Error> {
-        let evaluation = Evaluation::get(project_name_, jobset_name_, evaluation_num_)?;
+    pub fn get(job_handle: &handles::Job) -> Result<Self, Error> {
+        let handles::pattern!(project_name_, jobset_name_, evaluation_num_, job_name_) = job_handle;
+        let evaluation = Evaluation::get(&job_handle.evaluation)?;
         let conn = &mut *connection();
         Ok(jobs
             .filter(job_evaluation.eq(evaluation.evaluation_id))
@@ -27,7 +23,7 @@ impl Job {
                 Error::JobNotFound(handles::job(
                     project_name_.clone(),
                     jobset_name_.clone(),
-                    evaluation_num_,
+                    *evaluation_num_,
                     job_name_.clone(),
                 ))
             })?)

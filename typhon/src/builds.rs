@@ -18,14 +18,15 @@ impl Build {
         }
     }
 
-    pub fn get(hash: &String) -> Result<Self, Error> {
+    pub fn get(build_handle: &handles::Build) -> Result<Self, Error> {
+        let build_hash_ = &build_handle.build_hash;
         let conn = &mut *connection();
         Ok(builds
-            .filter(build_hash.eq(hash))
+            .filter(build_hash.eq(build_hash_))
             .first::<Build>(conn)
             .map_err(|_| {
                 Error::BuildNotFound(handles::Build {
-                    build_hash: hash.to_string(),
+                    build_hash: build_hash_.to_string(),
                 })
             })?)
     }

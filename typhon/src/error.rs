@@ -1,6 +1,6 @@
 use crate::actions;
-use crate::nix;
 use crate::handles;
+use crate::nix;
 
 #[derive(Debug)]
 pub enum Error {
@@ -14,7 +14,7 @@ pub enum Error {
     JobNotFound(handles::Job),
     JobsetNotFound(handles::Jobset),
     NixError(nix::Error),
-    ProjectAlreadyExists(String),
+    ProjectAlreadyExists(handles::Project),
     ProjectNotFound(handles::Project),
     Todo,
     UnexpectedDatabaseError(diesel::result::Error),

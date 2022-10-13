@@ -132,11 +132,11 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
         Ok(match req {
             requests::Request::ListProjects => Response::ListProjects(Project::list()?),
             requests::Request::CreateProject(project_handle) => {
-                Project::create(&project_handle.project)?;
+                Project::create(&project_handle)?;
                 Response::Ok
             }
             requests::Request::Project(project_handle, req) => {
-                let project = Project::get(&project_handle.project)?;
+                let project = Project::get(&project_handle)?;
                 match req {
                     requests::Project::Delete => {
                         project.delete()?;
@@ -161,8 +161,8 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                     }
                 }
             }
-            requests::Request::Jobset(handles::pattern!(project, jobset), req) => {
-                let jobset = Jobset::get(&project, &jobset)?;
+            requests::Request::Jobset(jobset_handle, req) => {
+                let jobset = Jobset::get(&jobset_handle)?;
                 match req {
                     requests::Jobset::Evaluate => {
                         let evaluation_num = jobset.evaluate()?;
@@ -171,8 +171,8 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                     requests::Jobset::Info => Response::JobsetInfo(jobset.info()?),
                 }
             }
-            requests::Request::Evaluation(handles::pattern!(project, jobset, evaluation), req) => {
-                let evaluation = Evaluation::get(&project, &jobset, *evaluation)?;
+            requests::Request::Evaluation(evaluation_handle, req) => {
+                let evaluation = Evaluation::get(evaluation_handle)?;
                 match req {
                     requests::Evaluation::Cancel => {
                         evaluation.cancel()?;
@@ -181,8 +181,8 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                     requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info()?),
                 }
             }
-            requests::Request::Job(handles::pattern!(proj, jobset, eval, job), req) => {
-                let job = Job::get(&proj, &jobset, *eval, &job)?;
+            requests::Request::Job(job_handle, req) => {
+                let job = Job::get(&job_handle)?;
                 match req {
                     requests::Job::Cancel => {
                         job.cancel()?;
@@ -192,7 +192,7 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                 }
             }
             requests::Request::Build(build_handle, req) => {
-                let build = Build::get(&build_handle.build_hash)?;
+                let build = Build::get(&build_handle)?;
                 match req {
                     requests::Build::Cancel => {
                         build.cancel()?;
