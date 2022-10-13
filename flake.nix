@@ -67,6 +67,10 @@
             inputsFrom = [ typhon-webapp ];
           };
         };
+        checks.default = import ./nixos/test.nix {
+          inherit system nixpkgs;
+          typhon = self;
+        };
       }) // {
         nixosModules.default = import ./nixos/typhon.nix self;
       };
