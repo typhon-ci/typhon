@@ -2,33 +2,25 @@
 name = "typhon-webapp"
 version = "0.1.0"
 edition = "2021"
-description = "Template for starting a Yew project using Trunk"
-readme = "README.md"
-repository = "https://github.com/yewstack/yew-trunk-minimal-template"
-license = "MIT OR Apache-2.0"
-keywords = ["yew", "trunk"]
-categories = ["gui", "wasm", "web-programming"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
+typhon-types = { path = "../typhon-types" }
+futures = "0.3"
+gloo-console = "0.2"
+gloo-net = { version = "0.2.4", features = ["json"] }
+gloo-utils = { version = "0.1", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+#serde-wasm-bindgen = "0.4"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4.33"
 yew = "0.19"
 yew-router = "0.16"
-typhon-types = { path = "../typhon-types" }
-wasm-bindgen = "0.2"
-serde = { version = "1.0", features = ["derive"] }
-# serde-wasm-bindgen = "0.4"
-gloo-utils = { version = "0.1", features = ["serde"] }
-gloo-net = { version = "0.2.4", features = ["json"] }
-wasm-bindgen-futures = "0.4.33"
-gloo-console = "0.2"
-futures = "0.3"
 
 [dependencies.serde_json]
 version = "1.0"
 
 [dependencies.web-sys]
 version = "0.3"
-# We need to enable all the web-sys features we want to use!
 features = [
     "console",
     "Document",
