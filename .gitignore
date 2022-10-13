@@ -1,4 +1,2 @@
 target
 *.sqlite
-.direnv
-.envrc
