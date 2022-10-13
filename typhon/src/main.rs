@@ -1,8 +1,11 @@
 use clap::Parser;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::env;
 use std::sync::Mutex;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 /// Typhon, Nix-based continuous integration
 #[derive(Parser, Debug)]
@@ -49,6 +52,11 @@ async fn main() -> Result<(), rocket::Error> {
     let _ = typhon::BUILDS.set(typhon::tasks::Tasks::new());
     let _ = typhon::JOBS.set(typhon::tasks::Tasks::new());
     let _ = typhon::CONNECTION.set(Mutex::new(conn));
+
+    // Run diesel migrations
+    typhon::connection()
+        .run_pending_migrations(MIGRATIONS)
+        .expect("failed to run migrations");
 
     stderrlog::new()
         .module(module_path!())

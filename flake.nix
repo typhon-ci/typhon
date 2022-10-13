@@ -29,7 +29,12 @@
         in craneLib.buildPackage {
           name = "typhon";
           buildInputs = [ pkgs.sqlite.dev ];
-          src = craneLib.cleanCargoSource ./.;
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              path == toString ./Cargo.toml || path == toString ./Cargo.lock
+              || pkgs.lib.hasPrefix (toString ./typhon) path;
+          };
         };
         typhon-webapp = let
           rust-wasm = pkgs.rust-bin.stable.latest.default.override {
