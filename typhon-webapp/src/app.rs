@@ -10,7 +10,7 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, RequestMode, Response}; //::Request;
 use yew::{html, Component, Context, Html};
-use typhon_api::*;
+use typhon_types::*;
 
 async fn handle_request(
     request: &requests::Request
