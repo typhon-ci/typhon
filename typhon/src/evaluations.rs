@@ -62,8 +62,8 @@ impl Evaluation {
 
     pub fn get(evaluation_handle: &handles::Evaluation) -> Result<Self, Error> {
         let handles::pattern!(project_name_, jobset_name_, evaluation_num_) = evaluation_handle;
-        let conn = &mut *connection();
         let jobset = Jobset::get(&evaluation_handle.jobset)?;
+        let conn = &mut *connection();
         Ok(evaluations
             .filter(evaluation_jobset.eq(jobset.jobset_id))
             .filter(evaluation_num.eq(evaluation_num_))
