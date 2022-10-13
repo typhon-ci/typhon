@@ -11,10 +11,6 @@ path = "../typhon-types"
 version = "0.8"
 features = [ "armor" ]
 
-[dependencies.askama]
-version = "0.11"
-#features = [ "with-rocket" ]
-
 [dependencies.clap]
 version = "4.0"
 features = [ "derive" ]
