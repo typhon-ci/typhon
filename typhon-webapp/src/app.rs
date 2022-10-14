@@ -25,14 +25,14 @@ async fn handle_request(request: &requests::Request) -> responses::Response {
         .unwrap() // TODO: bad JSON
 }
 
-#[derive(Debug, Clone, PartialEq, Routable)]
+#[derive(Debug, Clone, PartialEq)] // Routable
 enum Route {
-    #[at("/")]
+    //#[at("/")]
     Home,
-    #[at("/project/:handle")]
+    //#[at("/project/:handle")]
     ProjectHome { handle: handles::Project },
-    #[not_found]
-    #[at("/404")]
+    //#[not_found]
+    //#[at("/404")]
     NotFound,
 }
 
@@ -156,13 +156,12 @@ impl Component for Model {
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div>
-                <BrowserRouter>
-                    <Switch<Route> render={Switch::render(switch)} />
-                </BrowserRouter>
+                //<BrowserRouter>
+                //    <Switch<Route> render={Switch::render(switch)} />
+                //</BrowserRouter>
                 <header>
                   <h1>{"typhon"}</h1>
                   <nav>
-                <button onclick={|_| Msg::SignIn}>{"Sign in"}</button>
                   </nav>
                 </header>
                 <main>
