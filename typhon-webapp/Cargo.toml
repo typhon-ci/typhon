@@ -34,7 +34,3 @@ features = [
     "RequestCredentials",
     "Headers",
 ]
-
-
-
-
