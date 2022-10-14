@@ -61,13 +61,15 @@
         devShells = {
           default = pkgs.mkShell {
             name = "typhon-shell";
-            packages = [ pkgs.diesel-cli pkgs.sqlite ];
-            inputsFrom = [ typhon ] ++ common-devShell-packages;
+            packages = [ pkgs.diesel-cli pkgs.sqlite pkgs.pkg-config ]
+              ++ common-devShell-packages;
+            inputsFrom = [ typhon ];
             DATABASE_URL = "sqlite:typhon.sqlite";
           };
           typhon-webapp = pkgs.mkShell {
             name = "typhon-webapp-shell";
-            packages = [ pkgs.trunk ] ++ common-devShell-packages;
+            packages = [ pkgs.trunk pkgs.nodePackages.sass ]
+              ++ common-devShell-packages;
             inputsFrom = [ typhon-webapp ];
           };
         };
