@@ -25,28 +25,32 @@
           inherit system;
           overlays = [ (import rust-overlay) ];
         };
-        typhon = let craneLib = crane.lib.${system};
+        src = pkgs.lib.cleanSourceWith {
+          src = ./.;
+          filter = path: type:
+            path == toString ./Cargo.toml || path == toString ./Cargo.lock
+            || pkgs.lib.hasPrefix (toString ./typhon) path
+            || pkgs.lib.hasPrefix (toString ./typhon-types) path
+            || pkgs.lib.hasPrefix (toString ./typhon-webapp) path;
+        };
+        typhon = let
+          craneLib = crane.lib.${system};
+          cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
         in craneLib.buildPackage {
           name = "typhon";
+          inherit src cargoArtifacts;
           buildInputs = [ pkgs.sqlite.dev ];
-          src = pkgs.lib.cleanSourceWith {
-            src = ./.;
-            filter = path: type:
-              path == toString ./Cargo.toml || path == toString ./Cargo.lock
-              || pkgs.lib.hasPrefix (toString ./typhon) path;
-          };
         };
         typhon-webapp = let
           rust-wasm = pkgs.rust-bin.stable.latest.default.override {
             targets = [ "wasm32-unknown-unknown" ];
           };
-          craneLibWasm = (crane.mkLib pkgs).overrideToolchain rust-wasm;
-        in craneLibWasm.buildPackage {
+          craneLib = (crane.mkLib pkgs).overrideToolchain rust-wasm;
+          cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
+        in craneLib.buildPackage {
           name = "typhon-webapp";
-          buildInputs =
-            [ pkgs.pkg-config pkgs.openssl.dev pkgs.nodePackages.sass ];
-          src = craneLibWasm.cleanCargoSource ./.;
-          cargoBuildCommand = "cargo build -p typhon-webapp";
+          inherit src cargoArtifacts;
+          cargoExtraArgs = "-p typhon-webapp";
         };
         common-devShell-packages = [ pkgs.rustfmt ];
       in {
