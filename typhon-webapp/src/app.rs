@@ -5,19 +5,16 @@ use gloo_console as console;
 use gloo_net::http;
 use gloo_utils::format::JsValueSerdeExt;
 use serde_json::{Result, Value};
+use typhon_types::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, RequestMode, Response}; //::Request;
 use yew::{html, Component, Context, Html};
-use typhon_types::*;
 
-async fn handle_request(
-    request: &requests::Request
-) -> responses::Response {
-    http::Request::new(
-        "http://127.0.0.1:8000/api/raw-request"
-    ).method(http::Method::POST)
+async fn handle_request(request: &requests::Request) -> responses::Response {
+    http::Request::new("http://127.0.0.1:8000/api/raw-request")
+        .method(http::Method::POST)
         .json(request)
         .expect("Could not encode request into JSON")
         .send()
@@ -58,7 +55,6 @@ macro_rules! expect {
     };
 }
 
-
 #[derive(Clone, Properties, PartialEq)]
 pub struct ProjectData {
     handle: handles::Project,
@@ -97,9 +93,7 @@ impl Model {
         let link = ctx.link().clone();
         wasm_bindgen_futures::spawn_local(async move {
             let project_handles = expect!(
-                handle_request(
-                    &requests::Request::ListProjects
-                ).await,
+                handle_request(&requests::Request::ListProjects).await,
                 responses::Response::ListProjects
             );
 
@@ -109,23 +103,22 @@ impl Model {
                     ProjectData {
                         handle: handle.clone(),
                         infos: expect!(
-                            handle_request(
-                                &requests::Request::Project(
-                                    handle,
-                                    requests::Project::Info
-                                )
-                            ).await,
+                            handle_request(&requests::Request::Project(
+                                handle,
+                                requests::Project::Info
+                            ))
+                            .await,
                             responses::Response::ProjectInfo
-                        )
+                        ),
                     }
-                }
-            )).await;
-            
+                },
+            ))
+            .await;
+
             link.send_message(Msg::SetProjects(projects));
         });
     }
 }
-
 
 fn switch(routes: &Route) -> Html {
     match routes {
@@ -144,9 +137,7 @@ impl Component for Model {
 
     fn create(ctx: &Context<Self>) -> Self {
         Self::fetch_projects(ctx);
-        Self {
-            projects: vec!()
-        }
+        Self { projects: vec![] }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
