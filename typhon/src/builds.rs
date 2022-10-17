@@ -1,8 +1,9 @@
+use crate::connection;
 use crate::error::Error;
 use crate::models::*;
 use crate::nix;
 use crate::schema::builds::dsl::*;
-use crate::{connection, BUILDS};
+use crate::BUILDS;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 use diesel::prelude::*;
@@ -19,9 +20,8 @@ impl Build {
         }
     }
 
-    pub fn get(build_handle: &handles::Build) -> Result<Self, Error> {
+    pub fn get(conn: &mut SqliteConnection, build_handle: &handles::Build) -> Result<Self, Error> {
         let build_hash_ = &build_handle.build_hash;
-        let conn = &mut *connection();
         Ok(builds
             .filter(build_hash.eq(build_hash_))
             .first::<Build>(conn)
@@ -59,7 +59,7 @@ impl Build {
                 Some(Err(_)) => "error", // TODO: log error
                 None => "canceled",
             };
-            let conn = &mut *connection();
+            let conn: &mut SqliteConnection = &mut *connection();
             let _ = diesel::update(builds.find(id))
                 .set(build_status.eq(status))
                 .execute(conn);

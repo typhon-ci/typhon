@@ -129,70 +129,71 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
 
 pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Response, Error> {
     if authorize_request(user, req) {
+        let conn = &mut *CONNECTION.get().unwrap().lock().unwrap();
         Ok(match req {
-            requests::Request::ListProjects => Response::ListProjects(Project::list()?),
+            requests::Request::ListProjects => Response::ListProjects(Project::list(conn)?),
             requests::Request::CreateProject(project_handle) => {
-                Project::create(&project_handle)?;
+                Project::create(conn, &project_handle)?;
                 Response::Ok
             }
             requests::Request::Project(project_handle, req) => {
-                let project = Project::get(&project_handle)?;
+                let project = Project::get(conn, &project_handle)?;
                 match req {
                     requests::Project::Delete => {
-                        project.delete()?;
+                        project.delete(conn)?;
                         Response::Ok
                     }
-                    requests::Project::Info => Response::ProjectInfo(project.info()?),
+                    requests::Project::Info => Response::ProjectInfo(project.info(conn)?),
                     requests::Project::Refresh => {
-                        project.refresh()?;
+                        project.refresh(conn)?;
                         Response::Ok
                     }
                     requests::Project::SetDecl(flake) => {
-                        project.set_decl(&flake)?;
+                        project.set_decl(conn, &flake)?;
                         Response::Ok
                     }
                     requests::Project::SetPrivateKey(key) => {
-                        project.set_private_key(&key)?;
+                        project.set_private_key(conn, &key)?;
                         Response::Ok
                     }
                     requests::Project::UpdateJobsets => {
-                        let jobsets = project.update_jobsets()?;
+                        let jobsets = project.update_jobsets(conn)?;
                         Response::ProjectUpdateJobsets(jobsets)
                     }
                 }
             }
             requests::Request::Jobset(jobset_handle, req) => {
-                let jobset = Jobset::get(&jobset_handle)?;
+                let jobset = Jobset::get(conn, &jobset_handle)?;
                 match req {
                     requests::Jobset::Evaluate => {
-                        let evaluation_handle = jobset.evaluate()?;
+                        let evaluation_handle = jobset.evaluate(conn)?;
                         Response::JobsetEvaluate(evaluation_handle)
                     }
-                    requests::Jobset::Info => Response::JobsetInfo(jobset.info()?),
+                    requests::Jobset::Info => Response::JobsetInfo(jobset.info(conn)?),
                 }
             }
             requests::Request::Evaluation(evaluation_handle, req) => {
-                let evaluation = Evaluation::get(evaluation_handle)?;
+                let evaluation = Evaluation::get(conn, evaluation_handle)?;
                 match req {
                     requests::Evaluation::Cancel => {
                         evaluation.cancel()?;
                         Response::Ok
                     }
-                    requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info()?),
+                    requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
                 }
             }
             requests::Request::Job(job_handle, req) => {
-                let job = Job::get(&job_handle)?;
+                let job = Job::get(conn, &job_handle)?;
                 match req {
                     requests::Job::Cancel => {
                         job.cancel()?;
                         Response::Ok
                     }
-                    requests::Job::Info => Response::JobInfo(job.info()?),
+                    requests::Job::Info => Response::JobInfo(job.info(conn)?),
                 }
             }
             requests::Request::Build(build_handle, req) => {
-                let build = Build::get(&build_handle)?;
+                let build = Build::get(conn, &build_handle)?;
                 match req {
                     requests::Build::Cancel => {
                         build.cancel()?;

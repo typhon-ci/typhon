@@ -1,9 +1,10 @@
+use crate::connection;
 use crate::error::Error;
 use crate::handles;
 use crate::models::*;
 use crate::responses;
 use crate::schema::jobs::dsl::*;
-use crate::{connection, JOBS};
+use crate::JOBS;
 use diesel::prelude::*;
 
 impl Job {
@@ -11,10 +12,9 @@ impl Job {
         todo!()
     }
 
-    pub fn get(job_handle: &handles::Job) -> Result<Self, Error> {
+    pub fn get(conn: &mut SqliteConnection, job_handle: &handles::Job) -> Result<Self, Error> {
         let handles::pattern!(project_name_, jobset_name_, evaluation_num_, job_name_) = job_handle;
-        let evaluation = Evaluation::get(&job_handle.evaluation)?;
-        let conn = &mut *connection();
+        let evaluation = Evaluation::get(conn, &job_handle.evaluation)?;
         Ok(jobs
             .filter(job_evaluation.eq(evaluation.evaluation_id))
             .filter(job_name.eq(job_name_))
@@ -29,7 +29,7 @@ impl Job {
             })?)
     }
 
-    pub fn info(&self) -> Result<responses::JobInfo, Error> {
+    pub fn info(&self, _conn: &mut SqliteConnection) -> Result<responses::JobInfo, Error> {
         todo!()
     }
 
@@ -42,7 +42,7 @@ impl Job {
                 Some(Err(_)) => "error", // TODO: log error
                 None => "canceled",
             };
-            let conn = &mut *connection();
+            let conn: &mut SqliteConnection = &mut *connection();
             let _ = diesel::update(jobs.find(id))
                 .set(job_status.eq(status))
                 .execute(conn);

@@ -1,5 +1,4 @@
 use crate::actions;
-use crate::connection;
 use crate::error::Error;
 use crate::jobsets::JobsetDecl;
 use crate::models::*;
@@ -15,8 +14,11 @@ use std::path::Path;
 use std::str::FromStr;
 
 impl Project {
-    pub fn create(project_handle: &handles::Project) -> Result<(), Error> {
-        match Self::get(project_handle) {
+    pub fn create(
+        conn: &mut SqliteConnection,
+        project_handle: &handles::Project,
+    ) -> Result<(), Error> {
+        match Self::get(conn, project_handle) {
             Ok(_) => Err(Error::ProjectAlreadyExists(project_handle.clone())),
             Err(_) => {
                 let key = age::x25519::Identity::generate()
@@ -27,7 +29,6 @@ impl Project {
                     project_name: &project_handle.project,
                     project_key: &key,
                 };
-                let conn = &mut *connection();
                 diesel::insert_into(projects)
                     .values(&new_project)
                     .execute(conn)?;
@@ -37,16 +38,17 @@ impl Project {
         }
     }
 
-    pub fn delete(&self) -> Result<(), Error> {
-        let conn = &mut *connection();
+    pub fn delete(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
         diesel::delete(projects.find(self.project_id)).execute(conn)?;
-        log_event(Event::ProjectDeleted(self.handle()?));
+        log_event(Event::ProjectDeleted(self.handle(conn)?));
         Ok(())
     }
 
-    pub fn get(project_handle: &handles::Project) -> Result<Self, Error> {
+    pub fn get(
+        conn: &mut SqliteConnection,
+        project_handle: &handles::Project,
+    ) -> Result<Self, Error> {
         let handles::pattern!(project_name_) = project_handle;
-        let conn = &mut *connection();
         Ok(projects
             .filter(project_name.eq(project_name_))
             .first::<Project>(conn)
@@ -57,14 +59,13 @@ impl Project {
             })?)
     }
 
-    pub fn handle(&self) -> Result<handles::Project, Error> {
+    pub fn handle(&self, _conn: &mut SqliteConnection) -> Result<handles::Project, Error> {
         Ok(handles::Project {
             project: self.project_name.clone(),
         })
     }
 
-    pub fn info(&self) -> Result<responses::ProjectInfo, Error> {
-        let conn = &mut *connection();
+    pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::ProjectInfo, Error> {
         let jobsets_names = jobsets
             .filter(jobset_project.eq(self.project_id))
             .load::<Jobset>(conn)?
@@ -89,8 +90,7 @@ impl Project {
         })
     }
 
-    pub fn list() -> Result<Vec<String>, Error> {
-        let conn = &mut *connection();
+    pub fn list(conn: &mut SqliteConnection) -> Result<Vec<String>, Error> {
         Ok(projects
             .order(project_name.asc())
             .load::<Project>(conn)?
@@ -99,7 +99,7 @@ impl Project {
             .collect())
     }
 
-    pub fn refresh(&self) -> Result<(), Error> {
+    pub fn refresh(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
         let locked_flake = nix::lock(&self.project_decl)?;
         let mut title = String::new();
         let mut description = String::new();
@@ -131,7 +131,6 @@ impl Project {
             })
             .unwrap_or(Ok::<(), Error>(()))?;
 
-        let conn = &mut *connection();
         diesel::update(projects.find(self.project_id))
             .set((
                 project_title.eq(title),
@@ -141,29 +140,27 @@ impl Project {
                 project_decl_locked.eq(locked_flake),
             ))
             .execute(conn)?;
-        log_event(Event::ProjectRefreshed(self.handle()?));
+        log_event(Event::ProjectRefreshed(self.handle(conn)?));
 
         Ok(())
     }
 
-    pub fn set_decl(&self, flake: &String) -> Result<(), Error> {
-        let conn = &mut *connection();
+    pub fn set_decl(&self, conn: &mut SqliteConnection, flake: &String) -> Result<(), Error> {
         diesel::update(projects.find(self.project_id))
             .set(project_decl.eq(flake))
             .execute(conn)?;
         Ok(())
     }
 
-    pub fn set_private_key(&self, key: &String) -> Result<(), Error> {
+    pub fn set_private_key(&self, conn: &mut SqliteConnection, key: &String) -> Result<(), Error> {
         let _ = age::x25519::Identity::from_str(key).map_err(|_| Error::Todo)?;
-        let conn = &mut *connection();
         diesel::update(projects.find(self.project_id))
             .set(project_key.eq(key))
             .execute(conn)?;
         Ok(())
     }
 
-    pub fn update_jobsets(&self) -> Result<Vec<String>, Error> {
+    pub fn update_jobsets(&self, conn: &mut SqliteConnection) -> Result<Vec<String>, Error> {
         // run action `jobsets`
         let decls: HashMap<String, JobsetDecl> =
             if Path::new(&format!("{}/jobsets", &self.project_actions_path)).exists() {
@@ -186,8 +183,9 @@ impl Project {
                 )])
             };
 
-        let conn = &mut *connection();
-
+        // TODO: slpit update_jobsets into two functions
+        // the connection is blocked through the first step of the function
+        // which may take a long time
         conn.transaction::<(), Error, _>(|conn| {
             let current_jobsets = jobsets
                 .filter(jobset_project.eq(self.project_id))
@@ -227,7 +225,7 @@ impl Project {
             Ok(())
         })?;
 
-        log_event(Event::ProjectJobsetsUpdated(self.handle()?));
+        log_event(Event::ProjectJobsetsUpdated(self.handle(conn)?));
 
         Ok(decls.into_keys().collect())
     }

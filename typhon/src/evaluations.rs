@@ -1,3 +1,4 @@
+use crate::connection;
 use crate::error::Error;
 use crate::models::*;
 use crate::nix;
@@ -5,7 +6,7 @@ use crate::schema::builds::dsl::*;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
 use crate::schema::jobsets::dsl::*;
-use crate::{connection, EVALUATIONS};
+use crate::EVALUATIONS;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 use diesel::prelude::*;
@@ -13,7 +14,7 @@ use std::collections::HashMap;
 use substring::Substring;
 
 fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error> {
-    let conn = &mut *connection();
+    let conn: &mut SqliteConnection = &mut *connection();
     conn.transaction::<(), Error, _>(|conn| {
         for (name, drv) in new_jobs.iter() {
             let hash = drv.substring(11, 43).to_string();
@@ -62,10 +63,12 @@ impl Evaluation {
         todo!()
     }
 
-    pub fn get(evaluation_handle: &handles::Evaluation) -> Result<Self, Error> {
+    pub fn get(
+        conn: &mut SqliteConnection,
+        evaluation_handle: &handles::Evaluation,
+    ) -> Result<Self, Error> {
         let handles::pattern!(project_name_, jobset_name_, evaluation_num_) = evaluation_handle;
-        let jobset = Jobset::get(&evaluation_handle.jobset)?;
-        let conn = &mut *connection();
+        let jobset = Jobset::get(conn, &evaluation_handle.jobset)?;
         Ok(evaluations
             .filter(evaluation_jobset.eq(jobset.jobset_id))
             .filter(evaluation_num.eq(evaluation_num_))
@@ -79,16 +82,16 @@ impl Evaluation {
             })?)
     }
 
-    pub fn handle(&self) -> Result<handles::Evaluation, Error> {
+    pub fn handle(&self, conn: &mut SqliteConnection) -> Result<handles::Evaluation, Error> {
         Ok(handles::Evaluation {
-            jobset: self.jobset()?.handle()?,
+            jobset: self.jobset(conn)?.handle(conn)?,
             evaluation: self.evaluation_num,
         })
     }
 
-    pub fn info(&self) -> Result<responses::EvaluationInfo, Error> {
-        let jobset = self.jobset()?;
-        let project = jobset.project()?;
+    pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::EvaluationInfo, Error> {
+        let jobset = self.jobset(conn)?;
+        let project = jobset.project(conn)?;
         Ok(responses::EvaluationInfo {
             project: project.project_name.clone(),
             jobset: jobset.jobset_name.clone(),
@@ -99,13 +102,12 @@ impl Evaluation {
         })
     }
 
-    pub fn jobset(&self) -> Result<Jobset, Error> {
-        let conn = &mut *connection();
+    pub fn jobset(&self, conn: &mut SqliteConnection) -> Result<Jobset, Error> {
         Ok(jobsets.find(self.evaluation_jobset).first::<Jobset>(conn)?)
     }
 
-    pub fn run(self) -> () {
-        let handle = self.handle().unwrap(); // TODO
+    pub fn run(self, conn: &mut SqliteConnection) -> () {
+        let handle = self.handle(conn).unwrap(); // TODO
         let id = self.evaluation_id;
         let task = async move {
             let expr = format!("{}#typhonJobs", self.evaluation_locked_flake);
@@ -131,7 +133,7 @@ impl Evaluation {
                 Some(Err(_)) => "error", // TODO: log error to the user
                 None => "canceled",
             };
-            let conn = &mut *connection();
+            let conn: &mut SqliteConnection = &mut *connection();
             let _ = diesel::update(evaluations.find(id))
                 .set(evaluation_status.eq(status))
                 .execute(conn);

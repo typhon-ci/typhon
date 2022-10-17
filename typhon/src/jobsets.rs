@@ -1,4 +1,3 @@
-use crate::connection;
 use crate::error::Error;
 use crate::models::*;
 use crate::nix;
@@ -17,10 +16,9 @@ pub struct JobsetDecl {
 }
 
 impl Jobset {
-    pub fn evaluate(&self) -> Result<handles::Evaluation, Error> {
-        let project = self.project()?;
+    pub fn evaluate(&self, conn: &mut SqliteConnection) -> Result<handles::Evaluation, Error> {
+        let project = self.project(conn)?;
         let locked_flake = nix::lock(&self.jobset_flake)?;
-        let conn = &mut *connection();
         let evaluation = conn.transaction::<Evaluation, Error, _>(|conn| {
             let old_evaluations = evaluations
                 .filter(evaluation_jobset.eq(self.jobset_id))
@@ -41,17 +39,19 @@ impl Jobset {
                 .get_result(conn)?)
         })?;
 
-        let handle = evaluation.handle()?;
+        let handle = evaluation.handle(conn)?;
         log_event(Event::EvaluationNew(handle.clone()));
-        evaluation.run();
+        evaluation.run(conn);
 
         Ok(handle)
     }
 
-    pub fn get(jobset_handle: &handles::Jobset) -> Result<Self, Error> {
+    pub fn get(
+        conn: &mut SqliteConnection,
+        jobset_handle: &handles::Jobset,
+    ) -> Result<Self, Error> {
         let handles::pattern!(project_name_, jobset_name_) = jobset_handle;
-        let project = Project::get(&jobset_handle.project)?;
-        let conn = &mut *connection();
+        let project = Project::get(conn, &jobset_handle.project)?;
         Ok(jobsets
             .filter(jobset_project.eq(project.project_id))
             .filter(jobset_name.eq(jobset_name_))
@@ -64,15 +64,14 @@ impl Jobset {
             })?)
     }
 
-    pub fn handle(&self) -> Result<handles::Jobset, Error> {
+    pub fn handle(&self, conn: &mut SqliteConnection) -> Result<handles::Jobset, Error> {
         Ok(handles::Jobset {
-            project: self.project()?.handle()?,
+            project: self.project(conn)?.handle(conn)?,
             jobset: self.jobset_name.clone(),
         })
     }
 
-    pub fn info(&self) -> Result<responses::JobsetInfo, Error> {
-        let conn = &mut *connection();
+    pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::JobsetInfo, Error> {
         let evals = evaluations
             .filter(evaluation_jobset.eq(self.jobset_id))
             .order(evaluation_id.desc())
@@ -91,8 +90,7 @@ impl Jobset {
         })
     }
 
-    pub fn project(&self) -> Result<Project, Error> {
-        let conn = &mut *connection();
+    pub fn project(&self, conn: &mut SqliteConnection) -> Result<Project, Error> {
         Ok(projects.find(self.jobset_project).first::<Project>(conn)?)
     }
 }
