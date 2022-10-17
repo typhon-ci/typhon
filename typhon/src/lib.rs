@@ -13,7 +13,7 @@ mod time;
 pub mod api;
 pub mod tasks;
 
-pub use typhon_types::{handles, requests, responses, responses::Response};
+pub use typhon_types::{handles, requests, responses, responses::Response, Event};
 
 use error::Error;
 use models::*;
@@ -165,8 +165,8 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                 let jobset = Jobset::get(&jobset_handle)?;
                 match req {
                     requests::Jobset::Evaluate => {
-                        let evaluation_num = jobset.evaluate()?;
-                        Response::JobsetEvaluate(evaluation_num)
+                        let evaluation_handle = jobset.evaluate()?;
+                        Response::JobsetEvaluate(evaluation_handle)
                     }
                     requests::Jobset::Info => Response::JobsetInfo(jobset.info()?),
                 }
@@ -220,4 +220,8 @@ pub fn handle_request(user: User, req: requests::Request) -> Result<Response, Re
         }
         e
     })?)
+}
+
+pub fn log_event(event: Event) {
+    info!("event: {:?}", event)
 }

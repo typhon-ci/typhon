@@ -7,6 +7,7 @@ use crate::schema::jobsets::dsl::*;
 use crate::schema::projects::dsl::*;
 use crate::time;
 use crate::{handles, responses};
+use crate::{log_event, Event};
 use diesel::prelude::*;
 use serde::Deserialize;
 
@@ -16,7 +17,7 @@ pub struct JobsetDecl {
 }
 
 impl Jobset {
-    pub fn evaluate(&self) -> Result<i32, Error> {
+    pub fn evaluate(&self) -> Result<handles::Evaluation, Error> {
         let project = self.project()?;
         let locked_flake = nix::lock(&self.jobset_flake)?;
         let conn = &mut *connection();
@@ -40,10 +41,11 @@ impl Jobset {
                 .get_result(conn)?)
         })?;
 
-        let num = evaluation.evaluation_num;
+        let handle = evaluation.handle()?;
+        log_event(Event::EvaluationNew(handle.clone()));
         evaluation.run();
 
-        Ok(num)
+        Ok(handle)
     }
 
     pub fn get(jobset_handle: &handles::Jobset) -> Result<Self, Error> {
@@ -60,6 +62,13 @@ impl Jobset {
                     jobset_name_.to_string(),
                 ))
             })?)
+    }
+
+    pub fn handle(&self) -> Result<handles::Jobset, Error> {
+        Ok(handles::Jobset {
+            project: self.project()?.handle()?,
+            jobset: self.jobset_name.clone(),
+        })
     }
 
     pub fn info(&self) -> Result<responses::JobsetInfo, Error> {

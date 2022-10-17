@@ -7,6 +7,7 @@ use crate::nix;
 use crate::schema::jobsets::dsl::*;
 use crate::schema::projects::dsl::*;
 use crate::{handles, responses};
+use crate::{log_event, Event};
 use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
 use std::collections::HashMap;
@@ -30,6 +31,7 @@ impl Project {
                 diesel::insert_into(projects)
                     .values(&new_project)
                     .execute(conn)?;
+                log_event(Event::ProjectNew(project_handle.clone()));
                 Ok(())
             }
         }
@@ -38,6 +40,7 @@ impl Project {
     pub fn delete(&self) -> Result<(), Error> {
         let conn = &mut *connection();
         diesel::delete(projects.find(self.project_id)).execute(conn)?;
+        log_event(Event::ProjectDeleted(self.handle()?));
         Ok(())
     }
 
@@ -52,6 +55,12 @@ impl Project {
                     project: project_name_.clone(),
                 })
             })?)
+    }
+
+    pub fn handle(&self) -> Result<handles::Project, Error> {
+        Ok(handles::Project {
+            project: self.project_name.clone(),
+        })
     }
 
     pub fn info(&self) -> Result<responses::ProjectInfo, Error> {
@@ -132,6 +141,7 @@ impl Project {
                 project_decl_locked.eq(locked_flake),
             ))
             .execute(conn)?;
+        log_event(Event::ProjectRefreshed(self.handle()?));
 
         Ok(())
     }
@@ -216,6 +226,8 @@ impl Project {
 
             Ok(())
         })?;
+
+        log_event(Event::ProjectJobsetsUpdated(self.handle()?));
 
         Ok(decls.into_keys().collect())
     }

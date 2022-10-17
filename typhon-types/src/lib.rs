@@ -1,6 +1,5 @@
 pub mod handles {
     use serde::{Deserialize, Serialize};
-
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Project {
         pub project: String,
@@ -214,11 +213,23 @@ pub mod responses {
         ListProjects(Vec<String>),
         ProjectInfo(ProjectInfo),
         ProjectUpdateJobsets(Vec<String>),
-        JobsetEvaluate(i32),
+        JobsetEvaluate(crate::handles::Evaluation),
         JobsetInfo(JobsetInfo),
         EvaluationInfo(EvaluationInfo),
         JobInfo(JobInfo),
         BuildInfo(BuildInfo),
         BuildLog, // TODO
     }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub enum Event {
+    ProjectNew(handles::Project),
+    ProjectDeleted(handles::Project),
+    ProjectRefreshed(handles::Project),
+    ProjectJobsetsUpdated(handles::Project),
+    EvaluationNew(handles::Evaluation),
+    EvaluationFinished(handles::Evaluation),
+    BuildNew(handles::Build),
+    BuildFinished(handles::Build),
 }

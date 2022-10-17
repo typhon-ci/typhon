@@ -7,6 +7,7 @@ use crate::schema::jobs::dsl::*;
 use crate::schema::jobsets::dsl::*;
 use crate::{connection, EVALUATIONS};
 use crate::{handles, responses};
+use crate::{log_event, Event};
 use diesel::prelude::*;
 use std::collections::HashMap;
 use substring::Substring;
@@ -33,6 +34,7 @@ fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error>
                     let build: Build = diesel::insert_into(builds)
                         .values(&new_build)
                         .get_result(conn)?;
+                    log_event(Event::BuildNew(build.handle()?));
                     build.clone().run();
                     Ok(build)
                 }
@@ -77,6 +79,13 @@ impl Evaluation {
             })?)
     }
 
+    pub fn handle(&self) -> Result<handles::Evaluation, Error> {
+        Ok(handles::Evaluation {
+            jobset: self.jobset()?.handle()?,
+            evaluation: self.evaluation_num,
+        })
+    }
+
     pub fn info(&self) -> Result<responses::EvaluationInfo, Error> {
         let jobset = self.jobset()?;
         let project = jobset.project()?;
@@ -96,6 +105,7 @@ impl Evaluation {
     }
 
     pub fn run(self) -> () {
+        let handle = self.handle().unwrap(); // TODO
         let id = self.evaluation_id;
         let task = async move {
             let expr = format!("{}#typhonJobs", self.evaluation_locked_flake);
@@ -125,6 +135,7 @@ impl Evaluation {
             let _ = diesel::update(evaluations.find(id))
                 .set(evaluation_status.eq(status))
                 .execute(conn);
+            log_event(Event::EvaluationFinished(handle));
         };
         EVALUATIONS.get().unwrap().run(id, task, f);
     }
