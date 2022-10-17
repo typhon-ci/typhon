@@ -20,12 +20,12 @@ impl Job {
             .filter(job_name.eq(job_name_))
             .first::<Job>(conn)
             .map_err(|_| {
-                Error::JobNotFound(handles::job(
+                Error::JobNotFound(handles::job((
                     project_name_.clone(),
                     jobset_name_.clone(),
                     *evaluation_num_,
                     job_name_.clone(),
-                ))
+                )))
             })?)
     }
 

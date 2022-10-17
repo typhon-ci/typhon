@@ -18,17 +18,18 @@ pub use typhon_types::{handles, requests, responses, responses::Response, Event}
 use error::Error;
 use models::*;
 
+use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use diesel::prelude::*;
 use log::*;
 use once_cell::sync::OnceCell;
-use rocket::Responder;
-use sha256;
+use sha256::digest;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Mutex;
 
 #[derive(Debug)]
 pub struct Settings {
     pub hashed_password: String,
-    pub webroot: String,
 }
 
 // Typhon's state
@@ -57,41 +58,41 @@ impl User {
     }
 }
 
-#[rocket::async_trait]
-impl<'r> rocket::request::FromRequest<'r> for User {
-    type Error = ();
-    async fn from_request(
-        request: &'r rocket::Request<'_>,
-    ) -> rocket::request::Outcome<Self, Self::Error> {
-        rocket::request::Outcome::Success(
-            //request
-            //    .cookies()
-            //    .get_private("admin")
-            //    .map_or(User::Anonymous, |_| User::Admin),
-            request
-                .headers()
-                .get("password")
-                .last()
-                .map_or(User::Anonymous, |password| {
-                    let hash = sha256::digest(password);
-                    if hash == SETTINGS.get().unwrap().hashed_password {
-                        User::Admin
-                    } else {
-                        User::Anonymous
-                    }
-                }),
-        )
+impl FromRequest for User {
+    type Error = actix_web::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<User, actix_web::Error>>>>;
+
+    fn from_request(req: &HttpRequest, _pl: &mut Payload) -> Self::Future {
+        let user = req
+            .headers()
+            .get("password")
+            .map_or(User::Anonymous, |password| {
+                let hash = digest(password.as_bytes());
+                if hash == SETTINGS.get().unwrap().hashed_password {
+                    User::Admin
+                } else {
+                    User::Anonymous
+                }
+            });
+        Box::pin(async move { Ok(user) })
     }
 }
 
-#[derive(Responder)]
+#[derive(Debug)]
 pub enum ResponseError {
-    #[response(status = 404)]
-    ResourceNotFound(String),
-    #[response(status = 500)]
-    InternalError(()),
-    #[response(status = 400)]
     BadRequest(String),
+    InternalError(()),
+    ResourceNotFound(String),
+}
+
+impl std::fmt::Display for ResponseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ResponseError::BadRequest(e) => write!(f, "Bad request: {}", e),
+            ResponseError::InternalError(()) => write!(f, "Internal server error"),
+            ResponseError::ResourceNotFound(e) => write!(f, "Resource not found: {}", e),
+        }
+    }
 }
 
 impl From<error::Error> for ResponseError {

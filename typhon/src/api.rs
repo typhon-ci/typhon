@@ -1,35 +1,48 @@
-use crate::{handle_request, handles, ResponseError, User};
-use crate::{requests::*, responses::Response};
-use rocket::serde::json::Json;
-use rocket::{get, options, post, routes, Route};
+use crate::requests::*;
+use crate::{handle_request, handles, Response, ResponseError, User};
+use actix_cors::Cors;
+use actix_web::{
+    body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
+};
 
 struct ResponseWrapper(crate::Response);
 
-impl<'r> rocket::response::Responder<'r, 'static> for ResponseWrapper {
-    fn respond_to(self, req: &'r rocket::Request<'_>) -> rocket::response::Result<'static> {
+impl Responder for ResponseWrapper {
+    type Body = EitherBody<String>;
+    fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
         use crate::Response::*;
         match self.0 {
-            Ok => Json(true).respond_to(req),
-            ListProjects(payload) => Json(payload).respond_to(req),
-            ProjectInfo(payload) => Json(payload).respond_to(req),
-            ProjectUpdateJobsets(payload) => Json(payload).respond_to(req),
-            JobsetInfo(payload) => Json(payload).respond_to(req),
-            JobsetEvaluate(payload) => Json(payload).respond_to(req),
-            EvaluationInfo(payload) => Json(payload).respond_to(req),
-            JobInfo(payload) => Json(payload).respond_to(req),
-            BuildInfo(payload) => Json(payload).respond_to(req),
+            Ok => web::Json(true).respond_to(req),
+            ListProjects(payload) => web::Json(payload).respond_to(req),
+            ProjectInfo(payload) => web::Json(payload).respond_to(req),
+            ProjectUpdateJobsets(payload) => web::Json(payload).respond_to(req),
+            JobsetInfo(payload) => web::Json(payload).respond_to(req),
+            JobsetEvaluate(payload) => web::Json(payload).respond_to(req),
+            EvaluationInfo(payload) => web::Json(payload).respond_to(req),
+            JobInfo(payload) => web::Json(payload).respond_to(req),
+            BuildInfo(payload) => web::Json(payload).respond_to(req),
             // BuildLog(payload) => payload.respond_to(req),
-            BuildLog => Json("todo").respond_to(req),
+            BuildLog => web::Json("todo").respond_to(req),
+        }
+    }
+}
+
+impl actix_web::ResponseError for ResponseError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            ResponseError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            ResponseError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ResponseError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
         }
     }
 }
 
 /// A macro to generate api endpoints
 macro_rules! r {
-    ($_:tt $attr:tt $name: ident($($i: ident : $t: ty),*) => $e: expr
+    ($name: ident($($i: ident : $t: ty),*) => $e: expr
      ;$($rest: tt)*
     ) => {
-    #$attr async fn $name (user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseError> {
+    async fn $name (user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseError> {
         handle_request(user, $e).map(ResponseWrapper)
     } r!( $($rest)* );
     };
@@ -37,175 +50,152 @@ macro_rules! r {
 }
 
 r!(
-    #[post("/create_project/<project>")]
-    create_project(project: String)
-        => Request::CreateProject(handles::project(project));
+    create_project(path: web::Path<String>) =>
+        Request::CreateProject(handles::project(path.into_inner()));
 
-    #[get("/list_projects")]
     list_projects() => Request::ListProjects;
 
-    #[post("/projects/<project>/delete")]
-    project_delete(project: String)
-        => Request::Project(
-            handles::project(project),
+    project_delete(path: web::Path<String>) =>
+        Request::Project(
+            handles::project(path.into_inner()),
             Project::Delete,
         );
 
-    #[get("/projects/<project>")]
-    project_info(project: String)
-        => Request::Project(
-            handles::project(project),
+    project_info(path: web::Path<String>) =>
+        Request::Project(
+            handles::project(path.into_inner()),
             Project::Info,
         );
 
-    #[post("/projects/<project>/refresh")]
-    project_refresh(project: String)
-        => Request::Project(
-            handles::project(project),
+    project_refresh(path: web::Path<String>) =>
+        Request::Project(
+            handles::project(path.into_inner()),
             Project::Refresh,
         );
 
-    #[post("/projects/<project>/set_decl", format = "application/json", data = "<body>")]
-    project_set_decl(project: String, body: Json<String>)
-        => Request::Project(
-            handles::project(project),
+    project_set_decl(path: web::Path<String>, body: web::Json<String>) =>
+        Request::Project(
+            handles::project(path.into_inner()),
             Project::SetDecl(body.into_inner()),
         );
 
-    #[post("/projects/<project>/set_private_key", format = "application/json", data = "<body>")]
-    project_set_private_key(project: String, body: Json<String>)
-        => Request::Project(
-            handles::project(project),
+    project_set_private_key(path: web::Path<String>, body: web::Json<String>) =>
+        Request::Project(
+            handles::project(path.into_inner()),
             Project::SetPrivateKey(body.into_inner()),
         );
 
-    #[post("/projects/<project>/update_jobsets")]
-    project_update_jobsets(project: String)
-        => Request::Project(
-            handles::project(project),
+    project_update_jobsets(path: web::Path<String>) =>
+        Request::Project(
+            handles::project(path.into_inner()),
             Project::UpdateJobsets,
         );
 
-    #[post("/projects/<project>/jobsets/<jobset>/evaluate")]
-    jobset_evaluate(project: String, jobset: String)
-        => Request::Jobset(
-            handles::jobset(project, jobset),
+    jobset_evaluate(path: web::Path<(String,String)>) =>
+        Request::Jobset(
+            handles::jobset(path.into_inner()),
             Jobset::Evaluate,
         );
 
-    #[get("/projects/<project>/jobsets/<jobset>")]
-    jobset_info(project: String, jobset: String)
-        => Request::Jobset(
-            handles::jobset(project, jobset),
+    jobset_info(path: web::Path<(String,String)>) =>
+        Request::Jobset(
+            handles::jobset(path.into_inner()),
             Jobset::Info,
         );
 
-    #[post("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>/cancel")]
-    evaluation_cancel(project: String, jobset: String, evaluation: i32)
-        => Request::Evaluation(
-            handles::evaluation(project, jobset, evaluation),
+    evaluation_cancel(path: web::Path<(String,String,i32)>) =>
+        Request::Evaluation(
+            handles::evaluation(path.into_inner()),
             Evaluation::Cancel,
         );
 
-    #[get("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>")]
-    evaluation_info(project: String, jobset: String,evaluation: i32)
-        => Request::Evaluation(
-            handles::evaluation(project, jobset, evaluation),
+    evaluation_info(path: web::Path<(String,String,i32)>) =>
+        Request::Evaluation(
+            handles::evaluation(path.into_inner()),
             Evaluation::Info,
         );
 
-    #[post("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>/jobs/<job>/cancel")]
-    job_cancel(project: String, jobset: String, evaluation: i32, job: String)
-        => Request::Job(
-            handles::job(project, jobset, evaluation, job),
+    job_cancel(path: web::Path<(String,String,i32,String)>) =>
+        Request::Job(
+            handles::job(path.into_inner()),
             Job::Cancel,
         );
 
-    #[get("/projects/<project>/jobsets/<jobset>/evaluations/<evaluation>/jobs/<job>")]
-    job_info(project: String, jobset: String, evaluation: i32, job: String)
-        => Request::Job(
-            handles::job(project, jobset, evaluation, job),
+    job_info(path: web::Path<(String,String,i32,String)>) =>
+        Request::Job(
+            handles::job(path.into_inner()),
             Job::Info,
         );
 
-    #[post("/builds/<build_hash>/cancel")]
-    build_cancel(build_hash: String)
-        => Request::Build(
-            handles::build(build_hash),
+    build_cancel(path: web::Path<String>) =>
+        Request::Build(
+            handles::build(path.into_inner()),
             Build::Cancel,
         );
 
-    #[get("/builds/<build_hash>")]
-    build_info(build_hash: String)
-        => Request::Build(
-            handles::build(build_hash),
+    build_info(path: web::Path<String>) =>
+        Request::Build(
+            handles::build(path.into_inner()),
             Build::Info,
         );
 
-    #[get("/builds/<build_hash>/log")]
-    build_log(build_hash: String)
-        => Request::Build(
-            handles::build(build_hash),
+    build_log(path: web::Path<String>) =>
+        Request::Build(
+            handles::build(path.into_inner()),
             Build::Log,
         );
 );
 
-#[post("/raw-request", format = "application/json", data = "<body>")]
-async fn raw_request(user: User, body: Json<Request>) -> Result<Json<Response>, ResponseError> {
-    handle_request(user, body.into_inner()).map(Json)
+async fn raw_request(
+    user: User,
+    body: web::Json<Request>,
+) -> Result<web::Json<Response>, ResponseError> {
+    handle_request(user, body.into_inner()).map(web::Json)
 }
 
-#[options("/<_..>")]
-fn options_cors() {}
-
-pub fn routes() -> Vec<Route> {
-    routes![
-        list_projects,
-        create_project,
-        project_delete,
-        project_info,
-        project_refresh,
-        project_set_decl,
-        project_set_private_key,
-        project_update_jobsets,
-        jobset_evaluate,
-        jobset_info,
-        evaluation_cancel,
-        evaluation_info,
-        job_cancel,
-        job_info,
-        build_cancel,
-        build_info,
-        build_log,
-        raw_request,
-        options_cors,
-    ]
-}
-
-use rocket::fairing::{Fairing, Info, Kind};
-pub struct CORS;
-
-#[rocket::async_trait]
-impl Fairing for CORS {
-    fn info(&self) -> Info {
-        Info {
-            name: "Add CORS headers to responses",
-            kind: Kind::Response,
-        }
-    }
-
-    async fn on_response<'r>(
-        &self,
-        _: &'r rocket::Request<'_>,
-        response: &mut rocket::Response<'r>,
-    ) {
-        use rocket::http::Header;
-        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
-        response.set_header(Header::new(
-            "Access-Control-Allow-Methods",
-            "POST, GET, PATCH, OPTIONS",
-        ));
-        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
-        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
-    }
+pub fn config(cfg: &mut web::ServiceConfig) {
+    let cors = Cors::default(); // TODO: configure
+    cfg.service(
+        web::scope("/api")
+            .route("", web::post().to(raw_request))
+            .route("/projects", web::get().to(list_projects))
+            .service(
+                web::scope("/projects/{project}")
+                    .route("", web::get().to(project_info))
+                    .route("/create", web::post().to(create_project))
+                    .route("/delete", web::post().to(project_delete))
+                    .route("/refresh", web::post().to(project_refresh))
+                    .route("/update_jobsets", web::post().to(project_update_jobsets))
+                    .route("/set_decl", web::post().to(project_set_decl))
+                    .route("/set_private_key", web::post().to(project_set_private_key))
+                    .service(
+                        web::scope("/jobsets/{jobset}")
+                            .route("", web::get().to(jobset_info))
+                            .route("/evaluate", web::post().to(jobset_evaluate))
+                            .service(
+                                web::scope("/evaluations/{evaluation}")
+                                    .route("", web::get().to(evaluation_info))
+                                    .route("/cancel", web::post().to(evaluation_cancel))
+                                    .service(
+                                        web::scope("/jobs/{job}")
+                                            .route("", web::get().to(job_info))
+                                            .route("/cancel", web::post().to(job_cancel)),
+                                    ),
+                            ),
+                    ),
+            )
+            .service(
+                web::scope("/builds/{build}")
+                    .route("", web::get().to(build_info))
+                    .route("/cancel", web::post().to(build_cancel))
+                    .route("/log", web::get().to(build_log)),
+            )
+            .route(
+                "{anything:.*}",
+                web::route()
+                    .guard(guard::Options())
+                    .to(|| HttpResponse::Ok()),
+            )
+            .wrap(cors),
+    );
 }

@@ -19,7 +19,7 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
     let
       git = "${pkgs.git}/bin/git";
       curl = "${pkgs.curl}/bin/curl -sf -H 'password: hello'";
-      url = "http://127.0.0.1:8000";
+      url = "http://127.0.0.1:8000/api";
       flake = ../tests/empty/flake.nix;
       path = "/tmp/test";
       createRepo = pkgs.writeShellScript "create-repository" ''
@@ -44,25 +44,25 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
           typhon.succeed("${createRepo}")
 
       with subtest("Create project"):
-          typhon.succeed("${curl} -X POST ${url}/api/create_project/test")
+          typhon.succeed("${curl} -X POST ${url}/projects/test/create")
 
       with subtest("Set project declaration"):
-          typhon.succeed("${curl} -X POST --json \'\"git+file://${path}\"\' ${url}/api/projects/test/set_decl")
+          typhon.succeed("${curl} -X POST --json \'\"git+file://${path}\"\' ${url}/projects/test/set_decl")
 
       with subtest("Refresh project"):
-          typhon.succeed("${curl} -X POST ${url}/api/projects/test/refresh")
+          typhon.succeed("${curl} -X POST ${url}/projects/test/refresh")
 
       with subtest("Update jobsets"):
-          typhon.succeed("${curl} -X POST ${url}/api/projects/test/update_jobsets")
+          typhon.succeed("${curl} -X POST ${url}/projects/test/update_jobsets")
 
       with subtest("Evaluate jobset"):
-          typhon.succeed("${curl} -X POST ${url}/api/projects/test/jobsets/main/evaluate")
+          typhon.succeed("${curl} -X POST ${url}/projects/test/jobsets/main/evaluate")
 
       with subtest("Get evaluation info"):
-          typhon.succeed("${curl} ${url}/api/projects/test/jobsets/main/evaluations/1")
+          typhon.succeed("${curl} ${url}/projects/test/jobsets/main/evaluations/1")
 
       with subtest("Query non-existing evaluation"):
-          typhon.fail("${curl} ${url}/api/projects/test/jobsets/main/evaluations/2")
+          typhon.fail("${curl} ${url}/projects/test/jobsets/main/evaluations/2")
     '';
 
 }) { inherit system; }

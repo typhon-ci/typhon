@@ -51,28 +51,28 @@ pub mod handles {
     }
 
     use crate::handles as selfmod;
-    pub const fn project(project: String) -> Project {
+    pub fn project(project: String) -> Project {
         Project { project }
     }
-    pub const fn jobset(project: String, jobset: String) -> Jobset {
+    pub fn jobset((project, jobset): (String, String)) -> Jobset {
         Jobset {
             project: selfmod::project(project),
             jobset,
         }
     }
-    pub const fn evaluation(project: String, jobset: String, evaluation: i32) -> Evaluation {
+    pub fn evaluation((project, jobset, evaluation): (String, String, i32)) -> Evaluation {
         Evaluation {
-            jobset: selfmod::jobset(project, jobset),
+            jobset: selfmod::jobset((project, jobset)),
             evaluation,
         }
     }
-    pub const fn job(project: String, jobset: String, evaluation: i32, job: String) -> Job {
+    pub fn job((project, jobset, evaluation, job): (String, String, i32, String)) -> Job {
         Job {
-            evaluation: selfmod::evaluation(project, jobset, evaluation),
+            evaluation: selfmod::evaluation((project, jobset, evaluation)),
             job,
         }
     }
-    pub const fn build(build_hash: String) -> Build {
+    pub fn build(build_hash: String) -> Build {
         Build { build_hash }
     }
 

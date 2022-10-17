@@ -57,10 +57,10 @@ impl Jobset {
             .filter(jobset_name.eq(jobset_name_))
             .first::<Jobset>(conn)
             .map_err(|_| {
-                Error::JobsetNotFound(handles::jobset(
+                Error::JobsetNotFound(handles::jobset((
                     project_name_.to_string(),
                     jobset_name_.to_string(),
-                ))
+                )))
             })?)
     }
 

@@ -1,3 +1,4 @@
+use actix_web::{App, HttpServer};
 use clap::Parser;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -16,10 +17,6 @@ struct Args {
     #[arg(long, short)]
     password: String,
 
-    /// Webroot
-    #[arg(long, short)]
-    webroot: Option<String>,
-
     /// Silence all output
     #[arg(long, short)]
     quiet: bool,
@@ -33,13 +30,12 @@ struct Args {
     ts: Option<stderrlog::Timestamp>,
 }
 
-#[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     let settings = typhon::Settings {
         hashed_password: args.password.clone(),
-        webroot: args.webroot.unwrap_or(String::new()),
     };
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -66,13 +62,9 @@ async fn main() -> Result<(), rocket::Error> {
         .init()
         .unwrap();
 
-    let webroot = &typhon::SETTINGS.get().unwrap().webroot;
-
-    let rocket = rocket::build()
-        .mount(format!("{}/api", webroot), typhon::api::routes())
-        .attach(typhon::api::CORS)
-        .ignite()
-        .await?;
-    let _ = rocket.launch().await?;
-    Ok(())
+    // Run actix server
+    HttpServer::new(|| App::new().configure(typhon::api::config))
+        .bind(("127.0.0.1", 8000))?
+        .run()
+        .await
 }

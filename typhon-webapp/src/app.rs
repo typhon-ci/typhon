@@ -13,7 +13,7 @@ use web_sys::{Headers, Request, RequestInit, RequestMode, Response}; //::Request
 use yew::{html, Component, Context, Html};
 
 async fn handle_request(request: &requests::Request) -> responses::Response {
-    http::Request::new("http://127.0.0.1:8000/api/raw-request")
+    http::Request::new("http://127.0.0.1:8000/api")
         .method(http::Method::POST)
         .json(request)
         .expect("Could not encode request into JSON")
