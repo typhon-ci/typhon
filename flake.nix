@@ -77,6 +77,7 @@
           inherit system nixpkgs;
           typhon = self;
         };
+        actions = import ./actions { inherit pkgs; };
       }) // {
         nixosModules.default = import ./nixos/typhon.nix self;
       };
