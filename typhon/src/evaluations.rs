@@ -90,15 +90,18 @@ impl Evaluation {
     }
 
     pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::EvaluationInfo, Error> {
-        let jobset = self.jobset(conn)?;
-        let project = jobset.project(conn)?;
+        let jobs_names = jobs
+            .filter(job_evaluation.eq(self.evaluation_id))
+            .load::<Job>(conn)?
+            .iter()
+            .map(|job| job.job_name.clone())
+            .collect();
         Ok(responses::EvaluationInfo {
-            project: project.project_name.clone(),
-            jobset: jobset.jobset_name.clone(),
+            actions_path: self.evaluation_actions_path.clone(),
+            jobs: jobs_names,
             locked_flake: self.evaluation_locked_flake.clone(),
-            time_created: self.evaluation_time_created,
             status: self.evaluation_status.clone(),
-            jobs: HashMap::new(), //TODO
+            time_created: self.evaluation_time_created,
         })
     }
 

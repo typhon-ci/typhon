@@ -157,54 +157,49 @@ pub mod requests {
 
 pub mod responses {
     use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct ProjectMetadata {
+        pub description: String,
+        pub homepage: String,
+        pub title: String,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct ProjectInfo {
+        pub actions_path: String,
+        pub decl: String,
+        pub decl_locked: String,
+        pub jobsets: Vec<String>,
+        pub metadata: ProjectMetadata,
+        pub public_key: String,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct JobsetInfo {
+        pub evaluations: Vec<(i32, i64)>,
+        pub flake: String,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct EvaluationInfo {
+        pub actions_path: String,
+        pub jobs: Vec<String>,
+        pub locked_flake: String,
+        pub status: String,
+        pub time_created: i64,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct JobInfo {
+        pub build: crate::handles::Build,
+        pub status: String,
+    }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct BuildInfo {
         pub drv: String,
         pub status: String,
-    }
-
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct JobInfo {
-        pub project: String,
-        pub jobset: String,
-        pub evaluation: i64,
-        pub build: String,
-        pub status: String,
-    }
-
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct ProjectMetadata {
-        pub title: String,
-        pub homepage: String,
-        pub description: String,
-    }
-
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct ProjectInfo {
-        pub metadata: ProjectMetadata,
-        pub jobsets: Vec<String>,
-        pub public_key: String,
-        pub decl: String,
-        pub decl_locked: String,
-        pub actions_path: String,
-    }
-
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct EvaluationInfo {
-        pub project: String,
-        pub jobset: String,
-        pub locked_flake: String,
-        pub time_created: i64,
-        pub status: String,
-        pub jobs: HashMap<String, String>,
-    }
-
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct JobsetInfo {
-        pub flake: String,
-        pub evaluations: Vec<(i32, i64)>,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

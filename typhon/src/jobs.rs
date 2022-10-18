@@ -3,6 +3,7 @@ use crate::error::Error;
 use crate::handles;
 use crate::models::*;
 use crate::responses;
+use crate::schema::builds::dsl::*;
 use crate::schema::jobs::dsl::*;
 use crate::JOBS;
 use diesel::prelude::*;
@@ -29,8 +30,12 @@ impl Job {
             })?)
     }
 
-    pub fn info(&self, _conn: &mut SqliteConnection) -> Result<responses::JobInfo, Error> {
-        todo!()
+    pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::JobInfo, Error> {
+        let build = builds.find(self.job_build).first::<Build>(conn)?;
+        Ok(responses::JobInfo {
+            build: handles::build(build.build_hash.clone()),
+            status: self.job_status.clone(),
+        })
     }
 
     pub fn run(self) -> () {
