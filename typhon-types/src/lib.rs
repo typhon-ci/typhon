@@ -215,6 +215,23 @@ pub mod responses {
         BuildInfo(BuildInfo),
         BuildLog, // TODO
     }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum ResponseError {
+        BadRequest(String),
+        InternalError(()),
+        ResourceNotFound(String),
+    }
+
+    impl std::fmt::Display for ResponseError {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match self {
+                ResponseError::BadRequest(e) => write!(f, "Bad request: {}", e),
+                ResponseError::InternalError(()) => write!(f, "Internal server error"),
+                ResponseError::ResourceNotFound(e) => write!(f, "Resource not found: {}", e),
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

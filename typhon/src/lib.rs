@@ -13,7 +13,9 @@ mod time;
 pub mod api;
 pub mod tasks;
 
-pub use typhon_types::{handles, requests, responses, responses::Response, Event};
+pub use typhon_types::{
+    handles, requests, responses, responses::Response, responses::ResponseError, Event,
+};
 
 use error::Error;
 use models::*;
@@ -75,44 +77,6 @@ impl FromRequest for User {
                 }
             });
         Box::pin(async move { Ok(user) })
-    }
-}
-
-#[derive(Debug)]
-pub enum ResponseError {
-    BadRequest(String),
-    InternalError(()),
-    ResourceNotFound(String),
-}
-
-impl std::fmt::Display for ResponseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            ResponseError::BadRequest(e) => write!(f, "Bad request: {}", e),
-            ResponseError::InternalError(()) => write!(f, "Internal server error"),
-            ResponseError::ResourceNotFound(e) => write!(f, "Resource not found: {}", e),
-        }
-    }
-}
-
-impl From<error::Error> for ResponseError {
-    fn from(e: error::Error) -> ResponseError {
-        use {error::Error::*, ResponseError::*};
-        match e {
-            BuildNotFound(_)
-            | EvaluationNotFound(_)
-            | JobNotFound(_)
-            | JobsetNotFound(_)
-            | ProjectNotFound(_) => ResourceNotFound(format!("{}", e)),
-            AccessDenied
-            | ActionError(_)
-            | BadJobsetDecl(_)
-            | BuildNotRunning(_)
-            | EvaluationNotRunning(_)
-            | NixError(_)
-            | ProjectAlreadyExists(_) => BadRequest(format!("{}", e)),
-            Todo | UnexpectedDatabaseError(_) => InternalError(()),
-        }
     }
 }
 
@@ -220,7 +184,22 @@ pub fn handle_request(user: User, req: requests::Request) -> Result<Response, Re
                 req, user, e
             );
         }
-        e
+        use {error::Error::*, ResponseError::*};
+        match e {
+            BuildNotFound(_)
+            | EvaluationNotFound(_)
+            | JobNotFound(_)
+            | JobsetNotFound(_)
+            | ProjectNotFound(_) => ResourceNotFound(format!("{}", e)),
+            AccessDenied
+            | ActionError(_)
+            | BadJobsetDecl(_)
+            | BuildNotRunning(_)
+            | EvaluationNotRunning(_)
+            | NixError(_)
+            | ProjectAlreadyExists(_) => BadRequest(format!("{}", e)),
+            Todo | UnexpectedDatabaseError(_) => InternalError(()),
+        }
     })?)
 }
 

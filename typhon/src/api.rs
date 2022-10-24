@@ -6,6 +6,18 @@ use actix_web::{
 };
 
 struct ResponseWrapper(crate::Response);
+#[derive(Debug)]
+struct ResponseErrorWrapper(crate::ResponseError);
+
+impl std::fmt::Display for ResponseErrorWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self.0 {
+            ResponseError::BadRequest(e) => write!(f, "Bad request: {}", e),
+            ResponseError::InternalError(()) => write!(f, "Internal server error"),
+            ResponseError::ResourceNotFound(e) => write!(f, "Resource not found: {}", e),
+        }
+    }
+}
 
 impl Responder for ResponseWrapper {
     type Body = EitherBody<String>;
@@ -27,9 +39,9 @@ impl Responder for ResponseWrapper {
     }
 }
 
-impl actix_web::ResponseError for ResponseError {
+impl actix_web::ResponseError for ResponseErrorWrapper {
     fn status_code(&self) -> StatusCode {
-        match self {
+        match self.0 {
             ResponseError::BadRequest(_) => StatusCode::BAD_REQUEST,
             ResponseError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ResponseError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
@@ -42,8 +54,8 @@ macro_rules! r {
     ($name: ident($($i: ident : $t: ty),*) => $e: expr
      ;$($rest: tt)*
     ) => {
-    async fn $name (user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseError> {
-        handle_request(user, $e).map(ResponseWrapper)
+    async fn $name (user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
+        handle_request(user, $e).map(ResponseWrapper).map_err(ResponseErrorWrapper)
     } r!( $($rest)* );
     };
     (  ) => {}
@@ -149,8 +161,8 @@ r!(
 async fn raw_request(
     user: User,
     body: web::Json<Request>,
-) -> Result<web::Json<Response>, ResponseError> {
-    handle_request(user, body.into_inner()).map(web::Json)
+) -> web::Json<Result<Response, ResponseError>> {
+    web::Json(handle_request(user, body.into_inner()))
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
