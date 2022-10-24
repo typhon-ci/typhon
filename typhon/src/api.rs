@@ -154,7 +154,7 @@ async fn raw_request(
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    let cors = Cors::default(); // TODO: configure
+    let cors = Cors::permissive(); // TODO: configure
     cfg.service(
         web::scope("/api")
             .route("", web::post().to(raw_request))
