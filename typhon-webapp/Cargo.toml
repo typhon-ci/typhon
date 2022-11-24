@@ -5,32 +5,4 @@ edition = "2021"
 
 [dependencies]
 typhon-types = { path = "../typhon-types" }
-futures = "0.3"
-gloo-console = "0.2"
-gloo-net = { version = "0.2.4", features = ["json"] }
-gloo-utils = { version = "0.1", features = ["serde"] }
-serde = { version = "1.0", features = ["derive"] }
-#serde-wasm-bindgen = "0.4"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4.33"
-yew = "0.19"
-yew-router = "0.16"
-
-[dependencies.serde_json]
-version = "1.0"
-
-[dependencies.web-sys]
-version = "0.3"
-features = [
-    "console",
-    "Document",
-    "HtmlElement",
-    "MouseEvent",
-    "DomRect",
-    "RequestInit",
-    "Request",
-    "RequestMode",
-    "Response",
-    "RequestCredentials",
-    "Headers",
-]
+seed = "0.9"
