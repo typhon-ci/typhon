@@ -209,7 +209,7 @@ impl Project {
                             .execute(conn)?;
                         Ok::<(), Error>(())
                     })
-                    .unwrap_or({
+                    .unwrap_or_else(|| {
                         let new_jobset = NewJobset {
                             jobset_project: self.project_id,
                             jobset_name: name,
