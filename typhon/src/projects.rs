@@ -183,7 +183,7 @@ impl Project {
                 )])
             };
 
-        // TODO: slpit update_jobsets into two functions
+        // TODO: split update_jobsets into two functions
         // the connection is blocked through the first step of the function
         // which may take a long time
         conn.transaction::<(), Error, _>(|conn| {
