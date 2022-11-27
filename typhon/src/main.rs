@@ -48,6 +48,7 @@ async fn main() -> std::io::Result<()> {
     let _ = typhon::BUILDS.set(typhon::tasks::Tasks::new());
     let _ = typhon::JOBS.set(typhon::tasks::Tasks::new());
     let _ = typhon::CONNECTION.set(Mutex::new(conn));
+    let _ = typhon::LISTENERS.set(Mutex::new(typhon::listeners::Listeners::new()));
 
     // Run diesel migrations
     typhon::connection()

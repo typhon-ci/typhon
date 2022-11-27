@@ -1,9 +1,11 @@
+use crate::listeners::Session;
 use crate::requests::*;
 use crate::{handle_request, handles, Response, ResponseError, User};
 use actix_cors::Cors;
 use actix_web::{
-    body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
+    body::EitherBody, guard, http::StatusCode, web, Error, HttpRequest, HttpResponse, Responder,
 };
+use actix_web_actors::ws;
 
 struct ResponseWrapper(crate::Response);
 #[derive(Debug)]
@@ -165,11 +167,16 @@ async fn raw_request(
     web::Json(handle_request(user, body.into_inner()))
 }
 
+async fn events(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
+    ws::start(Session::new(), &req, stream)
+}
+
 pub fn config(cfg: &mut web::ServiceConfig) {
     let cors = Cors::permissive(); // TODO: configure
     cfg.service(
         web::scope("/api")
             .route("", web::post().to(raw_request))
+            .route("/events", web::get().to(events))
             .route("/projects", web::get().to(list_projects))
             .service(
                 web::scope("/projects/{project}")

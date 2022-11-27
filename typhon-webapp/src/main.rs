@@ -136,9 +136,9 @@ impl Page {
 struct Model {
     page: Page,
     admin: bool,
+    ws: WebSocket,
 }
 
-#[derive(Clone)]
 enum Msg {
     HomeMsg(home::Msg),
     LoginMsg(login::Msg),
@@ -149,13 +149,23 @@ enum Msg {
     JobMsg(job::Msg),
     BuildMsg(build::Msg),
     UrlChanged(subs::UrlChanged),
+    WsMessageReceived(WebSocketMessage),
 }
 
 fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
+    let msg_sender = orders.msg_sender();
     Model {
         page: Page::init(url, orders),
         admin: get_password().is_some(), // TODO
+        ws: WebSocket::builder("ws://127.0.0.1:8000/api/events", orders)
+            .on_message(move |msg| {
+                msg_sender(Some(Msg::WsMessageReceived(msg)));
+            })
+            .on_error(|| {})
+            .on_close(|_| {})
+            .build_and_open()
+            .expect("failed to open websocket"),
     }
 }
 
@@ -217,6 +227,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => build::update(msg, build_model, &mut orders.proxy(Msg::BuildMsg)),
+        (Msg::WsMessageReceived(msg), _) => log!(msg),
         (_, _) => (),
     }
 }

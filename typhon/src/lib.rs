@@ -11,6 +11,7 @@ mod schema;
 mod time;
 
 pub mod api;
+pub mod listeners;
 pub mod tasks;
 
 pub use typhon_types::{
@@ -20,6 +21,7 @@ pub use typhon_types::{
 use error::Error;
 use models::*;
 
+use actix::prelude::*;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use diesel::prelude::*;
 use log::*;
@@ -40,6 +42,7 @@ pub static EVALUATIONS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static BUILDS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static JOBS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static CONNECTION: OnceCell<Mutex<SqliteConnection>> = OnceCell::new();
+pub static LISTENERS: OnceCell<Mutex<listeners::Listeners>> = OnceCell::new();
 
 pub fn connection<'a>() -> std::sync::MutexGuard<'a, SqliteConnection> {
     CONNECTION.get().unwrap().lock().unwrap()
@@ -204,5 +207,6 @@ pub fn handle_request(user: User, req: requests::Request) -> Result<Response, Re
 }
 
 pub fn log_event(event: Event) {
-    info!("event: {:?}", event)
+    info!("event: {:?}", event);
+    LISTENERS.get().unwrap().lock().unwrap().log(event);
 }
