@@ -12,12 +12,12 @@ pub enum Msg {
     Evaluate,
     Evaluated,
     Event(Event),
-    FetchJobsetInfo,
-    GetJobsetInfo(responses::JobsetInfo),
+    FetchInfo,
+    GetInfo(responses::JobsetInfo),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
-    orders.send_msg(Msg::FetchJobsetInfo);
+    orders.send_msg(Msg::FetchInfo);
     Model {
         handle: handle.clone(),
         info: None,
@@ -38,23 +38,23 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::Evaluated => {
-            orders.send_msg(Msg::FetchJobsetInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
         Msg::Event(_) => {
-            orders.send_msg(Msg::FetchJobsetInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
-        Msg::FetchJobsetInfo => {
+        Msg::FetchInfo => {
             let handle = model.handle.clone();
             orders.perform_cmd(async move {
                 let req = requests::Request::Jobset(handle, requests::Jobset::Info);
                 let rsp = crate::handle_request(&req).await;
                 match rsp {
-                    Ok(responses::Response::JobsetInfo(info)) => Msg::GetJobsetInfo(info),
+                    Ok(responses::Response::JobsetInfo(info)) => Msg::GetInfo(info),
                     _ => todo!(),
                 }
             });
         }
-        Msg::GetJobsetInfo(info) => {
+        Msg::GetInfo(info) => {
             model.info = Some(info);
         }
     }

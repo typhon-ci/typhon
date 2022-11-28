@@ -12,12 +12,12 @@ pub enum Msg {
     Cancel,
     Canceled,
     Event(Event),
-    FetchBuildInfo,
-    GetBuildInfo(responses::BuildInfo),
+    FetchInfo,
+    GetInfo(responses::BuildInfo),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Build) -> Model {
-    orders.send_msg(Msg::FetchBuildInfo);
+    orders.send_msg(Msg::FetchInfo);
     Model {
         handle: handle.clone(),
         info: None,
@@ -38,23 +38,23 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::Canceled => {
-            orders.send_msg(Msg::FetchBuildInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
         Msg::Event(_) => {
-            orders.send_msg(Msg::FetchBuildInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
-        Msg::FetchBuildInfo => {
+        Msg::FetchInfo => {
             let handle = model.handle.clone();
             orders.perform_cmd(async move {
                 let req = requests::Request::Build(handle, requests::Build::Info);
                 let rsp = crate::handle_request(&req).await;
                 match rsp {
-                    Ok(responses::Response::BuildInfo(info)) => Msg::GetBuildInfo(info),
+                    Ok(responses::Response::BuildInfo(info)) => Msg::GetInfo(info),
                     _ => todo!(),
                 }
             });
         }
-        Msg::GetBuildInfo(info) => {
+        Msg::GetInfo(info) => {
             model.info = Some(info);
         }
     }

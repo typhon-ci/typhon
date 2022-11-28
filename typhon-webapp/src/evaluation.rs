@@ -12,12 +12,12 @@ pub enum Msg {
     Cancel,
     Canceled,
     Event(Event),
-    FetchEvaluationInfo,
-    GetEvaluationInfo(responses::EvaluationInfo),
+    FetchInfo,
+    GetInfo(responses::EvaluationInfo),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Evaluation) -> Model {
-    orders.send_msg(Msg::FetchEvaluationInfo);
+    orders.send_msg(Msg::FetchInfo);
     Model {
         handle: handle.clone(),
         info: None,
@@ -38,23 +38,23 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::Canceled => {
-            orders.send_msg(Msg::FetchEvaluationInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
         Msg::Event(_) => {
-            orders.send_msg(Msg::FetchEvaluationInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
-        Msg::FetchEvaluationInfo => {
+        Msg::FetchInfo => {
             let handle = model.handle.clone();
             orders.perform_cmd(async move {
                 let req = requests::Request::Evaluation(handle, requests::Evaluation::Info);
                 let rsp = crate::handle_request(&req).await;
                 match rsp {
-                    Ok(responses::Response::EvaluationInfo(info)) => Msg::GetEvaluationInfo(info),
+                    Ok(responses::Response::EvaluationInfo(info)) => Msg::GetInfo(info),
                     _ => todo!(),
                 }
             });
         }
-        Msg::GetEvaluationInfo(info) => {
+        Msg::GetInfo(info) => {
             model.info = Some(info);
         }
     }

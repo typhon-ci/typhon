@@ -15,8 +15,8 @@ pub enum Msg {
     Delete,
     Deleted,
     Event(Event),
-    FetchProjectInfo,
-    GetProjectInfo(responses::ProjectInfo),
+    FetchInfo,
+    GetInfo(responses::ProjectInfo),
     JobsetsUpdated,
     PrivateKeySet,
     Refresh,
@@ -29,7 +29,7 @@ pub enum Msg {
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
-    orders.send_msg(Msg::FetchProjectInfo);
+    orders.send_msg(Msg::FetchInfo);
     Model {
         handle: handle.clone(),
         info: None,
@@ -41,7 +41,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::DeclSet => {
-            orders.send_msg(Msg::FetchProjectInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
         Msg::Delete => {
             let handle = model.handle.clone();
@@ -58,27 +58,27 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             orders.request_url(crate::Urls::home());
         }
         Msg::Event(_) => {
-            orders.send_msg(Msg::FetchProjectInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
-        Msg::FetchProjectInfo => {
+        Msg::FetchInfo => {
             let handle = model.handle.clone();
             orders.perform_cmd(async move {
                 let req = requests::Request::Project(handle, requests::Project::Info);
                 let rsp = crate::handle_request(&req).await;
                 match rsp {
-                    Ok(responses::Response::ProjectInfo(info)) => Msg::GetProjectInfo(info),
+                    Ok(responses::Response::ProjectInfo(info)) => Msg::GetInfo(info),
                     _ => todo!(),
                 }
             });
         }
-        Msg::GetProjectInfo(info) => {
+        Msg::GetInfo(info) => {
             model.info = Some(info);
         }
         Msg::JobsetsUpdated => {
-            orders.send_msg(Msg::FetchProjectInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
         Msg::PrivateKeySet => {
-            orders.send_msg(Msg::FetchProjectInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
         Msg::Refresh => {
             let handle = model.handle.clone();
@@ -92,7 +92,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::Refreshed => {
-            orders.send_msg(Msg::FetchProjectInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
         Msg::SetDecl => {
             let handle = model.handle.clone();

@@ -10,12 +10,12 @@ pub struct Model {
 #[derive(Clone)]
 pub enum Msg {
     Event(Event),
-    FetchJobInfo,
-    GetJobInfo(responses::JobInfo),
+    FetchInfo,
+    GetInfo(responses::JobInfo),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
-    orders.send_msg(Msg::FetchJobInfo);
+    orders.send_msg(Msg::FetchInfo);
     Model {
         handle: handle.clone(),
         info: None,
@@ -25,20 +25,20 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Event(_) => {
-            orders.send_msg(Msg::FetchJobInfo);
+            orders.send_msg(Msg::FetchInfo);
         }
-        Msg::FetchJobInfo => {
+        Msg::FetchInfo => {
             let handle = model.handle.clone();
             orders.perform_cmd(async move {
                 let req = requests::Request::Job(handle, requests::Job::Info);
                 let rsp = crate::handle_request(&req).await;
                 match rsp {
-                    Ok(responses::Response::JobInfo(info)) => Msg::GetJobInfo(info),
+                    Ok(responses::Response::JobInfo(info)) => Msg::GetInfo(info),
                     _ => todo!(),
                 }
             });
         }
-        Msg::GetJobInfo(info) => {
+        Msg::GetInfo(info) => {
             model.info = Some(info);
         }
     }
