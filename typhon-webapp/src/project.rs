@@ -1,8 +1,10 @@
+use crate::{perform_request, view_error, Urls};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
 #[derive(Clone)]
 pub struct Model {
+    error: Option<responses::ResponseError>,
     handle: handles::Project,
     info: Option<responses::ProjectInfo>,
     input_decl: String,
@@ -14,6 +16,8 @@ pub enum Msg {
     DeclSet,
     Delete,
     Deleted,
+    Error(responses::ResponseError),
+    ErrorIgnored,
     Event(Event),
     FetchInfo,
     GetInfo(responses::ProjectInfo),
@@ -31,6 +35,7 @@ pub enum Msg {
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
     orders.send_msg(Msg::FetchInfo);
     Model {
+        error: None,
         handle: handle.clone(),
         info: None,
         input_decl: "".into(),
@@ -45,31 +50,35 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::Delete => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Project(handle, requests::Project::Delete);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::Ok) => Msg::Deleted,
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Project(handle, requests::Project::Delete);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Ok => Msg::Deleted,
+                Msg::Error,
+            );
         }
         Msg::Deleted => {
-            orders.request_url(crate::Urls::home());
+            orders.request_url(Urls::home());
+        }
+        Msg::Error(err) => {
+            model.error = Some(err);
+        }
+        Msg::ErrorIgnored => {
+            model.error = None;
         }
         Msg::Event(_) => {
             orders.send_msg(Msg::FetchInfo);
         }
         Msg::FetchInfo => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Project(handle, requests::Project::Info);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::ProjectInfo(info)) => Msg::GetInfo(info),
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Project(handle, requests::Project::Info);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::ProjectInfo(info) => Msg::GetInfo(info),
+                Msg::Error,
+            );
         }
         Msg::GetInfo(info) => {
             model.info = Some(info);
@@ -82,14 +91,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::Refresh => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Project(handle, requests::Project::Refresh);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::Ok) => Msg::Refreshed,
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Project(handle, requests::Project::Refresh);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Ok => Msg::Refreshed,
+                Msg::Error,
+            );
         }
         Msg::Refreshed => {
             orders.send_msg(Msg::FetchInfo);
@@ -98,30 +106,26 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             let handle = model.handle.clone();
             let decl = model.input_decl.clone();
             model.input_decl = "".into();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Project(handle, requests::Project::SetDecl(decl));
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::Ok) => Msg::DeclSet,
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Project(handle, requests::Project::SetDecl(decl));
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Ok => Msg::DeclSet,
+                Msg::Error,
+            );
         }
         Msg::SetPrivateKey => {
             let handle = model.handle.clone();
             let private_key = model.input_decl.clone();
             model.input_private_key = "".into();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Project(
-                    handle,
-                    requests::Project::SetPrivateKey(private_key),
-                );
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::Ok) => Msg::PrivateKeySet,
-                    _ => todo!(),
-                }
-            });
+            let req =
+                requests::Request::Project(handle, requests::Project::SetPrivateKey(private_key));
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Ok => Msg::PrivateKeySet,
+                Msg::Error,
+            );
         }
         Msg::UpdateInputDecl(decl) => {
             model.input_decl = decl;
@@ -131,19 +135,18 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::UpdateJobsets => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Project(handle, requests::Project::UpdateJobsets);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::ProjectUpdateJobsets(_)) => Msg::JobsetsUpdated,
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Project(handle, requests::Project::UpdateJobsets);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::ProjectUpdateJobsets(_) => Msg::JobsetsUpdated,
+                Msg::Error,
+            );
         }
     }
 }
 
-pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+fn view_project(model: &Model) -> Node<Msg> {
     div![
         h2!["Project", " ", &model.handle.project],
         match &model.info {
@@ -171,7 +174,7 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
                     h3!["Jobsets"],
                     ul![info.jobsets.iter().map(|name| li![a![
                         name,
-                        attrs! { At::Href => crate::Urls::jobset(
+                        attrs! { At::Href => Urls::jobset(
                             &handles::Jobset {
                                 project: model.handle.clone(),
                                 jobset: name.into(),
@@ -181,36 +184,46 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
                 ],
             ],
         },
-        if admin {
-            div![
-                h3!["Administration"],
-                p![button![
-                    "Update jobsets",
-                    ev(Ev::Click, |_| Msg::UpdateJobsets),
-                ]],
-                p![
-                    input![
-                        attrs! {
-                            At::Value => model.input_decl,
-                        },
-                        input_ev(Ev::Input, Msg::UpdateInputDecl),
-                    ],
-                    button!["Set declaration", ev(Ev::Click, |_| Msg::SetDecl),],
-                    button!["Refresh", ev(Ev::Click, |_| Msg::Refresh),],
-                ],
-                p![
-                    input![
-                        attrs! {
-                            At::Value => model.input_private_key,
-                        },
-                        input_ev(Ev::Input, Msg::UpdateInputPrivateKey),
-                    ],
-                    button!["Set private key", ev(Ev::Click, |_| Msg::SetPrivateKey),]
-                ],
-                p![button!["Delete", ev(Ev::Click, |_| Msg::Delete),]],
-            ]
-        } else {
-            empty![]
-        }
     ]
+}
+
+fn view_admin(model: &Model) -> Node<Msg> {
+    div![
+        h3!["Administration"],
+        p![button![
+            "Update jobsets",
+            ev(Ev::Click, |_| Msg::UpdateJobsets),
+        ]],
+        p![
+            input![
+                attrs! {
+                    At::Value => model.input_decl,
+                },
+                input_ev(Ev::Input, Msg::UpdateInputDecl),
+            ],
+            button!["Set declaration", ev(Ev::Click, |_| Msg::SetDecl),],
+            button!["Refresh", ev(Ev::Click, |_| Msg::Refresh),],
+        ],
+        p![
+            input![
+                attrs! {
+                    At::Value => model.input_private_key,
+                },
+                input_ev(Ev::Input, Msg::UpdateInputPrivateKey),
+            ],
+            button!["Set private key", ev(Ev::Click, |_| Msg::SetPrivateKey),]
+        ],
+        p![button!["Delete", ev(Ev::Click, |_| Msg::Delete),]],
+    ]
+}
+
+pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+    model
+        .error
+        .as_ref()
+        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .unwrap_or(div![
+            view_project(model),
+            if admin { view_admin(model) } else { empty![] },
+        ])
 }

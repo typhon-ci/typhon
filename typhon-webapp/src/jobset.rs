@@ -1,14 +1,18 @@
+use crate::{perform_request, view_error};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
 #[derive(Clone)]
 pub struct Model {
+    error: Option<responses::ResponseError>,
     handle: handles::Jobset,
     info: Option<responses::JobsetInfo>,
 }
 
 #[derive(Clone)]
 pub enum Msg {
+    Error(responses::ResponseError),
+    ErrorIgnored,
     Evaluate,
     Evaluated,
     Event(Event),
@@ -19,6 +23,7 @@ pub enum Msg {
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
     orders.send_msg(Msg::FetchInfo);
     Model {
+        error: None,
         handle: handle.clone(),
         info: None,
     }
@@ -26,16 +31,21 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
+        Msg::Error(err) => {
+            model.error = Some(err);
+        }
+        Msg::ErrorIgnored => {
+            model.error = None;
+        }
         Msg::Evaluate => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Jobset(handle, requests::Jobset::Evaluate);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::JobsetEvaluate(_)) => Msg::Evaluated,
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Jobset(handle, requests::Jobset::Evaluate);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::JobsetEvaluate(_) => Msg::Evaluated,
+                Msg::Error,
+            );
         }
         Msg::Evaluated => {
             orders.send_msg(Msg::FetchInfo);
@@ -45,14 +55,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::FetchInfo => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Jobset(handle, requests::Jobset::Info);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::JobsetInfo(info)) => Msg::GetInfo(info),
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Jobset(handle, requests::Jobset::Info);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::JobsetInfo(info) => Msg::GetInfo(info),
+                Msg::Error,
+            );
         }
         Msg::GetInfo(info) => {
             model.info = Some(info);
@@ -60,7 +69,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
-pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+fn view_jobset(model: &Model) -> Node<Msg> {
     div![
         h2![
             "Jobset",
@@ -90,13 +99,23 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
                 ]]),]
             ]],
         },
-        if admin {
-            div![
-                h3!["Administration"],
-                button!["Evaluate", ev(Ev::Click, |_| Msg::Evaluate)],
-            ]
-        } else {
-            empty![]
-        }
     ]
+}
+
+fn view_admin() -> Node<Msg> {
+    div![
+        h3!["Administration"],
+        button!["Evaluate", ev(Ev::Click, |_| Msg::Evaluate)],
+    ]
+}
+
+pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+    model
+        .error
+        .as_ref()
+        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .unwrap_or(div![
+            view_jobset(model),
+            if admin { view_admin() } else { empty![] },
+        ])
 }

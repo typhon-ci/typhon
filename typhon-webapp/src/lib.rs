@@ -41,6 +41,38 @@ pub async fn handle_request(
         .expect("Failed to deserialize response")
 }
 
+pub fn perform_request_aux<Ms: 'static>(
+    orders: &mut impl Orders<Ms>,
+    req: requests::Request,
+    succ: impl FnOnce(responses::Response) -> Ms + 'static,
+    err: impl FnOnce(responses::ResponseError) -> Ms + 'static,
+) {
+    orders.perform_cmd(async move { handle_request(&req).await.map(succ).unwrap_or_else(err) });
+}
+
+macro_rules! perform_request {
+    ($orders: expr , $req: expr , $pat: pat => $body: expr , $err: expr $(,)?) => {
+        let req = $req.clone();
+        crate::perform_request_aux(
+            $orders,
+            $req,
+            move |rsp| match rsp {
+                $pat => $body,
+                rsp => {
+                    log!(format!(
+                        "perform_request: unexpected response {:#?} to request {:#?}",
+                        rsp, req
+                    ));
+                    $err(responses::ResponseError::InternalError(()))
+                }
+            },
+            $err,
+        )
+    };
+}
+
+pub(crate) use perform_request;
+
 struct_urls!();
 impl<'a> Urls<'a> {
     pub fn login() -> Url {
@@ -268,6 +300,15 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         (_, _) => (),
     }
+}
+
+pub fn view_error<Ms: Clone + 'static>(err: &responses::ResponseError, msg_ignore: Ms) -> Node<Ms> {
+    div![
+        h2!["Error"],
+        p![format!("{}", err)],
+        button!["Go back", ev(Ev::Click, |_| msg_ignore)],
+        a!["Home", attrs! { At::Href => Urls::home() }],
+    ]
 }
 
 fn header(model: &Model) -> Node<Msg> {

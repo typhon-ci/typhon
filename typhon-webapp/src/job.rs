@@ -1,14 +1,18 @@
+use crate::{perform_request, view_error};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
 #[derive(Clone)]
 pub struct Model {
+    error: Option<responses::ResponseError>,
     handle: handles::Job,
     info: Option<responses::JobInfo>,
 }
 
 #[derive(Clone)]
 pub enum Msg {
+    Error(responses::ResponseError),
+    ErrorIgnored,
     Event(Event),
     FetchInfo,
     GetInfo(responses::JobInfo),
@@ -17,6 +21,7 @@ pub enum Msg {
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
     orders.send_msg(Msg::FetchInfo);
     Model {
+        error: None,
         handle: handle.clone(),
         info: None,
     }
@@ -24,19 +29,24 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
+        Msg::Error(err) => {
+            model.error = Some(err);
+        }
+        Msg::ErrorIgnored => {
+            model.error = None;
+        }
         Msg::Event(_) => {
             orders.send_msg(Msg::FetchInfo);
         }
         Msg::FetchInfo => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Job(handle, requests::Job::Info);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::JobInfo(info)) => Msg::GetInfo(info),
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Job(handle, requests::Job::Info);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::JobInfo(info) => Msg::GetInfo(info),
+                Msg::Error,
+            );
         }
         Msg::GetInfo(info) => {
             model.info = Some(info);
@@ -44,7 +54,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
-pub fn view(model: &Model, _admin: bool) -> Node<Msg> {
+fn view_job(model: &Model) -> Node<Msg> {
     div![
         h2![
             "Job",
@@ -88,4 +98,12 @@ pub fn view(model: &Model, _admin: bool) -> Node<Msg> {
             ],
         },
     ]
+}
+
+pub fn view(model: &Model, _admin: bool) -> Node<Msg> {
+    model
+        .error
+        .as_ref()
+        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .unwrap_or(view_job(model))
 }

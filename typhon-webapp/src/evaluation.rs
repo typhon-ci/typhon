@@ -1,8 +1,10 @@
+use crate::{perform_request, view_error};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
 #[derive(Clone)]
 pub struct Model {
+    error: Option<responses::ResponseError>,
     handle: handles::Evaluation,
     info: Option<responses::EvaluationInfo>,
 }
@@ -11,6 +13,8 @@ pub struct Model {
 pub enum Msg {
     Cancel,
     Canceled,
+    Error(responses::ResponseError),
+    ErrorIgnored,
     Event(Event),
     FetchInfo,
     GetInfo(responses::EvaluationInfo),
@@ -19,6 +23,7 @@ pub enum Msg {
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Evaluation) -> Model {
     orders.send_msg(Msg::FetchInfo);
     Model {
+        error: None,
         handle: handle.clone(),
         info: None,
     }
@@ -28,31 +33,35 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Cancel => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Evaluation(handle, requests::Evaluation::Cancel);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::Ok) => Msg::Canceled,
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Evaluation(handle, requests::Evaluation::Cancel);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Ok => Msg::Canceled,
+                Msg::Error,
+            );
         }
         Msg::Canceled => {
             orders.send_msg(Msg::FetchInfo);
+        }
+        Msg::Error(err) => {
+            model.error = Some(err);
+        }
+        Msg::ErrorIgnored => {
+            model.error = None;
         }
         Msg::Event(_) => {
             orders.send_msg(Msg::FetchInfo);
         }
         Msg::FetchInfo => {
             let handle = model.handle.clone();
-            orders.perform_cmd(async move {
-                let req = requests::Request::Evaluation(handle, requests::Evaluation::Info);
-                let rsp = crate::handle_request(&req).await;
-                match rsp {
-                    Ok(responses::Response::EvaluationInfo(info)) => Msg::GetInfo(info),
-                    _ => todo!(),
-                }
-            });
+            let req = requests::Request::Evaluation(handle, requests::Evaluation::Info);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::EvaluationInfo(info) => Msg::GetInfo(info),
+                Msg::Error,
+            );
         }
         Msg::GetInfo(info) => {
             model.info = Some(info);
@@ -60,7 +69,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
-pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+fn view_evaluation(model: &Model) -> Node<Msg> {
     div![
         h2![
             "Evaluation",
@@ -107,13 +116,23 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
                 },
             ],
         },
-        if admin {
-            div![
-                h2!["Administration"],
-                button!["Cancel", ev(Ev::Click, |_| Msg::Cancel),]
-            ]
-        } else {
-            empty![]
-        },
     ]
+}
+
+fn view_admin() -> Node<Msg> {
+    div![
+        h2!["Administration"],
+        button!["Cancel", ev(Ev::Click, |_| Msg::Cancel),]
+    ]
+}
+
+pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+    model
+        .error
+        .as_ref()
+        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .unwrap_or(div![
+            view_evaluation(model),
+            if admin { view_admin() } else { empty![] },
+        ])
 }
