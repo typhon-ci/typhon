@@ -53,10 +53,11 @@
           inherit src cargoArtifacts;
           buildInputs = [ pkgs.wasm-pack pkgs.wasm-bindgen-cli ];
           buildPhase = ''
-            cd typhon-webapp && wasm-pack build
+            cd typhon-webapp && wasm-pack build --target web
           '';
           installPhase = ''
             cp -r pkg $out
+            cp static/index.html $out
           '';
           doCheck = false;
         };
