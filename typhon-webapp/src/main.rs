@@ -229,7 +229,10 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => build::update(msg, build_model, &mut orders.proxy(Msg::BuildMsg)),
-        (Msg::WsMessageReceived(msg), _) => log!(msg),
+        (Msg::WsMessageReceived(msg), _) => {
+            let event: Event = msg.json().expect("failed to deserialize event");
+            log!(event)
+        }
         (_, _) => (),
     }
 }

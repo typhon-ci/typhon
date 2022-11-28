@@ -234,7 +234,7 @@ pub mod responses {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Event {
     ProjectNew(handles::Project),
     ProjectDeleted(handles::Project),
