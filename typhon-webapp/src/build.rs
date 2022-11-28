@@ -11,6 +11,7 @@ pub struct Model {
 pub enum Msg {
     Cancel,
     Canceled,
+    Event(Event),
     FetchBuildInfo,
     GetBuildInfo(responses::BuildInfo),
 }
@@ -37,6 +38,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::Canceled => {
+            orders.send_msg(Msg::FetchBuildInfo);
+        }
+        Msg::Event(_) => {
             orders.send_msg(Msg::FetchBuildInfo);
         }
         Msg::FetchBuildInfo => {

@@ -10,6 +10,7 @@ pub struct Model {
 #[derive(Clone)]
 pub enum Msg {
     CreateProject,
+    Event(Event),
     FetchProjects,
     SetProjects(Vec<String>),
     UpdateProjectName(String),
@@ -36,6 +37,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                     _ => todo!(),
                 }
             });
+        }
+        Msg::Event(_) => {
+            orders.send_msg(Msg::FetchProjects);
         }
         Msg::FetchProjects => {
             orders.perform_cmd(async move {

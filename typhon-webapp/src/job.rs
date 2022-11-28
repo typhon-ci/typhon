@@ -9,6 +9,7 @@ pub struct Model {
 
 #[derive(Clone)]
 pub enum Msg {
+    Event(Event),
     FetchJobInfo,
     GetJobInfo(responses::JobInfo),
 }
@@ -23,6 +24,9 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
+        Msg::Event(_) => {
+            orders.send_msg(Msg::FetchJobInfo);
+        }
         Msg::FetchJobInfo => {
             let handle = model.handle.clone();
             orders.perform_cmd(async move {

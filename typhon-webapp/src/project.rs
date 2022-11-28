@@ -14,6 +14,7 @@ pub enum Msg {
     DeclSet,
     Delete,
     Deleted,
+    Event(Event),
     FetchProjectInfo,
     GetProjectInfo(responses::ProjectInfo),
     JobsetsUpdated,
@@ -55,6 +56,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::Deleted => {
             orders.request_url(crate::Urls::home());
+        }
+        Msg::Event(_) => {
+            orders.send_msg(Msg::FetchProjectInfo);
         }
         Msg::FetchProjectInfo => {
             let handle = model.handle.clone();

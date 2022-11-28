@@ -11,6 +11,7 @@ pub struct Model {
 pub enum Msg {
     Evaluate,
     Evaluated,
+    Event(Event),
     FetchJobsetInfo,
     GetJobsetInfo(responses::JobsetInfo),
 }
@@ -37,6 +38,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::Evaluated => {
+            orders.send_msg(Msg::FetchJobsetInfo);
+        }
+        Msg::Event(_) => {
             orders.send_msg(Msg::FetchJobsetInfo);
         }
         Msg::FetchJobsetInfo => {

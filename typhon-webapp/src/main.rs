@@ -231,7 +231,40 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         ) => build::update(msg, build_model, &mut orders.proxy(Msg::BuildMsg)),
         (Msg::WsMessageReceived(msg), _) => {
             let event: Event = msg.json().expect("failed to deserialize event");
-            log!(event)
+            log!(event);
+            match &mut model.page {
+                Page::Home(model) => home::update(
+                    home::Msg::Event(event),
+                    model,
+                    &mut orders.proxy(Msg::HomeMsg),
+                ),
+                Page::Project(model) => project::update(
+                    project::Msg::Event(event),
+                    model,
+                    &mut orders.proxy(Msg::ProjectMsg),
+                ),
+                Page::Jobset(model) => jobset::update(
+                    jobset::Msg::Event(event),
+                    model,
+                    &mut orders.proxy(Msg::JobsetMsg),
+                ),
+                Page::Evaluation(model) => evaluation::update(
+                    evaluation::Msg::Event(event),
+                    model,
+                    &mut orders.proxy(Msg::EvaluationMsg),
+                ),
+                Page::Job(model) => job::update(
+                    job::Msg::Event(event),
+                    model,
+                    &mut orders.proxy(Msg::JobMsg),
+                ),
+                Page::Build(model) => build::update(
+                    build::Msg::Event(event),
+                    model,
+                    &mut orders.proxy(Msg::BuildMsg),
+                ),
+                _ => (),
+            }
         }
         (_, _) => (),
     }
