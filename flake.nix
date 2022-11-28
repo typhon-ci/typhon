@@ -41,6 +41,7 @@
           inherit src cargoArtifacts;
           buildInputs = [ pkgs.sqlite.dev ];
         };
+        # TODO: the build of typhon-webapp is a bit hackish
         typhon-webapp = let
           rust-wasm = pkgs.rust-bin.stable.latest.default.override {
             targets = [ "wasm32-unknown-unknown" ];
@@ -50,7 +51,14 @@
         in craneLib.buildPackage {
           name = "typhon-webapp";
           inherit src cargoArtifacts;
-          cargoExtraArgs = "-p typhon-webapp";
+          buildInputs = [ pkgs.wasm-pack pkgs.wasm-bindgen-cli ];
+          buildPhase = ''
+            cd typhon-webapp && wasm-pack build
+          '';
+          installPhase = ''
+            cp -r pkg $out
+          '';
+          doCheck = false;
         };
         common-devShell-packages = [ pkgs.rustfmt ];
       in {
