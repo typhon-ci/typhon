@@ -101,28 +101,30 @@ impl Page {
                 &mut orders.proxy(Msg::JobsetMsg),
                 handles::jobset(((*project).into(), (*jobset).into())),
             )),
-            ["projects", project, "jobsets", jobset, "evaluations", evaluation] => {
-                match evaluation.parse::<i32>() {
-                    Ok(evaluation) => Page::Evaluation(evaluation::init(
+            ["projects", project, "jobsets", jobset, "evaluations", evaluation] => evaluation
+                .parse::<i32>()
+                .map(|evaluation| {
+                    Page::Evaluation(evaluation::init(
                         &mut orders.proxy(Msg::EvaluationMsg),
                         handles::evaluation(((*project).into(), (*jobset).into(), evaluation)),
-                    )),
-                    Err(_) => Page::NotFound,
-                }
-            }
+                    ))
+                })
+                .unwrap_or(Page::NotFound),
             ["projects", project, "jobsets", jobset, "evaluations", evaluation, "jobs", job] => {
-                match evaluation.parse::<i32>() {
-                    Ok(evaluation) => Page::Job(job::init(
-                        &mut orders.proxy(Msg::JobMsg),
-                        handles::job((
-                            (*project).into(),
-                            (*jobset).into(),
-                            evaluation,
-                            (*job).into(),
-                        )),
-                    )),
-                    Err(_) => Page::NotFound,
-                }
+                evaluation
+                    .parse::<i32>()
+                    .map(|evaluation| {
+                        Page::Job(job::init(
+                            &mut orders.proxy(Msg::JobMsg),
+                            handles::job((
+                                (*project).into(),
+                                (*jobset).into(),
+                                evaluation,
+                                (*job).into(),
+                            )),
+                        ))
+                    })
+                    .unwrap_or(Page::NotFound)
             }
             ["builds", build_hash] => Page::Build(build::init(
                 &mut orders.proxy(Msg::BuildMsg),
