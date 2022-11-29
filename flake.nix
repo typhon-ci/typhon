@@ -51,7 +51,11 @@
         in craneLib.buildPackage {
           name = "typhon-webapp";
           inherit src cargoArtifacts;
-          buildInputs = [ pkgs.wasm-pack pkgs.wasm-bindgen-cli ];
+          buildInputs = [
+            pkgs.wasm-pack
+            pkgs.wasm-bindgen-cli
+            pkgs.binaryen # gives `wasm-opt`, needed by `wasm-pack`
+          ];
           buildPhase = ''
             cd typhon-webapp && wasm-pack build --target web
           '';
