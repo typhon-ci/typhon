@@ -2,7 +2,6 @@ use typhon_types::*;
 
 use actix::prelude::*;
 use actix_web_actors::ws;
-use log::*;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 

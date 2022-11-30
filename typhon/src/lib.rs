@@ -21,7 +21,6 @@ pub use typhon_types::{
 use error::Error;
 use models::*;
 
-use actix::prelude::*;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use diesel::prelude::*;
 use log::*;
