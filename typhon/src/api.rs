@@ -13,11 +13,7 @@ struct ResponseErrorWrapper(crate::ResponseError);
 
 impl std::fmt::Display for ResponseErrorWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match &self.0 {
-            ResponseError::BadRequest(e) => write!(f, "Bad request: {}", e),
-            ResponseError::InternalError(()) => write!(f, "Internal server error"),
-            ResponseError::ResourceNotFound(e) => write!(f, "Resource not found: {}", e),
-        }
+        self.0.fmt(f)
     }
 }
 
@@ -45,7 +41,7 @@ impl actix_web::ResponseError for ResponseErrorWrapper {
     fn status_code(&self) -> StatusCode {
         match self.0 {
             ResponseError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            ResponseError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ResponseError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             ResponseError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
         }
     }

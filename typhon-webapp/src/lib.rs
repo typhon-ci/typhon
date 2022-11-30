@@ -63,7 +63,7 @@ macro_rules! perform_request {
                         "perform_request: unexpected response {:#?} to request {:#?}",
                         rsp, req
                     ));
-                    $err(responses::ResponseError::InternalError(()))
+                    $err(responses::ResponseError::InternalError)
                 }
             },
             $err,

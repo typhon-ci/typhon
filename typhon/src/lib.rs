@@ -201,7 +201,7 @@ pub fn handle_request(user: User, req: requests::Request) -> Result<Response, Re
             | EvaluationNotRunning(_)
             | NixError(_)
             | ProjectAlreadyExists(_) => BadRequest(format!("{}", e)),
-            Todo | UnexpectedDatabaseError(_) => InternalError(()),
+            Todo | UnexpectedDatabaseError(_) => InternalError,
         }
     })?)
 }
