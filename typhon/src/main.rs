@@ -1,5 +1,6 @@
 use actix_web::{App, HttpServer};
 use clap::Parser;
+use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -50,8 +51,11 @@ async fn main() -> std::io::Result<()> {
     let _ = typhon::CONNECTION.set(Mutex::new(conn));
     let _ = typhon::LISTENERS.set(Mutex::new(typhon::listeners::Listeners::new()));
 
+    // Enable foreign key support
+    let _ = typhon::connection().batch_execute("PRAGMA foreign_keys = ON");
+
     // Run diesel migrations
-    typhon::connection()
+    let _ = typhon::connection()
         .run_pending_migrations(MIGRATIONS)
         .expect("failed to run migrations");
 
