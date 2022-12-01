@@ -99,15 +99,15 @@ impl Project {
             .collect())
     }
 
-    pub fn refresh(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
-        let locked_flake = nix::lock(&self.project_decl)?;
+    pub async fn refresh(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
+        let locked_flake = nix::lock(&self.project_decl).await?;
         let mut title = String::new();
         let mut description = String::new();
         let mut homepage = String::new();
         let mut actions_path = String::new();
 
         let expr = format!("{}#typhonProject", locked_flake);
-        let typhon_project = nix::eval(expr)?;
+        let typhon_project = nix::eval(expr).await?;
 
         typhon_project.get("meta").map(|metadata| {
             metadata
@@ -121,15 +121,15 @@ impl Project {
                 .map(|v| v.as_str().map(|s| homepage = s.to_string()));
         });
 
-        typhon_project
-            .get("actions")
-            .map(|v| {
-                let drv = nix::derivation_path(v.as_str().ok_or(Error::Todo)?.to_string())?;
-                actions_path = nix::build(drv)?;
+        match typhon_project.get("actions") {
+            Some(v) => {
+                let drv = nix::derivation_path(v.as_str().ok_or(Error::Todo)?.to_string()).await?;
+                actions_path = nix::build(drv).await?;
                 // TODO: check public key used to encrypt secrets
                 Ok(())
-            })
-            .unwrap_or(Ok::<(), Error>(()))?;
+            }
+            None => Ok::<(), Error>(()),
+        }?;
 
         diesel::update(projects.find(self.project_id))
             .set((
@@ -160,7 +160,7 @@ impl Project {
         Ok(())
     }
 
-    pub fn update_jobsets(&self, conn: &mut SqliteConnection) -> Result<Vec<String>, Error> {
+    pub async fn update_jobsets(&self, conn: &mut SqliteConnection) -> Result<Vec<String>, Error> {
         // run action `jobsets`
         let decls: HashMap<String, JobsetDecl> =
             if Path::new(&format!("{}/jobsets", &self.project_actions_path)).exists() {
@@ -170,7 +170,8 @@ impl Project {
                     &format!("{}/jobsets", &self.project_actions_path),
                     &format!("{}/secrets", &self.project_actions_path),
                     &action_input,
-                )?;
+                )
+                .await?;
                 let m = serde_json::from_str(&action_output.to_string())
                     .map_err(|_| Error::BadJobsetDecl(action_output.to_string()))?;
                 m

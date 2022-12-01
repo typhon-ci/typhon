@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::env;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
@@ -52,10 +52,13 @@ async fn main() -> std::io::Result<()> {
     let _ = typhon::LISTENERS.set(Mutex::new(typhon::listeners::Listeners::new()));
 
     // Enable foreign key support
-    let _ = typhon::connection().batch_execute("PRAGMA foreign_keys = ON");
+    let _ = typhon::connection()
+        .await
+        .batch_execute("PRAGMA foreign_keys = ON");
 
     // Run diesel migrations
     let _ = typhon::connection()
+        .await
         .run_pending_migrations(MIGRATIONS)
         .expect("failed to run migrations");
 

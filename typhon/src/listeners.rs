@@ -39,14 +39,18 @@ impl Actor for Session {
     fn started(&mut self, ctx: &mut Self::Context) {
         self.heartbeat(ctx);
         let addr = ctx.address();
-        let ref mut listeners = crate::LISTENERS.get().unwrap().lock().unwrap();
-        listeners.sessions.insert(addr);
+        let _ = tokio::spawn(async move {
+            let listeners = &mut *crate::LISTENERS.get().unwrap().lock().await;
+            listeners.sessions.insert(addr);
+        });
     }
 
     fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
-        let ref mut listeners = crate::LISTENERS.get().unwrap().lock().unwrap();
         let addr = ctx.address();
-        let _ = listeners.sessions.remove(&addr);
+        let _ = tokio::spawn(async move {
+            let ref mut listeners = crate::LISTENERS.get().unwrap().lock().await;
+            let _ = listeners.sessions.remove(&addr);
+        });
         Running::Stop
     }
 }

@@ -1,5 +1,5 @@
-use std::sync::Mutex;
 use tokio::sync::oneshot::{channel, Sender};
+use tokio::sync::Mutex;
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -23,7 +23,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send> Tasks<Id> {
     }
 
     pub async fn wait(&self, id: &Id) -> () {
-        let mut tasks = self.tasks.lock().unwrap();
+        let mut tasks = self.tasks.lock().await;
         let (send, recv) = channel::<()>();
         match tasks.get_mut(&id) {
             Some(task) => {
@@ -37,15 +37,16 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send> Tasks<Id> {
         let _ = recv.await;
     }
 
-    pub fn is_running(&self, id: &Id) -> bool {
-        let tasks = self.tasks.lock().unwrap();
+    pub async fn is_running(&self, id: &Id) -> bool {
+        let tasks = self.tasks.lock().await;
         tasks.get(&id).is_some()
     }
 
-    pub fn run<
-        S,
+    pub async fn run<
+        S: Send + 'static,
         T: Future<Output = S> + Send + 'static,
-        F: FnOnce(Option<S>) -> () + Send + 'static,
+        U: Future<Output = ()> + Send + 'static,
+        F: FnOnce(Option<S>) -> U + Send + 'static,
     >(
         &'static self,
         id: Id,
@@ -57,28 +58,28 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send> Tasks<Id> {
             canceler: send,
             waiters: Vec::new(),
         };
-        let mut m = self.tasks.lock().unwrap();
+        let mut m = self.tasks.lock().await;
         m.insert(id.clone(), handle);
         drop(m);
         tokio::spawn(async move {
             tokio::select! {
                 _ = recv => {
-                    f(None)
+                    f(None).await
                 },
                 r = task => {
-                    self.tasks.lock().unwrap().remove(&id).map(|task| {
+                    self.tasks.lock().await.remove(&id).map(|task| {
                         for send in task.waiters {
                             let _ = send.send(());
                         }
                     });
-                    f(Some(r))
+                    f(Some(r)).await
                 },
             }
         });
     }
 
-    pub fn cancel(&self, id: Id) -> bool {
-        let mut tasks = self.tasks.lock().unwrap();
+    pub async fn cancel(&self, id: Id) -> bool {
+        let mut tasks = self.tasks.lock().await;
         tasks
             .remove(&id)
             .map(|task| {

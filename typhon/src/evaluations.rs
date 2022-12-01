@@ -13,9 +13,10 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 use substring::Substring;
 
-fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error> {
-    let conn: &mut SqliteConnection = &mut *connection();
-    conn.transaction::<(), Error, _>(|conn| {
+async fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error> {
+    let conn = &mut *connection().await;
+    let created_jobs = conn.transaction::<Vec<(Build, Job)>, Error, _>(|conn| {
+        let mut created_jobs = vec![];
         for (name, drv) in new_jobs.iter() {
             let hash = drv.substring(11, 43).to_string();
 
@@ -36,7 +37,6 @@ fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error>
                         .values(&new_build)
                         .get_result(conn)?;
                     log_event(Event::BuildNew(build.handle()?));
-                    build.clone().run();
                     Ok(build)
                 }
             }?;
@@ -51,10 +51,17 @@ fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error>
             let job: Job = diesel::insert_into(jobs)
                 .values(&new_job)
                 .get_result(conn)?;
-            job.run();
+
+            created_jobs.push((build, job));
         }
-        Ok(())
+        Ok(created_jobs)
     })?;
+
+    for (build, job) in created_jobs.into_iter() {
+        build.run().await;
+        job.run().await;
+    }
+
     Ok(())
 }
 
@@ -109,24 +116,24 @@ impl Evaluation {
         Ok(jobsets.find(self.evaluation_jobset).first::<Jobset>(conn)?)
     }
 
-    pub fn run(self, conn: &mut SqliteConnection) -> () {
+    pub async fn run(self, conn: &mut SqliteConnection) -> () {
         let handle = self.handle(conn).unwrap(); // TODO
         let id = self.evaluation_id;
         let task = async move {
             let expr = format!("{}#typhonJobs", self.evaluation_locked_flake);
-            let attrset = nix::eval(expr)?;
+            let attrset = nix::eval(expr).await?;
             let attrset = attrset.as_object().expect("unexpected Nix output"); // TODO: this is unsafe
             let mut jobs_: HashMap<String, String> = HashMap::new();
             for (name, _) in attrset.iter() {
                 let expr = format!("{}#typhonJobs.{}", self.evaluation_locked_flake, name);
-                let drv_path = nix::derivation_path(expr)?;
+                let drv_path = nix::derivation_path(expr).await?;
                 jobs_.insert(name.to_string(), drv_path);
             }
             Ok::<_, Error>(jobs_)
         };
-        let f = move |r| {
+        let f = move |r| async move {
             let status = match r {
-                Some(Ok(new_jobs)) => match evaluate_aux(id, new_jobs) {
+                Some(Ok(new_jobs)) => match evaluate_aux(id, new_jobs).await {
                     Ok(()) => "success",
                     Err(_) => {
                         // TODO: log error to the user
@@ -136,12 +143,12 @@ impl Evaluation {
                 Some(Err(_)) => "error", // TODO: log error to the user
                 None => "canceled",
             };
-            let conn: &mut SqliteConnection = &mut *connection();
+            let conn = &mut *connection().await;
             let _ = diesel::update(evaluations.find(id))
                 .set(evaluation_status.eq(status))
                 .execute(conn);
             log_event(Event::EvaluationFinished(handle));
         };
-        EVALUATIONS.get().unwrap().run(id, task, f);
+        EVALUATIONS.get().unwrap().run(id, task, f).await;
     }
 }

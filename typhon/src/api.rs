@@ -53,7 +53,7 @@ macro_rules! r {
      ;$($rest: tt)*
     ) => {
     async fn $name (user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
-        handle_request(user, $e).map(ResponseWrapper).map_err(ResponseErrorWrapper)
+        handle_request(user, $e).await.map(ResponseWrapper).map_err(ResponseErrorWrapper)
     } r!( $($rest)* );
     };
     (  ) => {}
@@ -160,7 +160,7 @@ async fn raw_request(
     user: User,
     body: web::Json<Request>,
 ) -> web::Json<Result<Response, ResponseError>> {
-    web::Json(handle_request(user, body.into_inner()))
+    web::Json(handle_request(user, body.into_inner()).await)
 }
 
 async fn events(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {

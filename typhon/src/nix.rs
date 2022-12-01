@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::process::Command;
+use tokio::process::Command;
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -11,13 +11,13 @@ impl std::fmt::Display for Error {
     }
 }
 
-pub fn nix(args: Vec<String>) -> Result<String, Error> {
+pub async fn nix(args: Vec<String>) -> Result<String, Error> {
     let mut cmd = Command::new("nix");
     for arg in args {
         cmd.arg(arg);
     }
 
-    let nix_output = cmd.output().expect("command Nix failed to run");
+    let nix_output = cmd.output().await.expect("command Nix failed to run");
     if !nix_output.status.success() {
         let stderr = &String::from_utf8(nix_output.stderr).expect("failed to convert from utf8");
         Err(Error(stderr.clone()))
@@ -26,12 +26,13 @@ pub fn nix(args: Vec<String>) -> Result<String, Error> {
     }
 }
 
-pub fn build(expr: String) -> Result<String, Error> {
+pub async fn build(expr: String) -> Result<String, Error> {
     let output = nix(vec![
         "build".to_string(),
         "--print-out-paths".to_string(),
         expr,
-    ])?;
+    ])
+    .await?;
     let store_path = output
         .split("\n")
         .nth(0)
@@ -40,20 +41,20 @@ pub fn build(expr: String) -> Result<String, Error> {
     Ok(store_path)
 }
 
-pub fn derivation_path(expr: String) -> Result<String, Error> {
-    let output = nix(vec!["show-derivation".to_string(), expr])?;
+pub async fn derivation_path(expr: String) -> Result<String, Error> {
+    let output = nix(vec!["show-derivation".to_string(), expr]).await?;
     let json_output: Value = serde_json::from_str(&output).expect("failed to parse json");
     let m = json_output.as_object().expect("failed to parse json");
     let keys = m.keys();
     Ok(keys.last().expect("failed to parse json").to_string())
 }
 
-pub fn eval(expr: String) -> Result<Value, Error> {
-    let output = nix(["eval".to_string(), "--json".to_string(), expr].to_vec())?;
+pub async fn eval(expr: String) -> Result<Value, Error> {
+    let output = nix(["eval".to_string(), "--json".to_string(), expr].to_vec()).await?;
     Ok(serde_json::from_str(&output).expect("failed to parse json"))
 }
 
-pub fn lock(flake_url: &String) -> Result<String, Error> {
+pub async fn lock(flake_url: &String) -> Result<String, Error> {
     let output = nix([
         "flake".to_string(),
         "metadata".to_string(),
@@ -61,7 +62,8 @@ pub fn lock(flake_url: &String) -> Result<String, Error> {
         "--json".to_string(),
         flake_url.clone(),
     ]
-    .to_vec())?;
+    .to_vec())
+    .await?;
     Ok(serde_json::from_str::<Value>(&output)
         .expect("failed to parse json")
         .as_object()

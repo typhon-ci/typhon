@@ -9,8 +9,8 @@ use crate::{log_event, Event};
 use diesel::prelude::*;
 
 impl Build {
-    pub fn cancel(&self) -> Result<(), Error> {
-        let r = BUILDS.get().unwrap().cancel(self.build_id);
+    pub async fn cancel(&self) -> Result<(), Error> {
+        let r = BUILDS.get().unwrap().cancel(self.build_id).await;
         if r {
             Ok(())
         } else {
@@ -45,26 +45,26 @@ impl Build {
         })
     }
 
-    pub fn run(self) -> () {
+    pub async fn run(self) -> () {
         let handle = self.handle().unwrap(); // TODO
         let id = self.build_id;
         let drv = self.build_drv.clone();
-        let task = async move {
-            nix::build(drv)?;
+        let task = async {
+            nix::build(drv).await?;
             Ok::<(), Error>(())
         };
-        let f = move |r| {
+        let f = move |r| async move {
             let status = match r {
                 Some(Ok(())) => "success",
                 Some(Err(_)) => "error", // TODO: log error
                 None => "canceled",
             };
-            let conn: &mut SqliteConnection = &mut *connection();
+            let conn = &mut *connection().await;
             let _ = diesel::update(builds.find(id))
                 .set(build_status.eq(status))
                 .execute(conn);
             log_event(Event::BuildFinished(handle));
         };
-        BUILDS.get().unwrap().run(id, task, f);
+        BUILDS.get().unwrap().run(id, task, f).await;
     }
 }

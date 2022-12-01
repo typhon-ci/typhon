@@ -1,12 +1,11 @@
-use std::process::Command;
-
 use serde_json::{json, Value};
-
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::iter;
 use std::process::Stdio;
 use std::str::FromStr;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::process::Command;
 
 #[derive(Debug)]
 pub enum Error {
@@ -31,7 +30,7 @@ impl std::fmt::Display for Error {
     }
 }
 
-pub fn run(
+pub async fn run(
     key: &String,
     script_path: &String,
     secrets_path: &String,
@@ -74,11 +73,11 @@ pub fn run(
         .expect("command firejail failed to start");
     let mut stdin = child.stdin.take().unwrap(); // TODO: check if unwrap is safe
     let mut stdout = child.stdout.take().unwrap(); // TODO: check if unwrap is safe
-    let _ = stdin.write(action_input.to_string().as_bytes()).unwrap(); // TODO: check if unwrap is safe
+    let _ = stdin.write(action_input.to_string().as_bytes()).await;
     drop(stdin); // send EOF
 
-    let mut foo: String = String::new();
-    let _ = stdout.read_to_string(&mut foo);
+    let mut res = String::new();
+    let _ = stdout.read_to_string(&mut res).await;
 
-    Ok(serde_json::from_str(&foo).map_err(|_| Error::BadOutput)?)
+    Ok(serde_json::from_str(&res).map_err(|_| Error::BadOutput)?)
 }

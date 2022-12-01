@@ -16,9 +16,12 @@ pub struct JobsetDecl {
 }
 
 impl Jobset {
-    pub fn evaluate(&self, conn: &mut SqliteConnection) -> Result<handles::Evaluation, Error> {
+    pub async fn evaluate(
+        &self,
+        conn: &mut SqliteConnection,
+    ) -> Result<handles::Evaluation, Error> {
         let project = self.project(conn)?;
-        let locked_flake = nix::lock(&self.jobset_flake)?;
+        let locked_flake = nix::lock(&self.jobset_flake).await?;
         let evaluation = conn.transaction::<Evaluation, Error, _>(|conn| {
             let old_evaluations = evaluations
                 .filter(evaluation_jobset.eq(self.jobset_id))
@@ -41,7 +44,7 @@ impl Jobset {
 
         let handle = evaluation.handle(conn)?;
         log_event(Event::EvaluationNew(handle.clone()));
-        evaluation.run(conn);
+        evaluation.run(conn).await;
 
         Ok(handle)
     }

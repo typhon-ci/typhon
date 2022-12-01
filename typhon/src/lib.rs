@@ -28,7 +28,7 @@ use once_cell::sync::OnceCell;
 use sha256::digest;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct Settings {
@@ -43,8 +43,8 @@ pub static JOBS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static CONNECTION: OnceCell<Mutex<SqliteConnection>> = OnceCell::new();
 pub static LISTENERS: OnceCell<Mutex<listeners::Listeners>> = OnceCell::new();
 
-pub fn connection<'a>() -> std::sync::MutexGuard<'a, SqliteConnection> {
-    CONNECTION.get().unwrap().lock().unwrap()
+pub async fn connection<'a>() -> tokio::sync::MutexGuard<'a, SqliteConnection> {
+    CONNECTION.get().unwrap().lock().await
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -94,9 +94,9 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
     }
 }
 
-pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Response, Error> {
+pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Response, Error> {
     if authorize_request(user, req) {
-        let conn = &mut *CONNECTION.get().unwrap().lock().unwrap();
+        let conn = &mut *connection().await;
         Ok(match req {
             requests::Request::ListProjects => Response::ListProjects(Project::list(conn)?),
             requests::Request::CreateProject(project_handle) => {
@@ -112,7 +112,7 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                     }
                     requests::Project::Info => Response::ProjectInfo(project.info(conn)?),
                     requests::Project::Refresh => {
-                        project.refresh(conn)?;
+                        project.refresh(conn).await?;
                         Response::Ok
                     }
                     requests::Project::SetDecl(flake) => {
@@ -124,7 +124,7 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                         Response::Ok
                     }
                     requests::Project::UpdateJobsets => {
-                        let jobsets = project.update_jobsets(conn)?;
+                        let jobsets = project.update_jobsets(conn).await?;
                         Response::ProjectUpdateJobsets(jobsets)
                     }
                 }
@@ -133,7 +133,7 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                 let jobset = Jobset::get(conn, &jobset_handle)?;
                 match req {
                     requests::Jobset::Evaluate => {
-                        let evaluation_handle = jobset.evaluate(conn)?;
+                        let evaluation_handle = jobset.evaluate(conn).await?;
                         Response::JobsetEvaluate(evaluation_handle)
                     }
                     requests::Jobset::Info => Response::JobsetInfo(jobset.info(conn)?),
@@ -163,7 +163,7 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
                 let build = Build::get(conn, &build_handle)?;
                 match req {
                     requests::Build::Cancel => {
-                        build.cancel()?;
+                        build.cancel().await?;
                         Response::Ok
                     }
                     requests::Build::Info => Response::BuildInfo(build.info()?),
@@ -177,9 +177,9 @@ pub fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Respon
 }
 
 /// Main entry point for Typhon requests
-pub fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
+pub async fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
     info!("handling request {:?} for user {:?}", req, user);
-    Ok(handle_request_aux(&user, &req).map_err(|e| {
+    Ok(handle_request_aux(&user, &req).await.map_err(|e| {
         if e.is_internal() {
             error!(
                 "request {:?} for user {:?} raised error: {:?}",
@@ -207,5 +207,8 @@ pub fn handle_request(user: User, req: requests::Request) -> Result<Response, Re
 
 pub fn log_event(event: Event) {
     info!("event: {:?}", event);
-    LISTENERS.get().unwrap().lock().unwrap().log(event);
+    let _ = tokio::spawn(async move {
+        let listeners = &*LISTENERS.get().unwrap();
+        listeners.lock().await.log(event);
+    });
 }
