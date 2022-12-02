@@ -4,7 +4,7 @@ use diesel::prelude::*;
 #[derive(Queryable, Clone)]
 pub struct Project {
     pub project_id: i32,
-    pub project_actions_path: String,
+    pub project_actions_path: Option<String>,
     pub project_decl: String,
     pub project_decl_locked: String,
     pub project_description: String,
@@ -40,7 +40,7 @@ pub struct NewJobset<'a> {
 #[derive(Queryable, Clone)]
 pub struct Evaluation {
     pub evaluation_id: i32,
-    pub evaluation_actions_path: String,
+    pub evaluation_actions_path: Option<String>,
     pub evaluation_jobset: i32,
     pub evaluation_locked_flake: String,
     pub evaluation_num: i32,
@@ -51,7 +51,7 @@ pub struct Evaluation {
 #[derive(Insertable)]
 #[diesel(table_name = evaluations)]
 pub struct NewEvaluation<'a> {
-    pub evaluation_actions_path: &'a str,
+    pub evaluation_actions_path: Option<&'a str>,
     pub evaluation_jobset: i32,
     pub evaluation_locked_flake: &'a str,
     pub evaluation_num: i32,

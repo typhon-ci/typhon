@@ -95,7 +95,10 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
             Some(info) => div![
                 p![format!("Status: {}", info.status)],
                 p![format!("Locked flake: {}", info.locked_flake)],
-                p![format!("Actions path: {}", info.actions_path)],
+                p![format!(
+                    "Actions path: {}",
+                    info.actions_path.clone().unwrap_or("".into())
+                )],
                 if info.status == "success" {
                     div![
                         h3!["Jobs"],

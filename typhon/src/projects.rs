@@ -38,6 +38,15 @@ impl Project {
         }
     }
 
+    pub fn default_jobsets(&self) -> HashMap<String, JobsetDecl> {
+        HashMap::from([(
+            "main".to_string(),
+            JobsetDecl {
+                flake: self.project_decl.clone(),
+            },
+        )])
+    }
+
     pub fn delete(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
         diesel::delete(projects.find(self.project_id)).execute(conn)?;
         log_event(Event::ProjectDeleted(self.handle(conn)?));
@@ -162,27 +171,25 @@ impl Project {
 
     pub async fn update_jobsets(&self, conn: &mut SqliteConnection) -> Result<Vec<String>, Error> {
         // run action `jobsets`
-        let decls: HashMap<String, JobsetDecl> =
-            if Path::new(&format!("{}/jobsets", &self.project_actions_path)).exists() {
-                let action_input = serde_json::json!(null);
-                let action_output = actions::run(
-                    &self.project_key,
-                    &format!("{}/jobsets", &self.project_actions_path),
-                    &format!("{}/secrets", &self.project_actions_path),
-                    &action_input,
-                )
-                .await?;
-                let m = serde_json::from_str(&action_output.to_string())
-                    .map_err(|_| Error::BadJobsetDecl(action_output.to_string()))?;
-                m
-            } else {
-                HashMap::from([(
-                    "main".to_string(),
-                    JobsetDecl {
-                        flake: self.project_decl.clone(),
-                    },
-                )])
-            };
+        let decls: HashMap<String, JobsetDecl> = match &self.project_actions_path {
+            Some(path) => {
+                if Path::new(&format!("{}/jobsets", path)).exists() {
+                    let action_input = serde_json::json!(null);
+                    let action_output = actions::run(
+                        &self.project_key,
+                        &format!("{}/jobsets", path),
+                        &format!("{}/secrets", path),
+                        &action_input,
+                    )
+                    .await?;
+                    serde_json::from_str(&action_output.to_string())
+                        .map_err(|_| Error::BadJobsetDecl(action_output.to_string()))?
+                } else {
+                    self.default_jobsets()
+                }
+            }
+            None => self.default_jobsets(),
+        };
 
         // TODO: split update_jobsets into two functions
         // the connection is blocked through the first step of the function

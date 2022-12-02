@@ -167,7 +167,10 @@ fn view_project(model: &Model) -> Node<Msg> {
                     h3!["Settings"],
                     p![format!("Declaration: {}", info.decl)],
                     p![format!("Declaration locked: {}", info.decl_locked)],
-                    p![format!("Actions path: {}", info.actions_path)],
+                    p![format!(
+                        "Actions path: {}",
+                        info.actions_path.clone().unwrap_or("".into())
+                    )],
                     p![format!("Public key: {}", info.public_key)],
                 ],
                 div![

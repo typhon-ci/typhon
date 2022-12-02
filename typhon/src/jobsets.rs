@@ -35,7 +35,7 @@ impl Jobset {
                 evaluation_locked_flake: &locked_flake,
                 evaluation_time_created: time,
                 evaluation_status: &status,
-                evaluation_actions_path: &project.project_actions_path,
+                evaluation_actions_path: project.project_actions_path.as_ref().map(|s| s.as_str()),
             };
             Ok(diesel::insert_into(evaluations)
                 .values(&new_evaluation)

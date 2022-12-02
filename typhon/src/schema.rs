@@ -12,7 +12,7 @@ diesel::table! {
 diesel::table! {
     evaluations (evaluation_id) {
         evaluation_id -> Integer,
-        evaluation_actions_path -> Text,
+        evaluation_actions_path -> Nullable<Text>,
         evaluation_jobset -> Integer,
         evaluation_locked_flake -> Text,
         evaluation_num -> Integer,
@@ -43,7 +43,7 @@ diesel::table! {
 diesel::table! {
     projects (project_id) {
         project_id -> Integer,
-        project_actions_path -> Text,
+        project_actions_path -> Nullable<Text>,
         project_decl -> Text,
         project_decl_locked -> Text,
         project_description -> Text,

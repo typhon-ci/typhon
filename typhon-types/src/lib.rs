@@ -167,7 +167,7 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectInfo {
-        pub actions_path: String,
+        pub actions_path: Option<String>,
         pub decl: String,
         pub decl_locked: String,
         pub jobsets: Vec<String>,
@@ -183,7 +183,7 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
-        pub actions_path: String,
+        pub actions_path: Option<String>,
         pub jobs: Vec<String>,
         pub locked_flake: String,
         pub status: String,

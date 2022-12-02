@@ -1,6 +1,6 @@
 CREATE TABLE projects (
     project_id INTEGER NOT NULL PRIMARY KEY,
-    project_actions_path TEXT DEFAULT "" NOT NULL,
+    project_actions_path TEXT,
     project_decl TEXT DEFAULT "" NOT NULL,
     project_decl_locked TEXT DEFAULT "" NOT NULL,
     project_description TEXT DEFAULT "" NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE jobsets (
 
 CREATE TABLE evaluations (
     evaluation_id INTEGER NOT NULL PRIMARY KEY,
-    evaluation_actions_path TEXT NOT NULL,
+    evaluation_actions_path TEXT,
     evaluation_jobset INTEGER NOT NULL REFERENCES jobsets(jobset_id) ON DELETE CASCADE,
     evaluation_locked_flake TEXT NOT NULL,
     evaluation_num INTEGER NOT NULL,
