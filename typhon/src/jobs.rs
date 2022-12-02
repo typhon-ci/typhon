@@ -18,8 +18,13 @@ impl Job {
         Ok(builds.find(self.job_build).first::<Build>(conn)?)
     }
 
-    pub fn cancel(&self) -> Result<(), Error> {
-        todo!()
+    pub async fn cancel(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
+        let r = JOBS.get().unwrap().cancel(self.job_id).await;
+        if r {
+            Ok(())
+        } else {
+            Err(Error::JobNotRunning(self.handle(conn)?))
+        }
     }
 
     pub fn evaluation(&self, conn: &mut SqliteConnection) -> Result<Evaluation, Error> {
@@ -43,6 +48,13 @@ impl Job {
                     job_name_.clone(),
                 )))
             })?)
+    }
+
+    pub fn handle(&self, conn: &mut SqliteConnection) -> Result<handles::Job, Error> {
+        Ok(handles::Job {
+            evaluation: self.evaluation(conn)?.handle(conn)?,
+            job: self.job_name.clone(),
+        })
     }
 
     pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::JobInfo, Error> {

@@ -14,9 +14,7 @@ impl Build {
         if r {
             Ok(())
         } else {
-            Err(Error::BuildNotRunning(handles::Build {
-                build_hash: self.build_hash.clone(),
-            }))
+            Err(Error::BuildNotRunning(self.handle()))
         }
     }
 
@@ -32,10 +30,10 @@ impl Build {
             })?)
     }
 
-    pub fn handle(&self) -> Result<handles::Build, Error> {
-        Ok(handles::Build {
+    pub fn handle(&self) -> handles::Build {
+        handles::Build {
             build_hash: self.build_hash.clone(),
-        })
+        }
     }
 
     pub fn info(&self) -> Result<responses::BuildInfo, Error> {
@@ -46,7 +44,7 @@ impl Build {
     }
 
     pub async fn run(self) -> () {
-        let handle = self.handle().unwrap(); // TODO
+        let handle = self.handle();
         let id = self.build_id;
         let drv = self.build_drv.clone();
         let task = async {

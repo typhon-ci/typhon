@@ -12,6 +12,7 @@ pub enum Error {
     EvaluationNotFound(handles::Evaluation),
     EvaluationNotRunning(handles::Evaluation),
     JobNotFound(handles::Job),
+    JobNotRunning(handles::Job),
     JobsetNotFound(handles::Jobset),
     NixError(nix::Error),
     ProjectAlreadyExists(handles::Project),
@@ -40,6 +41,9 @@ impl std::fmt::Display for Error {
             BuildNotRunning(build_handle) => write!(f, "Build {} is not running", build_handle),
             JobNotFound(job_handle) => {
                 write!(f, "Job {} not found", job_handle)
+            }
+            JobNotRunning(job_handle) => {
+                write!(f, "Job {} is not running", job_handle)
             }
             JobsetNotFound(jobset_handle) => {
                 write!(f, "Jobset {} not found", jobset_handle)

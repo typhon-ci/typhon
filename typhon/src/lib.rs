@@ -143,7 +143,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                 let evaluation = Evaluation::get(conn, evaluation_handle)?;
                 match req {
                     requests::Evaluation::Cancel => {
-                        evaluation.cancel()?;
+                        evaluation.cancel(conn).await?;
                         Response::Ok
                     }
                     requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
@@ -153,7 +153,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                 let job = Job::get(conn, &job_handle)?;
                 match req {
                     requests::Job::Cancel => {
-                        job.cancel()?;
+                        job.cancel(conn).await?;
                         Response::Ok
                     }
                     requests::Job::Info => Response::JobInfo(job.info(conn)?),
@@ -198,6 +198,7 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
             | BadJobsetDecl(_)
             | BuildNotRunning(_)
             | EvaluationNotRunning(_)
+            | JobNotRunning(_)
             | NixError(_)
             | ProjectAlreadyExists(_) => BadRequest(format!("{}", e)),
             Todo | UnexpectedDatabaseError(_) => InternalError,

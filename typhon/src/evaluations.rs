@@ -36,7 +36,7 @@ async fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), 
                     let build: Build = diesel::insert_into(builds)
                         .values(&new_build)
                         .get_result(conn)?;
-                    log_event(Event::BuildNew(build.handle()?));
+                    log_event(Event::BuildNew(build.handle()));
                     Ok(build)
                 }
             }?;
@@ -66,8 +66,13 @@ async fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), 
 }
 
 impl Evaluation {
-    pub fn cancel(&self) -> Result<(), Error> {
-        todo!()
+    pub async fn cancel(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
+        let r = EVALUATIONS.get().unwrap().cancel(self.evaluation_id).await;
+        if r {
+            Ok(())
+        } else {
+            Err(Error::EvaluationNotRunning(self.handle(conn)?))
+        }
     }
 
     pub fn get(
