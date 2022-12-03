@@ -116,7 +116,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::SetPrivateKey => {
             let handle = model.handle.clone();
-            let private_key = model.input_decl.clone();
+            let private_key = model.input_private_key.clone();
             model.input_private_key = "".into();
             let req =
                 requests::Request::Project(handle, requests::Project::SetPrivateKey(private_key));
