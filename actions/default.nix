@@ -43,4 +43,72 @@
       '';
     };
 
+  mkGithubProject = { owner, repo, token, title ? repo, description ? ""
+    , homepage ? "https://github.com/${owner}/${repo}" }:
+    let
+      parseInput = ''
+        token=$(echo $input | jq '.secrets' -r | jq -r)
+
+        flake=$(echo $input | jq '.input.locked_flake' -r)
+        project=$(echo $input | jq '.input.project' -r)
+        jobset=$(echo $input | jq '.input.jobset' -r)
+        evaluation=$(echo $input | jq '.input.evaluation' -r)
+        job=$(echo $input | jq '.input.job' -r)
+
+        ref=$(echo $flake | sed 's/github:.*\/.*\/\(.*\)/\1/')
+        context="Typhon job: $job"
+        description="$project:$jobset:$evaluation:$job"
+      '';
+      setGithubStatus = state: ''
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $token" https://api.github.com/repos/${owner}/${repo}/statuses/$ref -d "{\"state\":\"${state}\",\"target_url\":\"https://typhon-ci.org\",\"description\":\"$description\",\"context\":\"$context\"}" -k
+      '';
+      mkScript = script:
+        mkAction {
+          packages = [ pkgs.jq pkgs.gnused pkgs.curl ];
+          inherit script;
+        };
+    in mkProject {
+      meta = { inherit title description homepage; };
+      actions = {
+        jobsets = mkScript ''
+          input=$(cat)
+
+          ${parseInput}
+
+          curl \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $token" \
+            https://api.github.com/repos/${owner}/${repo}/branches \
+            -k \
+            | jq --arg o "${owner}" --arg r "${repo}" 'map({ key: .name, value: { "flake": ("github:" + $o + "/" + $r + "/" + .name) }}) | from_entries'
+        '';
+        begin = mkScript ''
+          input=$(cat)
+
+          ${parseInput}
+
+          ${setGithubStatus "pending"}
+        '';
+        end = mkScript ''
+          input=$(cat)
+
+          ${parseInput}
+          status=$(echo $input | jq '.input.status' -r)
+
+          case $status in
+            "error")
+              ${setGithubStatus "failure"}
+              ;;
+            "success")
+              ${setGithubStatus "success"}
+              ;;
+            *)
+              ${setGithubStatus "error"}
+              ;;
+          esac
+        '';
+      };
+      secrets = token;
+    };
+
 }
