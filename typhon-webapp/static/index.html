@@ -42,11 +42,14 @@
         // Also note that the promise, when resolved, yields the wasm module's
         // exports which is the same as importing the `*_bg` module in other
         // modes
-        await init();
+          await init();
 
-        app();
+          app({
+              api: "http://127.0.0.1:8000/api",
+              websocket: "ws://127.0.0.1:8000/api",
+          });
       }
-
+      
       run();
     </script>
   </body>

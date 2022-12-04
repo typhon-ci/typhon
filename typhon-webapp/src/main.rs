@@ -1,3 +1,4 @@
 pub fn main() {
-    typhon_webapp::app();
+    // TODO remove?
+    // typhon_webapp::app(static_config);
 }

@@ -171,6 +171,7 @@ struct Model {
     page: Page,
     admin: bool,
     ws: WebSocket,
+    static_config: StaticConfig,
 }
 
 enum Msg {
@@ -186,13 +187,20 @@ enum Msg {
     WsMessageReceived(WebSocketMessage),
 }
 
-fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
+use serde::{Deserialize, Serialize};
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StaticConfig {
+    api: String,       // ws://127.0.0.1:8000/api
+    websocket: String, // ws://127.0.0.1:8000/api
+}
+
+fn init(static_config: StaticConfig, url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
     let msg_sender = orders.msg_sender();
     Model {
         page: Page::init(url, orders),
         admin: get_password().is_some(), // TODO
-        ws: WebSocket::builder("ws://127.0.0.1:8000/api/events", orders)
+        ws: WebSocket::builder(format!("{}/events", static_config.websocket), orders)
             .on_message(move |msg| {
                 msg_sender(Some(Msg::WsMessageReceived(msg)));
             })
@@ -200,6 +208,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
             .on_close(|_| {})
             .build_and_open()
             .expect("failed to open websocket"),
+        static_config,
     }
 }
 
@@ -348,7 +357,19 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
     ]
 }
 
+// pub trait FromWasmAbi: WasmDescribe {
+//     type Abi: WasmAbi;
+
+//     unsafe fn from_abi(js: Self::Abi) -> Self;
+// }
+
 #[wasm_bindgen]
-pub fn app() {
-    App::start("app", init, update, view);
+pub fn app(static_config: JsValue) {
+    let static_config = serde_wasm_bindgen::from_value(static_config).unwrap();
+    App::start(
+        "app",
+        |url, order| init(static_config, url, order),
+        update,
+        view,
+    );
 }
