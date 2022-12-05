@@ -41,28 +41,28 @@
           inherit src cargoArtifacts;
           buildInputs = [ pkgs.sqlite.dev ];
         };
-        # TODO: the build of typhon-webapp is a bit hackish
         typhon-webapp = let
           rust-wasm = pkgs.rust-bin.stable.latest.default.override {
             targets = [ "wasm32-unknown-unknown" ];
           };
           craneLib = (crane.mkLib pkgs).overrideToolchain rust-wasm;
-          cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
-        in craneLib.buildPackage {
+          cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
+          cargoArtifacts = craneLib.buildDepsOnly {
+            inherit src cargoExtraArgs;
+            doCheck = false;
+          };
+          wasm = craneLib.buildPackage {
+            name = "typhon-webapp-wasm";
+            inherit src cargoArtifacts cargoExtraArgs;
+            doCheck = false;
+          };
+        in pkgs.stdenv.mkDerivation {
           name = "typhon-webapp";
-          inherit src cargoArtifacts;
-          buildInputs = [
-            pkgs.wasm-pack
-            pkgs.wasm-bindgen-cli
-            pkgs.binaryen # gives `wasm-opt`, needed by `wasm-pack`
-          ];
+          phases = [ "buildPhase" ];
+          nativeBuildInputs = [ pkgs.wasm-bindgen-cli ];
           buildPhase = ''
-            cd typhon-webapp && wasm-pack build --target web
+            wasm-bindgen ${wasm}/lib/typhon_webapp.wasm --out-dir $out --target web
           '';
-          installPhase = ''
-            cp -r pkg $out
-          '';
-          doCheck = false;
         };
         webapp-root = let
           index = pkgs.writeTextFile {
