@@ -76,6 +76,7 @@ impl Handler<Msg> for Session {
     }
 }
 
+#[derive(Debug)]
 pub struct Listeners {
     sessions: HashSet<Addr<Session>>,
 }

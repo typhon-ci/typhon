@@ -44,12 +44,24 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
 
     // Initialize Typhon's state
-    let _ = typhon::SETTINGS.set(settings);
-    let _ = typhon::EVALUATIONS.set(typhon::tasks::Tasks::new());
-    let _ = typhon::BUILDS.set(typhon::tasks::Tasks::new());
-    let _ = typhon::JOBS.set(typhon::tasks::Tasks::new());
-    let _ = typhon::CONNECTION.set(Mutex::new(conn));
-    let _ = typhon::LISTENERS.set(Mutex::new(typhon::listeners::Listeners::new()));
+    typhon::SETTINGS
+        .set(settings)
+        .expect("failed to initialize state value");
+    typhon::EVALUATIONS
+        .set(typhon::tasks::Tasks::new())
+        .expect("failed to initialize state value");
+    typhon::BUILDS
+        .set(typhon::tasks::Tasks::new())
+        .expect("failed to initialize state value");
+    typhon::JOBS
+        .set(typhon::tasks::Tasks::new())
+        .expect("failed to initialize state value");
+    typhon::CONNECTION
+        .set(typhon::Connection::new(conn))
+        .expect("failed to initialize state value");
+    typhon::LISTENERS
+        .set(Mutex::new(typhon::listeners::Listeners::new()))
+        .expect("failed to initialize state value");
 
     // Enable foreign key support
     let _ = typhon::connection()

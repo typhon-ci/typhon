@@ -26,6 +26,7 @@ use diesel::prelude::*;
 use log::*;
 use once_cell::sync::OnceCell;
 use sha256::digest;
+use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use tokio::sync::Mutex;
@@ -35,16 +36,34 @@ pub struct Settings {
     pub hashed_password: String,
 }
 
+pub struct Connection {
+    pub conn: Mutex<SqliteConnection>,
+}
+
+impl Connection {
+    pub fn new(conn: SqliteConnection) -> Self {
+        Self {
+            conn: Mutex::new(conn),
+        }
+    }
+}
+
+impl fmt::Debug for Connection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Sqlite Connection")
+    }
+}
+
 // Typhon's state
 pub static SETTINGS: OnceCell<Settings> = OnceCell::new();
 pub static EVALUATIONS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static BUILDS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static JOBS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
-pub static CONNECTION: OnceCell<Mutex<SqliteConnection>> = OnceCell::new();
+pub static CONNECTION: OnceCell<Connection> = OnceCell::new();
 pub static LISTENERS: OnceCell<Mutex<listeners::Listeners>> = OnceCell::new();
 
 pub async fn connection<'a>() -> tokio::sync::MutexGuard<'a, SqliteConnection> {
-    CONNECTION.get().unwrap().lock().await
+    CONNECTION.get().unwrap().conn.lock().await
 }
 
 #[derive(Debug, Clone, Copy)]
