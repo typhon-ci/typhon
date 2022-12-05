@@ -18,6 +18,10 @@ struct Args {
     #[arg(long, short)]
     password: String,
 
+    /// Webroot
+    #[arg(long, short)]
+    webroot: String,
+
     /// Silence all output
     #[arg(long, short)]
     quiet: bool,
@@ -37,6 +41,7 @@ async fn main() -> std::io::Result<()> {
 
     let settings = typhon::Settings {
         hashed_password: args.password.clone(),
+        webroot: args.webroot.clone(),
     };
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");

@@ -1,5 +1,6 @@
 use crate::listeners::Session;
 use crate::requests::*;
+use crate::SETTINGS;
 use crate::{handle_request, handles, Response, ResponseError, User};
 use actix_cors::Cors;
 use actix_web::{
@@ -170,7 +171,7 @@ async fn events(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, 
 pub fn config(cfg: &mut web::ServiceConfig) {
     let cors = Cors::permissive(); // TODO: configure
     cfg.service(
-        web::scope("/api")
+        web::scope(&format!("{}/api", SETTINGS.get().unwrap().webroot))
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
             .route("/projects", web::get().to(list_projects))

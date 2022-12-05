@@ -34,6 +34,7 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub struct Settings {
     pub hashed_password: String,
+    pub webroot: String,
 }
 
 pub struct Connection {
