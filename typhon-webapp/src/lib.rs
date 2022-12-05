@@ -271,10 +271,16 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 page: Page::Login(login_model),
                 ..
             },
-        ) => login::update(msg, login_model, &mut orders.proxy(Msg::LoginMsg)),
+        ) => match login::update(msg, login_model, &mut orders.proxy(Msg::LoginMsg)) {
+            login::OutMsg::Noop => (),
+            login::OutMsg::Login(pw) => {
+                set_password(&pw); // TODO
+                model.admin = true;
+            }
+        },
         (Msg::Logout, _) => {
+            reset_password(); // TODO
             model.admin = false;
-            reset_password() // TODO
         }
         (
             Msg::HomeMsg(msg),

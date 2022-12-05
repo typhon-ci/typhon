@@ -7,8 +7,13 @@ pub struct Model {
 
 #[derive(Clone)]
 pub enum Msg {
-    Update(String),
     Enter,
+    Update(String),
+}
+
+pub enum OutMsg {
+    Noop,
+    Login(String),
 }
 
 pub fn init(_orders: &mut impl Orders<Msg>) -> Model {
@@ -17,14 +22,16 @@ pub fn init(_orders: &mut impl Orders<Msg>) -> Model {
     }
 }
 
-pub fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) -> OutMsg {
     match msg {
+        Msg::Enter => {
+            let pw = model.password.clone();
+            model.password = "".into();
+            OutMsg::Login(pw)
+        }
         Msg::Update(pw) => {
             model.password = pw;
-        }
-        Msg::Enter => {
-            crate::set_password(&model.password); // TODO
-            model.password = "".into();
+            OutMsg::Noop
         }
     }
 }
