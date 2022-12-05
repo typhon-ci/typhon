@@ -80,7 +80,12 @@
 
                     async function run() {
                       await init();
-                      app();
+                      app({
+                        "client_webroot": "",
+                        "server_domain": "127.0.0.1:8000",
+                        "server_webroot": "",
+                        "server_https": false
+                      });
                     }
 
                     run();

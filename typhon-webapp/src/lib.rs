@@ -6,8 +6,31 @@ mod jobset;
 mod login;
 mod project;
 
+use once_cell::sync::OnceCell;
 use seed::{prelude::*, *};
+use serde::{Deserialize, Serialize};
 use typhon_types::*;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Settings {
+    pub client_webroot: String,
+    pub server_domain: String,
+    pub server_webroot: String,
+    pub server_https: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            client_webroot: "".into(),
+            server_domain: "127.0.0.1:8000".into(),
+            server_webroot: "".into(),
+            server_https: false,
+        }
+    }
+}
+
+pub static SETTINGS: OnceCell<Settings> = OnceCell::new();
 
 pub fn get_password() -> Option<String> {
     LocalStorage::get("typhon_password").ok()
@@ -24,11 +47,21 @@ pub fn reset_password() {
 pub async fn handle_request(
     request: &requests::Request,
 ) -> Result<responses::Response, responses::ResponseError> {
+    let settings = SETTINGS.get().unwrap();
     let password = get_password();
-    let req = Request::new("http://127.0.0.1:8000/api")
-        .method(Method::Post)
-        .json(request)
-        .expect("Failed to serialize request");
+    let req = Request::new(format!(
+        "{}://{}{}/api",
+        if settings.server_https {
+            "https"
+        } else {
+            "http"
+        },
+        settings.server_domain,
+        settings.server_webroot
+    ))
+    .method(Method::Post)
+    .json(request)
+    .expect("Failed to serialize request");
     let req = match password {
         None => req,
         Some(pw) => req.header(Header::custom("password", pw)),
@@ -75,14 +108,18 @@ pub(crate) use perform_request;
 
 struct_urls!();
 impl<'a> Urls<'a> {
+    pub fn webroot() -> Url {
+        let settings = SETTINGS.get().unwrap();
+        Url::new().set_path(settings.client_webroot.split('/'))
+    }
     pub fn login() -> Url {
-        Url::new().add_path_part("login")
+        Urls::webroot().add_path_part("login")
     }
     pub fn home() -> Url {
-        Url::new()
+        Urls::webroot()
     }
     pub fn project(handle: &handles::Project) -> Url {
-        Url::new()
+        Urls::webroot()
             .add_path_part("projects")
             .add_path_part(&handle.project)
     }
@@ -102,7 +139,7 @@ impl<'a> Urls<'a> {
             .add_path_part(&handle.job)
     }
     pub fn build(handle: &handles::Build) -> Url {
-        Url::new()
+        Urls::webroot()
             .add_path_part("builds")
             .add_path_part(&handle.build_hash)
     }
@@ -122,7 +159,18 @@ enum Page {
 
 impl Page {
     fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Self {
-        match url.remaining_path_parts().as_slice() {
+        let settings = SETTINGS.get().unwrap();
+        let webroot = settings.client_webroot.split('/');
+        let mut path_parts = url.remaining_path_parts();
+        for x in webroot {
+            if x != "" {
+                let y = path_parts.remove(0);
+                if x != y {
+                    return Page::NotFound;
+                }
+            }
+        }
+        match path_parts.as_slice() {
             [] => Page::Home(home::init(&mut orders.proxy(Msg::HomeMsg))),
             ["login"] => Page::Login(login::init(&mut orders.proxy(Msg::LoginMsg))),
             ["projects", project] => Page::Project(project::init(
@@ -189,17 +237,26 @@ enum Msg {
 fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
     let msg_sender = orders.msg_sender();
+    let settings = SETTINGS.get().unwrap();
     Model {
         page: Page::init(url, orders),
         admin: get_password().is_some(), // TODO
-        ws: WebSocket::builder("ws://127.0.0.1:8000/api/events", orders)
-            .on_message(move |msg| {
-                msg_sender(Some(Msg::WsMessageReceived(msg)));
-            })
-            .on_error(|| {})
-            .on_close(|_| {})
-            .build_and_open()
-            .expect("failed to open websocket"),
+        ws: WebSocket::builder(
+            format!(
+                "{}://{}{}/api/events",
+                if settings.server_https { "wss" } else { "ws" },
+                settings.server_domain,
+                settings.server_webroot
+            ),
+            orders,
+        )
+        .on_message(move |msg| {
+            msg_sender(Some(Msg::WsMessageReceived(msg)));
+        })
+        .on_error(|| {})
+        .on_close(|_| {})
+        .build_and_open()
+        .expect("failed to open websocket"),
     }
 }
 
@@ -349,6 +406,8 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
 }
 
 #[wasm_bindgen]
-pub fn app() {
+pub fn app(settings: JsValue) {
+    let settings = serde_wasm_bindgen::from_value(settings).expect("failed to parse settings");
+    SETTINGS.set(settings).unwrap();
     App::start("app", init, update, view);
 }
