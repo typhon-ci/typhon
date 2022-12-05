@@ -16,6 +16,7 @@ pub enum Msg {
     ErrorIgnored,
     Event(Event),
     FetchProjects,
+    Noop,
     SetProjects(Vec<String>),
     UpdateProjectName(String),
 }
@@ -38,7 +39,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             perform_request!(
                 orders,
                 req,
-                responses::Response::Ok => Msg::FetchProjects,
+                responses::Response::Ok => Msg::Noop,
                 Msg::Error,
             );
         }
@@ -60,6 +61,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
+        Msg::Noop => (),
         Msg::SetProjects(l) => {
             model.projects = l;
         }

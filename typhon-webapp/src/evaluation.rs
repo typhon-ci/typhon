@@ -12,12 +12,12 @@ pub struct Model {
 #[derive(Clone)]
 pub enum Msg {
     Cancel,
-    Canceled,
     Error(responses::ResponseError),
     ErrorIgnored,
     Event(Event),
     FetchInfo,
     GetInfo(responses::EvaluationInfo),
+    Noop,
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Evaluation) -> Model {
@@ -37,12 +37,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             perform_request!(
                 orders,
                 req,
-                responses::Response::Ok => Msg::Canceled,
+                responses::Response::Ok => Msg::Noop,
                 Msg::Error,
             );
-        }
-        Msg::Canceled => {
-            orders.send_msg(Msg::FetchInfo);
         }
         Msg::Error(err) => {
             model.error = Some(err);
@@ -66,6 +63,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::GetInfo(info) => {
             model.info = Some(info);
         }
+        Msg::Noop => (),
     }
 }
 

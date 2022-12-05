@@ -13,7 +13,6 @@ pub struct Model {
 
 #[derive(Clone)]
 pub enum Msg {
-    DeclSet,
     Delete,
     Deleted,
     Error(responses::ResponseError),
@@ -21,10 +20,8 @@ pub enum Msg {
     Event(Event),
     FetchInfo,
     GetInfo(responses::ProjectInfo),
-    JobsetsUpdated,
-    PrivateKeySet,
+    Noop,
     Refresh,
-    Refreshed,
     SetDecl,
     SetPrivateKey,
     UpdateInputDecl(String),
@@ -45,9 +42,6 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
-        Msg::DeclSet => {
-            orders.send_msg(Msg::FetchInfo);
-        }
         Msg::Delete => {
             let handle = model.handle.clone();
             let req = requests::Request::Project(handle, requests::Project::Delete);
@@ -83,24 +77,16 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::GetInfo(info) => {
             model.info = Some(info);
         }
-        Msg::JobsetsUpdated => {
-            orders.send_msg(Msg::FetchInfo);
-        }
-        Msg::PrivateKeySet => {
-            orders.send_msg(Msg::FetchInfo);
-        }
+        Msg::Noop => (),
         Msg::Refresh => {
             let handle = model.handle.clone();
             let req = requests::Request::Project(handle, requests::Project::Refresh);
             perform_request!(
                 orders,
                 req,
-                responses::Response::Ok => Msg::Refreshed,
+                responses::Response::Ok => Msg::Noop,
                 Msg::Error,
             );
-        }
-        Msg::Refreshed => {
-            orders.send_msg(Msg::FetchInfo);
         }
         Msg::SetDecl => {
             let handle = model.handle.clone();
@@ -110,7 +96,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             perform_request!(
                 orders,
                 req,
-                responses::Response::Ok => Msg::DeclSet,
+                responses::Response::Ok => Msg::Noop,
                 Msg::Error,
             );
         }
@@ -123,7 +109,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             perform_request!(
                 orders,
                 req,
-                responses::Response::Ok => Msg::PrivateKeySet,
+                responses::Response::Ok => Msg::Noop,
                 Msg::Error,
             );
         }
@@ -139,7 +125,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             perform_request!(
                 orders,
                 req,
-                responses::Response::ProjectUpdateJobsets(_) => Msg::JobsetsUpdated,
+                responses::Response::ProjectUpdateJobsets(_) => Msg::Noop,
                 Msg::Error,
             );
         }

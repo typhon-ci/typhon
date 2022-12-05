@@ -14,10 +14,10 @@ pub enum Msg {
     Error(responses::ResponseError),
     ErrorIgnored,
     Evaluate,
-    Evaluated,
     Event(Event),
     FetchInfo,
     GetInfo(responses::JobsetInfo),
+    Noop,
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
@@ -43,12 +43,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             perform_request!(
                 orders,
                 req,
-                responses::Response::JobsetEvaluate(_) => Msg::Evaluated,
+                responses::Response::JobsetEvaluate(_) => Msg::Noop,
                 Msg::Error,
             );
-        }
-        Msg::Evaluated => {
-            orders.send_msg(Msg::FetchInfo);
         }
         Msg::Event(_) => {
             orders.send_msg(Msg::FetchInfo);
@@ -66,6 +63,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::GetInfo(info) => {
             model.info = Some(info);
         }
+        Msg::Noop => (),
     }
 }
 
