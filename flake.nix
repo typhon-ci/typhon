@@ -64,49 +64,10 @@
             wasm-bindgen ${wasm}/lib/typhon_webapp.wasm --out-dir $out --target web
           '';
         };
-        webapp-root = let
-          index = pkgs.writeTextFile {
-            name = "index.html";
-            text = ''
-              <!DOCTYPE html>
-              <html>
-                <head>
-                  <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
-                </head>
-                <body>
-                  <div id="app"></div>
-                  <script type="module">
-                    import init, { app } from './typhon_webapp.js';
-
-                    async function run() {
-                      await init();
-                      app({
-                        "client_webroot": "",
-                        "server_domain": "127.0.0.1:8000",
-                        "server_webroot": "",
-                        "server_https": false
-                      });
-                    }
-
-                    run();
-                  </script>
-                </body>
-              </html>
-            '';
-          };
-        in pkgs.stdenv.mkDerivation {
-          name = "typhon-webapp";
-          phases = [ "installPhase" ];
-          installPhase = ''
-            mkdir -p $out
-            ln -s ${typhon-webapp}/* $out
-            ln -s ${index} $out/index.html
-          '';
-        };
         common-devShell-packages = [ pkgs.rustfmt ];
       in {
         packages = {
-          inherit typhon typhon-webapp webapp-root;
+          inherit typhon typhon-webapp;
           default = typhon;
         };
         devShells = {
