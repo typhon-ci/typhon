@@ -47,8 +47,6 @@
     , homepage ? "https://github.com/${owner}/${repo}" }:
     let
       parseInput = ''
-        token=$(echo $input | jq '.secrets' -r)
-
         flake=$(echo $input | jq '.input.locked_flake' -r)
         project=$(echo $input | jq '.input.project' -r)
         jobset=$(echo $input | jq '.input.jobset' -r)
@@ -73,7 +71,7 @@
         jobsets = mkScript ''
           input=$(cat)
 
-          ${parseInput}
+          token=$(echo $input | jq '.secrets' -r)
 
           curl \
             -H "Accept: application/vnd.github+json" \
@@ -86,6 +84,7 @@
           input=$(cat)
 
           ${parseInput}
+          token=$(echo $input | jq '.secrets' -r)
 
           ${setGithubStatus "pending"}
         '';
@@ -94,6 +93,7 @@
 
           ${parseInput}
           status=$(echo $input | jq '.input.status' -r)
+          token=$(echo $input | jq '.secrets' -r)
 
           case $status in
             "error")
