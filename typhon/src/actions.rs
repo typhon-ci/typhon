@@ -58,10 +58,11 @@ pub async fn run(
             Ok(decrypted)
         })
         .unwrap_or(Ok::<String, Error>(String::new()))?;
+    let secrets: Value = serde_json::from_str(&decrypted).map_err(|_| Error::InvalidSecrets)?;
 
     let action_input = json!({
         "input": input,
-        "secrets": decrypted,
+        "secrets": secrets,
     });
 
     let mut child = Command::new("firejail")
