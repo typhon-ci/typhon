@@ -9,7 +9,6 @@ use tokio::process::Command;
 
 #[derive(Debug)]
 pub enum Error {
-    BadOutput,
     InvalidKey,
     InvalidSecrets,
     ScriptNotFound,
@@ -20,7 +19,6 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Error::BadOutput => write!(f, "Bad output"),
             Error::InvalidKey => write!(f, "Invalid key"),
             Error::InvalidSecrets => write!(f, "Wrong secrets format"),
             Error::ScriptNotFound => write!(f, "Action script not found"),
@@ -35,7 +33,7 @@ pub async fn run(
     script_path: &String,
     secrets_path: &String,
     input: &Value,
-) -> Result<Value, Error> {
+) -> Result<String, Error> {
     let key = age::x25519::Identity::from_str(key).map_err(|_| Error::InvalidKey)?;
 
     let decrypted = File::open(&secrets_path)
@@ -80,5 +78,5 @@ pub async fn run(
     let mut res = String::new();
     let _ = stdout.read_to_string(&mut res).await;
 
-    Ok(serde_json::from_str(&res).map_err(|_| Error::BadOutput)?)
+    Ok(res)
 }

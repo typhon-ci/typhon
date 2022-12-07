@@ -182,8 +182,8 @@ impl Project {
                         &action_input,
                     )
                     .await?;
-                    serde_json::from_str(&action_output.to_string())
-                        .map_err(|_| Error::BadJobsetDecl(action_output.to_string()))?
+                    serde_json::from_str(&action_output)
+                        .map_err(|_| Error::BadJobsetDecl(action_output))?
                 } else {
                     self.default_jobsets()
                 }
