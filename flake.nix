@@ -47,21 +47,23 @@
           };
           craneLib = (crane.mkLib pkgs).overrideToolchain rust-wasm;
           cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
+          CARGO_PROFILE = "typhon-webapp";
           cargoArtifacts = craneLib.buildDepsOnly {
-            inherit src cargoExtraArgs;
+            inherit src cargoExtraArgs CARGO_PROFILE;
             doCheck = false;
           };
           wasm = craneLib.buildPackage {
             name = "typhon-webapp-wasm";
-            inherit src cargoArtifacts cargoExtraArgs;
+            inherit src cargoExtraArgs CARGO_PROFILE cargoArtifacts;
             doCheck = false;
           };
         in pkgs.stdenv.mkDerivation {
           name = "typhon-webapp";
           phases = [ "buildPhase" ];
-          nativeBuildInputs = [ pkgs.wasm-bindgen-cli ];
+          nativeBuildInputs = [ pkgs.wasm-bindgen-cli pkgs.binaryen ];
           buildPhase = ''
-            wasm-bindgen ${wasm}/lib/typhon_webapp.wasm --out-dir $out --target web
+            wasm-opt -o typhon_webapp.wasm ${wasm}/lib/typhon_webapp.wasm
+            wasm-bindgen --out-dir $out --target web typhon_webapp.wasm
           '';
         };
         common-devShell-packages = [ pkgs.rustfmt ];

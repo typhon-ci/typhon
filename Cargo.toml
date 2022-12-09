@@ -7,3 +7,8 @@ members = [
 default-members = [
   "typhon"
 ]
+
+[profile.typhon-webapp]
+inherits = "release"
+lto = true
+opt-level = 's'
