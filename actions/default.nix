@@ -53,16 +53,16 @@
         evaluation=$(echo $input | jq '.input.evaluation' -r)
         job=$(echo $input | jq '.input.job' -r)
 
-        ref=$(echo $flake | sed 's/github:.*\/.*\/\(.*\)/\1/')
+        rev=$(nix flake metadata --json $flake | jq '.revision' -r)
         context="Typhon job: $job"
         description="$project:$jobset:$evaluation:$job"
       '';
       setGithubStatus = state: ''
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $token" https://api.github.com/repos/${owner}/${repo}/statuses/$ref -d "{\"state\":\"${state}\",\"target_url\":\"https://typhon-ci.org\",\"description\":\"$description\",\"context\":\"$context\"}" -k
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $token" https://api.github.com/repos/${owner}/${repo}/statuses/$rev -d "{\"state\":\"${state}\",\"target_url\":\"https://typhon-ci.org\",\"description\":\"$description\",\"context\":\"$context\"}" -k
       '';
       mkScript = script:
         mkAction {
-          packages = [ pkgs.jq pkgs.gnused pkgs.curl ];
+          packages = [ pkgs.jq pkgs.gnused pkgs.curl pkgs.nix ];
           inherit script;
         };
     in mkProject {
