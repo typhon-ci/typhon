@@ -149,7 +149,7 @@ impl Project {
                 project_decl_locked.eq(locked_flake),
             ))
             .execute(conn)?;
-        log_event(Event::ProjectRefreshed(self.handle(conn)?));
+        log_event(Event::ProjectUpdated(self.handle(conn)?));
 
         Ok(())
     }
@@ -158,6 +158,7 @@ impl Project {
         diesel::update(projects.find(self.project_id))
             .set(project_decl.eq(flake))
             .execute(conn)?;
+        log_event(Event::ProjectUpdated(self.handle(conn)?));
         Ok(())
     }
 
@@ -166,6 +167,7 @@ impl Project {
         diesel::update(projects.find(self.project_id))
             .set(project_key.eq(key))
             .execute(conn)?;
+        log_event(Event::ProjectUpdated(self.handle(conn)?));
         Ok(())
     }
 

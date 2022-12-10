@@ -238,8 +238,8 @@ pub mod responses {
 pub enum Event {
     ProjectNew(handles::Project),
     ProjectDeleted(handles::Project),
-    ProjectRefreshed(handles::Project),
     ProjectJobsetsUpdated(handles::Project),
+    ProjectUpdated(handles::Project),
     EvaluationNew(handles::Evaluation),
     EvaluationFinished(handles::Evaluation),
     BuildNew(handles::Build),
