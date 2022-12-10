@@ -20,22 +20,9 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
 
   testScript = { nodes, ... }:
     let
-      git = "${pkgs.git}/bin/git";
       curl = "${pkgs.curl}/bin/curl -sf -H 'password: hello'";
       url = "http://127.0.0.1/typhon/api";
-      flake = ../tests/empty/flake.nix;
-      path = "/tmp/test";
-      createRepo = pkgs.writeShellScript "create-repository" ''
-        mkdir -p ${path}
-        cd ${path}
-        cp ${flake} ./flake.nix
-
-        ${git} init
-        ${git} config --local user.name "John Doe"
-        ${git} config --local user.email johndoe@example.com
-        ${git} add flake.nix
-        ${git} commit -m "initial commit"
-      '';
+      flake = "path:${../tests/empty}";
     in ''
       typhon.start()
       typhon.wait_for_unit("default.target")
@@ -46,9 +33,6 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
       with subtest("Wait for nginx"):
           typhon.wait_for_unit("nginx.service")
 
-      with subtest("Create repository"):
-          typhon.succeed("${createRepo}")
-
       with subtest("Check webapp"):
           typhon.succeed("${pkgs.curl}/bin/curl -f http://127.0.0.1/typhon")
 
@@ -56,7 +40,7 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
           typhon.succeed("${curl} -X POST ${url}/projects/test/create")
 
       with subtest("Set project declaration"):
-          typhon.succeed("${curl} -X POST --json \'\"git+file://${path}\"\' ${url}/projects/test/set_decl")
+          typhon.succeed("${curl} -X POST --json '\"${flake}\"' ${url}/projects/test/set_decl")
 
       with subtest("Refresh project"):
           typhon.succeed("${curl} -X POST ${url}/projects/test/refresh")
