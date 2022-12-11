@@ -25,6 +25,7 @@ use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use diesel::prelude::*;
 use log::*;
 use once_cell::sync::OnceCell;
+use serde_json::Value;
 use sha256::digest;
 use std::fmt;
 use std::future::Future;
@@ -34,6 +35,7 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub struct Settings {
     pub hashed_password: String,
+    pub json: Value,
     pub webroot: String,
 }
 

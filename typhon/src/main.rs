@@ -22,6 +22,10 @@ struct Args {
     #[arg(long, short)]
     webroot: String,
 
+    /// Json data for the jobs
+    #[arg(long, short)]
+    json: String,
+
     /// Silence all output
     #[arg(long, short)]
     quiet: bool,
@@ -41,6 +45,7 @@ async fn main() -> std::io::Result<()> {
 
     let settings = typhon::Settings {
         hashed_password: args.password.clone(),
+        json: serde_json::from_str(&args.json).expect("failed to parse json"),
         webroot: args.webroot.clone(),
     };
 

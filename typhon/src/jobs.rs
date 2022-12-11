@@ -7,8 +7,7 @@ use crate::responses;
 use crate::schema::builds::dsl::*;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
-use crate::BUILDS;
-use crate::JOBS;
+use crate::{BUILDS, JOBS, SETTINGS};
 use diesel::prelude::*;
 use serde_json::json;
 use std::path::Path;
@@ -79,6 +78,7 @@ impl Job {
 
             let jobset = evaluation.jobset(&mut conn)?;
             let project = jobset.project(&mut conn)?;
+            let build = self.build(&mut conn)?;
 
             drop(conn);
 
@@ -89,8 +89,10 @@ impl Job {
                     "jobset": jobset.jobset_name,
                     "evaluation": evaluation.evaluation_num,
                     "job": self.job_name,
+                    "build": build.build_hash,
                     "flake": jobset.jobset_flake,
                     "locked_flake": evaluation.evaluation_locked_flake,
+                    "data": SETTINGS.get().unwrap().json,
                 });
                 let _ = actions::run(
                     &project.project_key,
@@ -114,8 +116,10 @@ impl Job {
                     "jobset": jobset.jobset_name,
                     "evaluation": evaluation.evaluation_num,
                     "job": self.job_name,
+                    "build": build.build_hash,
                     "flake": jobset.jobset_flake,
                     "locked_flake": evaluation.evaluation_locked_flake,
+                    "data": SETTINGS.get().unwrap().json,
                     "status": build.build_status,
                 });
                 let _ = actions::run(

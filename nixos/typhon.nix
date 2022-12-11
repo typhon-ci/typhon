@@ -43,9 +43,13 @@ let
       cp ${index} $out/${cfg.webroot}/index.html
     '';
   };
-  execstart = pkgs.writeShellScript "typhon-execstart" ''
+  execstart = let
+    protocol = if cfg.https then "https" else "http";
+    json =
+      builtins.toJSON { url = "${protocol}://${cfg.domain}${cfg.webroot}"; };
+  in pkgs.writeShellScript "typhon-execstart" ''
     cd ${cfg.home}
-    DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -w ${cfg.webroot}
+    DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -j '${json}' -w ${cfg.webroot}
   '';
 in {
 

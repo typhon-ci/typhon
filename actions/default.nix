@@ -52,13 +52,16 @@
         jobset=$(echo $input | jq '.input.jobset' -r)
         evaluation=$(echo $input | jq '.input.evaluation' -r)
         job=$(echo $input | jq '.input.job' -r)
+        build=$(echo $input | jq '.input.build' -r)
+        data=$(echo $input | jq '.input.data' -r)
 
         rev=$(nix flake metadata --json $flake | jq '.revision' -r)
         context="Typhon job: $job"
         description="$project:$jobset:$evaluation:$job"
+        url=$(echo $data | jq '.url' -r) # TODO: error message if field does not exist
       '';
       setGithubStatus = state: ''
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $token" https://api.github.com/repos/${owner}/${repo}/statuses/$rev -d "{\"state\":\"${state}\",\"target_url\":\"https://typhon-ci.org\",\"description\":\"$description\",\"context\":\"$context\"}" -k
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $token" https://api.github.com/repos/${owner}/${repo}/statuses/$rev -d "{\"state\":\"${state}\",\"target_url\":\"$url/builds/$build\",\"description\":\"$description\",\"context\":\"$context\"}" -k
       '';
       mkScript = script:
         mkAction {
