@@ -388,6 +388,11 @@ fn header(model: &Model) -> Node<Msg> {
 }
 
 fn view(model: &Model) -> impl IntoNodes<Msg> {
+    // The websocket needs to be stored in the app model because the connection is closed on drop.
+    // However, the app never uses the websocket, causing a warning that the field is not read.
+    // Thus the field is read here to avoid the warning.
+    let _ = model.ws;
+
     vec![
         header(&model),
         match &model.page {
