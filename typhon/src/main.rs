@@ -43,17 +43,24 @@ struct Args {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
+    // Setup logger
+    stderrlog::new()
+        .module(module_path!())
+        .quiet(args.quiet)
+        .verbosity(usize::from(args.verbose))
+        .timestamp(args.ts.unwrap_or(stderrlog::Timestamp::Off))
+        .init()
+        .unwrap();
+
+    // Initialize Typhon's state
     let settings = typhon::Settings {
         hashed_password: args.password.clone(),
         json: serde_json::from_str(&args.json).expect("failed to parse json"),
         webroot: args.webroot.clone(),
     };
-
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let conn = SqliteConnection::establish(&database_url)
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
-
-    // Initialize Typhon's state
     typhon::SETTINGS
         .set(settings)
         .expect("failed to initialize state value");
@@ -83,14 +90,6 @@ async fn main() -> std::io::Result<()> {
         .await
         .run_pending_migrations(MIGRATIONS)
         .expect("failed to run migrations");
-
-    stderrlog::new()
-        .module(module_path!())
-        .quiet(args.quiet)
-        .verbosity(usize::from(args.verbose))
-        .timestamp(args.ts.unwrap_or(stderrlog::Timestamp::Off))
-        .init()
-        .unwrap();
 
     // Run actix server
     HttpServer::new(|| App::new().configure(typhon::api::config))
