@@ -105,7 +105,7 @@ r!(
     jobset_evaluate(path: web::Path<(String,String)>) =>
         Request::Jobset(
             handles::jobset(path.into_inner()),
-            Jobset::Evaluate,
+            Jobset::Evaluate(true),
         );
 
     jobset_info(path: web::Path<(String,String)>) =>

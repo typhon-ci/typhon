@@ -120,7 +120,7 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Jobset {
-        Evaluate,
+        Evaluate(bool),
         Info,
     }
 

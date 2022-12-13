@@ -19,13 +19,27 @@ impl Jobset {
     pub async fn evaluate(
         &self,
         conn: &mut SqliteConnection,
+        force: bool,
     ) -> Result<handles::Evaluation, Error> {
         let project = self.project(conn)?;
+
+        // TODO: don't block connection during nix call
         let locked_flake = nix::lock(&self.jobset_flake).await?;
+
         let evaluation = conn.transaction::<Evaluation, Error, _>(|conn| {
             let old_evaluations = evaluations
                 .filter(evaluation_jobset.eq(self.jobset_id))
                 .load::<Evaluation>(conn)?;
+            if !force {
+                match old_evaluations.last() {
+                    Some(eval) => {
+                        if eval.evaluation_locked_flake == locked_flake {
+                            return Ok(eval.clone());
+                        }
+                    }
+                    None => (),
+                }
+            }
             let n = old_evaluations.len() as i32 + 1;
             let status = "pending".to_string();
             let time = time::timestamp();

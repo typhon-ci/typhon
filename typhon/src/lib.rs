@@ -154,8 +154,8 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
             requests::Request::Jobset(jobset_handle, req) => {
                 let jobset = Jobset::get(conn, &jobset_handle)?;
                 match req {
-                    requests::Jobset::Evaluate => {
-                        let evaluation_handle = jobset.evaluate(conn).await?;
+                    requests::Jobset::Evaluate(force) => {
+                        let evaluation_handle = jobset.evaluate(conn, *force).await?;
                         Response::JobsetEvaluate(evaluation_handle)
                     }
                     requests::Jobset::Info => Response::JobsetInfo(jobset.info(conn)?),

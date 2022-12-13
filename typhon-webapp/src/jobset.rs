@@ -13,7 +13,7 @@ pub struct Model {
 pub enum Msg {
     Error(responses::ResponseError),
     ErrorIgnored,
-    Evaluate,
+    Evaluate(bool),
     Event(Event),
     FetchInfo,
     GetInfo(responses::JobsetInfo),
@@ -37,9 +37,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::ErrorIgnored => {
             model.error = None;
         }
-        Msg::Evaluate => {
+        Msg::Evaluate(force) => {
             let handle = model.handle.clone();
-            let req = requests::Request::Jobset(handle, requests::Jobset::Evaluate);
+            let req = requests::Request::Jobset(handle, requests::Jobset::Evaluate(force));
             perform_request!(
                 orders,
                 req,
@@ -103,7 +103,11 @@ fn view_jobset(model: &Model) -> Node<Msg> {
 fn view_admin() -> Node<Msg> {
     div![
         h3!["Administration"],
-        button!["Evaluate", ev(Ev::Click, |_| Msg::Evaluate)],
+        p![button!["Evaluate", ev(Ev::Click, |_| Msg::Evaluate(false))]],
+        p![button![
+            "Force Evaluate",
+            ev(Ev::Click, |_| Msg::Evaluate(true))
+        ]],
     ]
 }
 
