@@ -49,7 +49,7 @@ impl Project {
 
     pub fn delete(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
         diesel::delete(projects.find(self.project_id)).execute(conn)?;
-        log_event(Event::ProjectDeleted(self.handle(conn)?));
+        log_event(Event::ProjectDeleted(self.handle()));
         Ok(())
     }
 
@@ -68,10 +68,10 @@ impl Project {
             })?)
     }
 
-    pub fn handle(&self, _conn: &mut SqliteConnection) -> Result<handles::Project, Error> {
-        Ok(handles::Project {
+    pub fn handle(&self) -> handles::Project {
+        handles::Project {
             project: self.project_name.clone(),
-        })
+        }
     }
 
     pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::ProjectInfo, Error> {
@@ -149,7 +149,7 @@ impl Project {
                 project_decl_locked.eq(locked_flake),
             ))
             .execute(conn)?;
-        log_event(Event::ProjectUpdated(self.handle(conn)?));
+        log_event(Event::ProjectUpdated(self.handle()));
 
         Ok(())
     }
@@ -158,7 +158,7 @@ impl Project {
         diesel::update(projects.find(self.project_id))
             .set(project_decl.eq(flake))
             .execute(conn)?;
-        log_event(Event::ProjectUpdated(self.handle(conn)?));
+        log_event(Event::ProjectUpdated(self.handle()));
         Ok(())
     }
 
@@ -167,7 +167,7 @@ impl Project {
         diesel::update(projects.find(self.project_id))
             .set(project_key.eq(key))
             .execute(conn)?;
-        log_event(Event::ProjectUpdated(self.handle(conn)?));
+        log_event(Event::ProjectUpdated(self.handle()));
         Ok(())
     }
 
@@ -235,7 +235,7 @@ impl Project {
             Ok(())
         })?;
 
-        log_event(Event::ProjectJobsetsUpdated(self.handle(conn)?));
+        log_event(Event::ProjectJobsetsUpdated(self.handle()));
 
         Ok(decls.into_keys().collect())
     }

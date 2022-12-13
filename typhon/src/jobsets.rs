@@ -69,7 +69,7 @@ impl Jobset {
 
     pub fn handle(&self, conn: &mut SqliteConnection) -> Result<handles::Jobset, Error> {
         Ok(handles::Jobset {
-            project: self.project(conn)?.handle(conn)?,
+            project: self.project(conn)?.handle(),
             jobset: self.jobset_name.clone(),
         })
     }
