@@ -66,7 +66,7 @@
             wasm-bindgen --out-dir $out --target web typhon_webapp.wasm
           '';
         };
-        common-devShell-packages = [ pkgs.rustfmt ];
+        common-devShell-packages = [ pkgs.rustup pkgs.rustfmt ];
       in {
         packages = {
           inherit typhon typhon-webapp;
@@ -77,14 +77,12 @@
             name = "typhon-shell";
             packages = [ pkgs.diesel-cli pkgs.sqlite pkgs.pkg-config ]
               ++ common-devShell-packages;
-            inputsFrom = [ typhon ];
             DATABASE_URL = "sqlite:typhon.sqlite";
           };
           typhon-webapp = pkgs.mkShell {
             name = "typhon-webapp-shell";
             packages = [ pkgs.trunk pkgs.nodePackages.sass ]
               ++ common-devShell-packages;
-            inputsFrom = [ typhon-webapp ];
           };
         };
         checks.default = import ./nixos/test.nix {
