@@ -34,6 +34,7 @@ impl Responder for ResponseWrapper {
             BuildInfo(payload) => web::Json(payload).respond_to(req),
             // BuildLog(payload) => payload.respond_to(req),
             BuildLog => web::Json("todo").respond_to(req),
+            Log(payload) => web::Json(payload).respond_to(req),
         }
     }
 }
@@ -126,6 +127,12 @@ r!(
             Evaluation::Info,
         );
 
+    evaluation_log(path: web::Path<(String, String,i32)>) =>
+        Request::Evaluation(
+            handles::evaluation(path.into_inner()),
+            Evaluation::Log,
+        );
+
     job_cancel(path: web::Path<(String,String,i32,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
@@ -136,6 +143,18 @@ r!(
         Request::Job(
             handles::job(path.into_inner()),
             Job::Info,
+        );
+
+    job_log_begin(path: web::Path<(String,String,i32,String)>) =>
+        Request::Job(
+            handles::job(path.into_inner()),
+            Job::LogBegin,
+        );
+
+    job_log_end(path: web::Path<(String,String,i32,String)>) =>
+        Request::Job(
+            handles::job(path.into_inner()),
+            Job::LogEnd,
         );
 
     build_cancel(path: web::Path<String>) =>
@@ -192,10 +211,13 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                                 web::scope("/evaluations/{evaluation}")
                                     .route("", web::get().to(evaluation_info))
                                     .route("/cancel", web::post().to(evaluation_cancel))
+                                    .route("/log", web::get().to(evaluation_log))
                                     .service(
                                         web::scope("/jobs/{job}")
                                             .route("", web::get().to(job_info))
-                                            .route("/cancel", web::post().to(job_cancel)),
+                                            .route("/cancel", web::post().to(job_cancel))
+                                            .route("/logs/begin", web::get().to(job_log_begin))
+                                            .route("/logs/end", web::get().to(job_log_end)),
                                     ),
                             ),
                     ),

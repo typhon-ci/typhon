@@ -18,6 +18,7 @@ pub async fn nix(args: Vec<String>) -> Result<String, Error> {
     }
 
     let nix_output = cmd.output().await.expect("command Nix failed to run");
+
     if !nix_output.status.success() {
         let stderr = &String::from_utf8(nix_output.stderr).expect("failed to convert from utf8");
         Err(Error(stderr.clone()))

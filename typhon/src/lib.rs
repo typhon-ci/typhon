@@ -4,6 +4,7 @@ mod error;
 mod evaluations;
 mod jobs;
 mod jobsets;
+mod logs;
 mod models;
 mod nix;
 mod projects;
@@ -23,7 +24,6 @@ use models::*;
 
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use diesel::prelude::*;
-use log::*;
 use once_cell::sync::OnceCell;
 use serde_json::Value;
 use sha256::digest;
@@ -110,7 +110,10 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
         | requests::Request::Project(_, requests::Project::Info)
         | requests::Request::Jobset(_, requests::Jobset::Info)
         | requests::Request::Evaluation(_, requests::Evaluation::Info)
+        | requests::Request::Evaluation(_, requests::Evaluation::Log)
         | requests::Request::Job(_, requests::Job::Info)
+        | requests::Request::Job(_, requests::Job::LogBegin)
+        | requests::Request::Job(_, requests::Job::LogEnd)
         | requests::Request::Build(_, requests::Build::Info) => true,
         _ => user.is_admin(),
     }
@@ -169,6 +172,11 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         Response::Ok
                     }
                     requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
+                    requests::Evaluation::Log => {
+                        let log =
+                            Log::get(conn, handles::Log::Evaluation(evaluation_handle.clone()))?;
+                        Response::Log(log.log_stderr)
+                    }
                 }
             }
             requests::Request::Job(job_handle, req) => {
@@ -179,6 +187,14 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         Response::Ok
                     }
                     requests::Job::Info => Response::JobInfo(job.info(conn)?),
+                    requests::Job::LogBegin => {
+                        let log = Log::get(conn, handles::Log::JobBegin(job_handle.clone()))?;
+                        Response::Log(log.log_stderr)
+                    }
+                    requests::Job::LogEnd => {
+                        let log = Log::get(conn, handles::Log::JobEnd(job_handle.clone()))?;
+                        Response::Log(log.log_stderr)
+                    }
                 }
             }
             requests::Request::Build(build_handle, req) => {
@@ -200,12 +216,14 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
 
 /// Main entry point for Typhon requests
 pub async fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
-    info!("handling request {:?} for user {:?}", req, user);
+    log::info!("handling request {:?} for user {:?}", req, user);
     Ok(handle_request_aux(&user, &req).await.map_err(|e| {
         if e.is_internal() {
-            error!(
+            log::error!(
                 "request {:?} for user {:?} raised error: {:?}",
-                req, user, e
+                req,
+                user,
+                e
             );
         }
         use {error::Error::*, ResponseError::*};
@@ -222,14 +240,15 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
             | EvaluationNotRunning(_)
             | JobNotRunning(_)
             | NixError(_)
-            | ProjectAlreadyExists(_) => BadRequest(format!("{}", e)),
+            | ProjectAlreadyExists(_)
+            | LogNotFound(_) => BadRequest(format!("{}", e)),
             Todo | UnexpectedDatabaseError(_) => InternalError,
         }
     })?)
 }
 
 pub fn log_event(event: Event) {
-    info!("event: {:?}", event);
+    log::info!("event: {:?}", event);
     let _ = tokio::spawn(async move {
         let listeners = &*LISTENERS.get().unwrap();
         listeners.lock().await.log(event);

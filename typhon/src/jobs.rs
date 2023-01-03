@@ -80,9 +80,13 @@ impl Job {
             let project = jobset.project(&mut conn)?;
             let build = self.build(&mut conn)?;
 
+            // run action `begin`
+            let _ = diesel::update(jobs.find(id))
+                .set(job_status.eq("begin"))
+                .execute(&mut *conn);
+
             drop(conn);
 
-            // run action `begin`
             if Path::new(&format!("{}/begin", path)).exists() {
                 let input = json!({
                     "project": project.project_name,
@@ -94,22 +98,40 @@ impl Job {
                     "locked_flake": evaluation.evaluation_locked_flake,
                     "data": SETTINGS.get().unwrap().json,
                 });
-                let _ = actions::run(
+                let (_, log) = actions::run(
                     &project.project_key,
                     &format!("{}/begin", path),
                     &format!("{}/secrets", path),
                     &input,
                 )
                 .await?;
+
+                // save the log
+                let mut conn = connection().await;
+                let h = self.handle(&mut conn)?;
+                let _ = Log::new(&mut conn, handles::Log::JobBegin(h), log);
+                drop(conn);
             }
 
             // wait for build
+            let mut conn = connection().await;
+            let _ = diesel::update(jobs.find(id))
+                .set(job_status.eq("waiting"))
+                .execute(&mut *conn);
+            drop(conn);
+
             BUILDS.get().unwrap().wait(&self.job_build).await;
             let mut conn = connection().await;
             let build = self.build(&mut *conn)?;
             drop(conn);
 
             // run action `end`
+            let mut conn = connection().await;
+            let _ = diesel::update(jobs.find(id))
+                .set(job_status.eq("end"))
+                .execute(&mut *conn);
+            drop(conn);
+
             if Path::new(&format!("{}/end", path)).exists() {
                 let input = json!({
                     "project": project.project_name,
@@ -122,13 +144,19 @@ impl Job {
                     "data": SETTINGS.get().unwrap().json,
                     "status": build.build_status,
                 });
-                let _ = actions::run(
+                let (_, log) = actions::run(
                     &project.project_key,
                     &format!("{}/end", path),
                     &format!("{}/secrets", path),
                     &input,
                 )
                 .await?;
+
+                // save the log
+                let mut conn = connection().await;
+                let h = self.handle(&mut conn)?;
+                let _ = Log::new(&mut conn, handles::Log::JobEnd(h), log);
+                drop(conn);
             }
 
             Ok::<(), Error>(())

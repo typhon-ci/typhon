@@ -1,4 +1,4 @@
-use crate::schema::{builds, evaluations, jobs, jobsets, projects};
+use crate::schema::{builds, evaluations, jobs, jobsets, logs, projects};
 use diesel::prelude::*;
 
 #[derive(Queryable, Clone)]
@@ -91,4 +91,22 @@ pub struct NewBuild<'a> {
     pub build_drv: &'a str,
     pub build_hash: &'a str,
     pub build_status: &'a str,
+}
+
+#[derive(Queryable, Clone)]
+pub struct Log {
+    pub log_id: i32,
+    pub log_evaluation: Option<i32>,
+    pub log_job: Option<i32>,
+    pub log_stderr: String,
+    pub log_type: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = logs)]
+pub struct NewLog<'a> {
+    pub log_evaluation: Option<i32>,
+    pub log_job: Option<i32>,
+    pub log_stderr: &'a str,
+    pub log_type: &'a str,
 }

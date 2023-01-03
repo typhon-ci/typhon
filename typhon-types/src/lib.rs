@@ -23,6 +23,12 @@ pub mod handles {
     pub struct Build {
         pub build_hash: String,
     }
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum Log {
+        Evaluation(Evaluation),
+        JobBegin(Job),
+        JobEnd(Job),
+    }
 
     impl std::fmt::Display for Build {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -47,6 +53,21 @@ pub mod handles {
     impl std::fmt::Display for Project {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             write!(f, "{}", self.project)
+        }
+    }
+    impl std::fmt::Display for Log {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            let ty = match self {
+                Log::Evaluation(_) => "evaluation",
+                Log::JobBegin(_) => "job_begin",
+                Log::JobEnd(_) => "job_end",
+            };
+            let h = match self {
+                Log::Evaluation(h) => h.to_string(),
+                Log::JobBegin(h) => h.to_string(),
+                Log::JobEnd(h) => h.to_string(),
+            };
+            write!(f, "{}:{}", ty, h)
         }
     }
 
@@ -128,12 +149,15 @@ pub mod requests {
     pub enum Evaluation {
         Cancel,
         Info,
+        Log,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Job {
         Cancel,
         Info,
+        LogBegin,
+        LogEnd,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,6 +238,7 @@ pub mod responses {
         JobInfo(JobInfo),
         BuildInfo(BuildInfo),
         BuildLog, // TODO
+        Log(String),
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

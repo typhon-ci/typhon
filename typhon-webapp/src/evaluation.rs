@@ -7,6 +7,7 @@ pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Evaluation,
     info: Option<responses::EvaluationInfo>,
+    log: Option<String>,
 }
 
 #[derive(Clone)]
@@ -16,7 +17,9 @@ pub enum Msg {
     ErrorIgnored,
     Event(Event),
     FetchInfo,
+    FetchLog,
     GetInfo(responses::EvaluationInfo),
+    GetLog(String),
     Noop,
 }
 
@@ -26,6 +29,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Evaluation) -> Model
         error: None,
         handle: handle.clone(),
         info: None,
+        log: None,
     }
 }
 
@@ -60,8 +64,24 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
+        Msg::FetchLog => {
+            let handle = model.handle.clone();
+            let req = requests::Request::Evaluation(handle, requests::Evaluation::Log);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Log(log) => Msg::GetLog(log),
+                Msg::Error,
+            );
+        }
         Msg::GetInfo(info) => {
+            if info.status == "error" {
+                orders.send_msg(Msg::FetchLog);
+            }
             model.info = Some(info);
+        }
+        Msg::GetLog(log) => {
+            model.log = Some(log);
         }
         Msg::Noop => (),
     }
@@ -117,6 +137,10 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
                 },
             ],
         },
+        match &model.log {
+            None => empty![],
+            Some(log) => div![h3!["Log"], log],
+        }
     ]
 }
 

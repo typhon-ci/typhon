@@ -109,6 +109,7 @@ impl Project {
     }
 
     pub async fn refresh(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
+        // TODO: don't hold connection while evaluating nix
         let locked_flake = nix::lock(&self.project_decl).await?;
         let mut title = String::new();
         let mut description = String::new();
@@ -177,7 +178,7 @@ impl Project {
             Some(path) => {
                 if Path::new(&format!("{}/jobsets", path)).exists() {
                     let action_input = serde_json::json!(null);
-                    let action_output = actions::run(
+                    let (action_output, _) = actions::run(
                         &self.project_key,
                         &format!("{}/jobsets", path),
                         &format!("{}/secrets", path),

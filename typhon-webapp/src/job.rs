@@ -7,6 +7,8 @@ pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Job,
     info: Option<responses::JobInfo>,
+    log_begin: Option<String>,
+    log_end: Option<String>,
 }
 
 #[derive(Clone)]
@@ -16,7 +18,11 @@ pub enum Msg {
     ErrorIgnored,
     Event(Event),
     FetchInfo,
+    FetchLogBegin,
+    FetchLogEnd,
     GetInfo(responses::JobInfo),
+    GetLogBegin(String),
+    GetLogEnd(String),
     Noop,
 }
 
@@ -26,6 +32,8 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
         error: None,
         handle: handle.clone(),
         info: None,
+        log_begin: None,
+        log_end: None,
     }
 }
 
@@ -60,8 +68,40 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
+        Msg::FetchLogBegin => {
+            let handle = model.handle.clone();
+            let req = requests::Request::Job(handle, requests::Job::LogBegin);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Log(log) => Msg::GetLogBegin(log),
+                Msg::Error,
+            );
+        }
+        Msg::FetchLogEnd => {
+            let handle = model.handle.clone();
+            let req = requests::Request::Job(handle, requests::Job::LogEnd);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Log(log) => Msg::GetLogEnd(log),
+                Msg::Error,
+            );
+        }
         Msg::GetInfo(info) => {
+            if info.status == "waiting" || info.status == "end" || info.status == "success" {
+                orders.send_msg(Msg::FetchLogBegin);
+            }
+            if info.status == "success" {
+                orders.send_msg(Msg::FetchLogEnd);
+            }
             model.info = Some(info);
+        }
+        Msg::GetLogBegin(log) => {
+            model.log_begin = Some(log);
+        }
+        Msg::GetLogEnd(log) => {
+            model.log_end = Some(log);
         }
         Msg::Noop => (),
     }
@@ -109,6 +149,14 @@ fn view_job(model: &Model) -> Node<Msg> {
                 ],
                 p![format!("Status: {}", info.status)],
             ],
+        },
+        match &model.log_begin {
+            None => empty![],
+            Some(log) => div![h3!["Log (begin)"], log,],
+        },
+        match &model.log_end {
+            None => empty![],
+            Some(log) => div![h3!["Log (end)"], log,],
         },
     ]
 }

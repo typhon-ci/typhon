@@ -46,7 +46,7 @@ async fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), 
                 job_build: build.build_id,
                 job_evaluation: id,
                 job_name: &name,
-                job_status: "pending",
+                job_status: "begin",
             };
             let job: Job = diesel::insert_into(jobs)
                 .values(&new_job)
@@ -136,22 +136,42 @@ impl Evaluation {
             }
             Ok::<_, Error>(jobs_)
         };
-        let f = move |r| async move {
+        let f = move |r: Option<Result<_, Error>>| async move {
+            // TODO: when logging, hide internal error messages?
             let status = match r {
                 Some(Ok(new_jobs)) => match evaluate_aux(id, new_jobs).await {
                     Ok(()) => "success",
-                    Err(_) => {
-                        // TODO: log error to the user
+                    Err(e) => {
+                        let mut conn = connection().await;
+                        let _ = Log::new(
+                            &mut *conn,
+                            handles::Log::Evaluation(handle.clone()),
+                            e.to_string(),
+                        );
+                        drop(conn);
                         "error"
                     }
                 },
-                Some(Err(_)) => "error", // TODO: log error to the user
+                Some(Err(e)) => {
+                    let mut conn = connection().await;
+                    let _ = Log::new(
+                        &mut *conn,
+                        handles::Log::Evaluation(handle.clone()),
+                        e.to_string(),
+                    );
+                    drop(conn);
+                    "error"
+                }
                 None => "canceled",
             };
-            let conn = &mut *connection().await;
+
+            let mut conn = connection().await;
+
+            // update the evaluation status
             let _ = diesel::update(evaluations.find(id))
                 .set(evaluation_status.eq(status))
-                .execute(conn);
+                .execute(&mut *conn);
+
             log_event(Event::EvaluationFinished(handle));
         };
         EVALUATIONS.get().unwrap().run(id, task, f).await;

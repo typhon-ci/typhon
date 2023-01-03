@@ -14,6 +14,7 @@ pub enum Error {
     JobNotFound(handles::Job),
     JobNotRunning(handles::Job),
     JobsetNotFound(handles::Jobset),
+    LogNotFound(handles::Log),
     NixError(nix::Error),
     ProjectAlreadyExists(handles::Project),
     ProjectNotFound(handles::Project),
@@ -47,6 +48,9 @@ impl std::fmt::Display for Error {
             }
             JobsetNotFound(jobset_handle) => {
                 write!(f, "Jobset {} not found", jobset_handle)
+            }
+            LogNotFound(log_handle) => {
+                write!(f, "Log {} not found", log_handle)
             }
             EvaluationNotFound(evaluation_handle) => {
                 write!(f, "Evaluation {} not found", evaluation_handle)

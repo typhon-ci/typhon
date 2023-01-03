@@ -41,6 +41,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    logs (log_id) {
+        log_id -> Integer,
+        log_evaluation -> Nullable<Integer>,
+        log_job -> Nullable<Integer>,
+        log_stderr -> Text,
+        log_type -> Text,
+    }
+}
+
+diesel::table! {
     projects (project_id) {
         project_id -> Integer,
         project_actions_path -> Nullable<Text>,
@@ -58,11 +68,14 @@ diesel::joinable!(evaluations -> jobsets (evaluation_jobset));
 diesel::joinable!(jobs -> builds (job_build));
 diesel::joinable!(jobs -> evaluations (job_evaluation));
 diesel::joinable!(jobsets -> projects (jobset_project));
+diesel::joinable!(logs -> evaluations (log_evaluation));
+diesel::joinable!(logs -> jobs (log_job));
 
 diesel::allow_tables_to_appear_in_same_query!(
     builds,
     evaluations,
     jobs,
     jobsets,
+    logs,
     projects,
 );

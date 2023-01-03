@@ -35,7 +35,7 @@ CREATE TABLE jobs (
     job_build INTEGER NOT NULL REFERENCES builds(build_id) ON DELETE CASCADE,
     job_evaluation INTEGER NOT NULL REFERENCES evaluations(evaluation_id) ON DELETE CASCADE,
     job_name TEXT NOT NULL,
-    job_status TEXT CHECK(job_status in ('pending', 'success', 'error', 'canceled')) NOT NULL,
+    job_status TEXT CHECK(job_status in ('begin', 'waiting', 'end', 'success', 'error', 'canceled')) NOT NULL,
     UNIQUE(job_evaluation, job_name)
 );
 
@@ -44,4 +44,13 @@ CREATE TABLE builds (
     build_drv TEXT NOT NULL UNIQUE,
     build_hash TEXT NOT NULL UNIQUE,
     build_status TEXT NOT NULL CHECK(build_status in ('pending', 'success', 'error', 'canceled'))
+);
+
+CREATE TABLE logs (
+    log_id INTEGER NOT NULL PRIMARY KEY,
+    log_evaluation INTEGER REFERENCES evaluations(evaluation_id) ON DELETE CASCADE,
+    log_job INTEGER REFERENCES jobs(job_id) ON DELETE CASCADE,
+    log_stderr TEXT NOT NULL,
+    log_type TEXT NOT NULL CHECK(log_type in ('build', 'evaluation', 'job_begin', 'job_end')),
+    UNIQUE(log_evaluation, log_job, log_type)
 );

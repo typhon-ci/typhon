@@ -33,7 +33,7 @@ pub async fn run(
     script_path: &String,
     secrets_path: &String,
     input: &Value,
-) -> Result<String, Error> {
+) -> Result<(String, String), Error> {
     let key = age::x25519::Identity::from_str(key).map_err(|_| Error::InvalidKey)?;
 
     let decrypted = File::open(&secrets_path)
@@ -55,7 +55,7 @@ pub async fn run(
 
             Ok(decrypted)
         })
-        .unwrap_or(Ok::<String, Error>(String::new()))?;
+        .unwrap_or(Ok::<String, Error>("{}".to_string()))?;
     let secrets: Value = serde_json::from_str(&decrypted).map_err(|_| Error::InvalidSecrets)?;
 
     let action_input = json!({
@@ -68,17 +68,20 @@ pub async fn run(
         .arg("--quiet")
         .arg(&script_path)
         .stdin(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
         .expect("command firejail failed to start");
     let mut stdin = child.stdin.take().unwrap(); // TODO: check if unwrap is safe
     let mut stdout = child.stdout.take().unwrap(); // TODO: check if unwrap is safe
+    let mut stderr = child.stderr.take().unwrap(); // TODO: check if unwrap is safe
     let _ = stdin.write(action_input.to_string().as_bytes()).await;
     drop(stdin); // send EOF
 
     let mut res = String::new();
     let _ = stdout.read_to_string(&mut res).await;
+    let mut log = String::new();
+    let _ = stderr.read_to_string(&mut log).await;
 
-    Ok(res)
+    Ok((res, log))
 }
