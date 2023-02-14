@@ -25,14 +25,13 @@
           inherit system;
           overlays = [ (import rust-overlay) ];
         };
-        src = pkgs.lib.cleanSourceWith {
-          src = ./.;
-          filter = path: type:
-            path == toString ./Cargo.toml || path == toString ./Cargo.lock
-            || pkgs.lib.hasPrefix (toString ./typhon) path
-            || pkgs.lib.hasPrefix (toString ./typhon-types) path
-            || pkgs.lib.hasPrefix (toString ./typhon-webapp) path;
-        };
+        src = pkgs.lib.sourceByRegex ./. [
+          "Cargo.toml"
+          "Cargo.lock"
+          "typhon.*"
+          "typhon-types.*"
+          "typhon-webapp.*"
+        ];
         typhon = let
           craneLib = crane.lib.${system};
           cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
