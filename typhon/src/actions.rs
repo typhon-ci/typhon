@@ -64,6 +64,8 @@ pub async fn run(
     });
 
     let mut child = Command::new("firejail")
+        .arg("--noprofile")
+        .arg("--quiet")
         .arg(&script_path)
         .stdin(Stdio::piped())
         .stderr(Stdio::null())
