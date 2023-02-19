@@ -266,6 +266,7 @@ pub enum Event {
     ProjectUpdated(handles::Project),
     EvaluationNew(handles::Evaluation),
     EvaluationFinished(handles::Evaluation),
+    JobUpdated(handles::Job),
     BuildNew(handles::Build),
     BuildFinished(handles::Build),
 }

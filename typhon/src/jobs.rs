@@ -7,6 +7,7 @@ use crate::responses;
 use crate::schema::builds::dsl::*;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
+use crate::{log_event, Event};
 use crate::{BUILDS, JOBS, SETTINGS};
 use diesel::prelude::*;
 use serde_json::json;
@@ -71,6 +72,9 @@ impl Job {
     pub async fn run(self) -> () {
         let id = self.job_id;
 
+        let handle = self.handle().await.unwrap(); // TODO
+        let handle_bis = handle.clone();
+
         let task = async move {
             // abort if actions are not defined
             let evaluation = self.evaluation().await?;
@@ -89,6 +93,8 @@ impl Job {
                 .set(job_status.eq("begin"))
                 .execute(&mut *conn);
             drop(conn);
+
+            log_event(Event::JobUpdated(handle_bis.clone()));
 
             if Path::new(&format!("{}/begin", path)).exists() {
                 let input = json!({
@@ -110,8 +116,7 @@ impl Job {
                 .await?;
 
                 // save the log
-                let h = self.handle().await?;
-                let _ = Log::new(handles::Log::JobBegin(h), log).await?;
+                let _ = Log::new(handles::Log::JobBegin(handle_bis.clone()), log).await?;
             }
 
             // wait for build
@@ -120,6 +125,8 @@ impl Job {
                 .set(job_status.eq("waiting"))
                 .execute(&mut *conn);
             drop(conn);
+
+            log_event(Event::JobUpdated(handle_bis.clone()));
 
             BUILDS.get().unwrap().wait(&self.job_build).await;
             let build = self.build().await?;
@@ -130,6 +137,8 @@ impl Job {
                 .set(job_status.eq("end"))
                 .execute(&mut *conn);
             drop(conn);
+
+            log_event(Event::JobUpdated(handle_bis.clone()));
 
             if Path::new(&format!("{}/end", path)).exists() {
                 let input = json!({
@@ -152,8 +161,7 @@ impl Job {
                 .await?;
 
                 // save the log
-                let h = self.handle().await?;
-                let _ = Log::new(handles::Log::JobEnd(h), log).await?;
+                let _ = Log::new(handles::Log::JobEnd(handle_bis), log).await?;
             }
 
             Ok::<(), Error>(())
@@ -169,6 +177,7 @@ impl Job {
                 .set(job_status.eq(status))
                 .execute(&mut *conn);
             drop(conn);
+            log_event(Event::JobUpdated(handle));
         };
         JOBS.get().unwrap().run(id, task, f).await;
     }
