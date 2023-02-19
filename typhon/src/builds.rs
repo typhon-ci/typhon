@@ -44,6 +44,11 @@ impl Build {
         })
     }
 
+    pub async fn nixlog(&self) -> Result<String, Error> {
+        let log = nix::log(self.build_drv.clone()).await?;
+        Ok(log)
+    }
+
     pub async fn run(self) -> () {
         let handle = self.handle();
         let id = self.build_id;

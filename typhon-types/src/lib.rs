@@ -164,7 +164,7 @@ pub mod requests {
     pub enum Build {
         Cancel,
         Info,
-        Log,
+        NixLog,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -237,7 +237,6 @@ pub mod responses {
         EvaluationInfo(EvaluationInfo),
         JobInfo(JobInfo),
         BuildInfo(BuildInfo),
-        BuildLog, // TODO
         Log(String),
     }
 

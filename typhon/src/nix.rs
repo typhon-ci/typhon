@@ -75,3 +75,7 @@ pub async fn lock(flake_url: &String) -> Result<String, Error> {
         .expect("failed to parse json")
         .to_string())
 }
+
+pub async fn log(drv: String) -> Result<String, Error> {
+    nix(["log".to_string(), drv].to_vec()).await
+}

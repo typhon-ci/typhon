@@ -114,7 +114,8 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
         | requests::Request::Job(_, requests::Job::Info)
         | requests::Request::Job(_, requests::Job::LogBegin)
         | requests::Request::Job(_, requests::Job::LogEnd)
-        | requests::Request::Build(_, requests::Build::Info) => true,
+        | requests::Request::Build(_, requests::Build::Info)
+        | requests::Request::Build(_, requests::Build::NixLog) => true,
         _ => user.is_admin(),
     }
 }
@@ -206,7 +207,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         Response::Ok
                     }
                     requests::Build::Info => Response::BuildInfo(build.info()?),
-                    requests::Build::Log => Response::BuildLog, // build.log()?
+                    requests::Build::NixLog => Response::Log(build.nixlog().await?),
                 }
             }
         })

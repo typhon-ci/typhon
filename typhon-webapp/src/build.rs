@@ -7,6 +7,7 @@ pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Build,
     info: Option<responses::BuildInfo>,
+    nix_log: Option<String>,
 }
 
 #[derive(Clone)]
@@ -16,7 +17,9 @@ pub enum Msg {
     ErrorIgnored,
     Event(Event),
     FetchInfo,
+    FetchNixLog,
     GetInfo(responses::BuildInfo),
+    GetNixLog(String),
     Noop,
 }
 
@@ -26,6 +29,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Build) -> Model {
         error: None,
         handle: handle.clone(),
         info: None,
+        nix_log: None,
     }
 }
 
@@ -60,8 +64,24 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
+        Msg::FetchNixLog => {
+            let handle = model.handle.clone();
+            let req = requests::Request::Build(handle, requests::Build::NixLog);
+            perform_request!(
+                orders,
+                req,
+                responses::Response::Log(log) => Msg::GetNixLog(log),
+                Msg::Error,
+            );
+        }
         Msg::GetInfo(info) => {
+            if info.status == "error" || info.status == "success" {
+                orders.send_msg(Msg::FetchNixLog);
+            }
             model.info = Some(info);
+        }
+        Msg::GetNixLog(log) => {
+            model.nix_log = Some(log);
         }
         Msg::Noop => (),
     }
@@ -76,6 +96,10 @@ fn view_build(model: &Model) -> Node<Msg> {
                 p![format!("Status: {}", info.status)],
                 p![format!("Derivation: {}", info.drv)],
             ],
+        },
+        match &model.nix_log {
+            None => empty![],
+            Some(log) => div![h3!["Nix log"], log,],
         },
     ]
 }

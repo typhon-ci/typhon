@@ -32,8 +32,6 @@ impl Responder for ResponseWrapper {
             EvaluationInfo(payload) => web::Json(payload).respond_to(req),
             JobInfo(payload) => web::Json(payload).respond_to(req),
             BuildInfo(payload) => web::Json(payload).respond_to(req),
-            // BuildLog(payload) => payload.respond_to(req),
-            BuildLog => web::Json("todo").respond_to(req),
             Log(payload) => web::Json(payload).respond_to(req),
         }
     }
@@ -169,10 +167,10 @@ r!(
             Build::Info,
         );
 
-    build_log(path: web::Path<String>) =>
+    build_nix_log(path: web::Path<String>) =>
         Request::Build(
             handles::build(path.into_inner()),
-            Build::Log,
+            Build::NixLog,
         );
 );
 
@@ -226,7 +224,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/builds/{build}")
                     .route("", web::get().to(build_info))
                     .route("/cancel", web::post().to(build_cancel))
-                    .route("/log", web::get().to(build_log)),
+                    .route("/nixlog", web::get().to(build_nix_log)),
             )
             .route(
                 "{anything:.*}",
