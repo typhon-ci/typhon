@@ -14,15 +14,15 @@ fn get_log_type(log: &handles::Log) -> &'static str {
 }
 
 impl Log {
-    pub async fn new(log: handles::Log, stderr: String) -> Result<Self, Error> {
-        let ty = get_log_type(&log);
+    pub async fn new(log_handle: handles::Log, stderr: String) -> Result<Self, Error> {
+        let ty = get_log_type(&log_handle);
         let mut new_log = NewLog {
             log_evaluation: None,
             log_job: None,
             log_stderr: &stderr,
             log_type: &ty,
         };
-        match log {
+        match log_handle {
             handles::Log::Evaluation(h) => {
                 let evaluation = Evaluation::get(&h).await?;
                 new_log.log_evaluation = Some(evaluation.evaluation_id);
