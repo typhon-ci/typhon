@@ -87,16 +87,16 @@ impl Job {
             let project = jobset.project().await?;
             let build = self.build().await?;
 
-            // run action `begin`
-            let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
-                .set(job_status.eq("begin"))
-                .execute(&mut *conn);
-            drop(conn);
+            {
+                // run action `begin`
+                let mut conn = connection().await;
+                let _ = diesel::update(jobs.find(id))
+                    .set(job_status.eq("begin"))
+                    .execute(&mut *conn);
+                drop(conn);
 
-            log_event(Event::JobUpdated(handle_bis.clone()));
+                log_event(Event::JobUpdated(handle_bis.clone()));
 
-            if Path::new(&format!("{}/begin", path)).exists() {
                 let input = json!({
                     "project": project.project_name,
                     "jobset": jobset.jobset_name,
@@ -107,13 +107,19 @@ impl Job {
                     "locked_flake": evaluation.evaluation_locked_flake,
                     "data": SETTINGS.get().unwrap().json,
                 });
-                let (_, log) = actions::run(
-                    &project.project_key,
-                    &format!("{}/begin", path),
-                    &format!("{}/secrets", path),
-                    &input,
-                )
-                .await?;
+
+                let log = if Path::new(&format!("{}/begin", path)).exists() {
+                    let (_, log) = actions::run(
+                        &project.project_key,
+                        &format!("{}/begin", path),
+                        &format!("{}/secrets", path),
+                        &input,
+                    )
+                    .await?;
+                    log
+                } else {
+                    serde_json::to_string_pretty(&input).unwrap() // TODO
+                };
 
                 // save the log
                 let _ = Log::new(handles::Log::JobBegin(handle_bis.clone()), log).await?;
@@ -131,16 +137,16 @@ impl Job {
             BUILDS.get().unwrap().wait(&self.job_build).await;
             let build = self.build().await?;
 
-            // run action `end`
-            let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
-                .set(job_status.eq("end"))
-                .execute(&mut *conn);
-            drop(conn);
+            {
+                // run action `end`
+                let mut conn = connection().await;
+                let _ = diesel::update(jobs.find(id))
+                    .set(job_status.eq("end"))
+                    .execute(&mut *conn);
+                drop(conn);
 
-            log_event(Event::JobUpdated(handle_bis.clone()));
+                log_event(Event::JobUpdated(handle_bis.clone()));
 
-            if Path::new(&format!("{}/end", path)).exists() {
                 let input = json!({
                     "project": project.project_name,
                     "jobset": jobset.jobset_name,
@@ -152,13 +158,19 @@ impl Job {
                     "data": SETTINGS.get().unwrap().json,
                     "status": build.build_status,
                 });
-                let (_, log) = actions::run(
-                    &project.project_key,
-                    &format!("{}/end", path),
-                    &format!("{}/secrets", path),
-                    &input,
-                )
-                .await?;
+
+                let log = if Path::new(&format!("{}/end", path)).exists() {
+                    let (_, log) = actions::run(
+                        &project.project_key,
+                        &format!("{}/end", path),
+                        &format!("{}/secrets", path),
+                        &input,
+                    )
+                    .await?;
+                    log
+                } else {
+                    serde_json::to_string_pretty(&input).unwrap() // TODO
+                };
 
                 // save the log
                 let _ = Log::new(handles::Log::JobEnd(handle_bis), log).await?;
