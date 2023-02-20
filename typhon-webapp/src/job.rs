@@ -1,4 +1,4 @@
-use crate::{perform_request, view_error};
+use crate::{perform_request, view_error, view_log};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
@@ -152,11 +152,11 @@ fn view_job(model: &Model) -> Node<Msg> {
         },
         match &model.log_begin {
             None => empty![],
-            Some(log) => div![h3!["Log (begin)"], log,],
+            Some(log) => div![h3!["Log (begin)"], view_log(log.clone()),],
         },
         match &model.log_end {
             None => empty![],
-            Some(log) => div![h3!["Log (end)"], log,],
+            Some(log) => div![h3!["Log (end)"], view_log(log.clone()),],
         },
     ]
 }

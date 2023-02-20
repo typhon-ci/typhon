@@ -374,6 +374,10 @@ pub fn view_error<Ms: Clone + 'static>(err: &responses::ResponseError, msg_ignor
     ]
 }
 
+pub fn view_log<Ms: Clone + 'static>(log: String) -> Node<Ms> {
+    tt![log.split('\n').map(|p| p![p])]
+}
+
 fn header(model: &Model) -> Node<Msg> {
     div![
         h1!["Typhon"],

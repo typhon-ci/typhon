@@ -1,4 +1,4 @@
-use crate::{perform_request, view_error};
+use crate::{perform_request, view_error, view_log};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
@@ -99,7 +99,7 @@ fn view_build(model: &Model) -> Node<Msg> {
         },
         match &model.nix_log {
             None => empty![],
-            Some(log) => div![h3!["Nix log"], log,],
+            Some(log) => div![h3!["Nix log"], view_log(log.clone()),],
         },
     ]
 }
