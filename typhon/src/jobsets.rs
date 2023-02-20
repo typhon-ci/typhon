@@ -1,3 +1,4 @@
+use crate::connection;
 use crate::error::Error;
 use crate::models::*;
 use crate::nix;
@@ -16,16 +17,12 @@ pub struct JobsetDecl {
 }
 
 impl Jobset {
-    pub async fn evaluate(
-        &self,
-        conn: &mut SqliteConnection,
-        force: bool,
-    ) -> Result<handles::Evaluation, Error> {
-        let project = self.project(conn)?;
+    pub async fn evaluate(&self, force: bool) -> Result<handles::Evaluation, Error> {
+        let project = self.project().await?;
 
-        // TODO: don't block connection during nix call
         let locked_flake = nix::lock(&self.jobset_flake).await?;
 
+        let mut conn = connection().await;
         let evaluation = conn.transaction::<Evaluation, Error, _>(|conn| {
             let old_evaluations = evaluations
                 .filter(evaluation_jobset.eq(self.jobset_id))
@@ -53,26 +50,25 @@ impl Jobset {
             };
             Ok(diesel::insert_into(evaluations)
                 .values(&new_evaluation)
-                .get_result(conn)?)
+                .get_result(&mut *conn)?)
         })?;
+        drop(conn);
 
-        let handle = evaluation.handle(conn)?;
+        let handle = evaluation.handle().await?;
         log_event(Event::EvaluationNew(handle.clone()));
-        evaluation.run(conn).await;
+        evaluation.run().await;
 
         Ok(handle)
     }
 
-    pub fn get(
-        conn: &mut SqliteConnection,
-        jobset_handle: &handles::Jobset,
-    ) -> Result<Self, Error> {
+    pub async fn get(jobset_handle: &handles::Jobset) -> Result<Self, Error> {
         let handles::pattern!(project_name_, jobset_name_) = jobset_handle;
-        let project = Project::get(conn, &jobset_handle.project)?;
+        let project = Project::get(&jobset_handle.project).await?;
+        let mut conn = connection().await;
         Ok(jobsets
             .filter(jobset_project.eq(project.project_id))
             .filter(jobset_name.eq(jobset_name_))
-            .first::<Jobset>(conn)
+            .first::<Jobset>(&mut *conn)
             .map_err(|_| {
                 Error::JobsetNotFound(handles::jobset((
                     project_name_.to_string(),
@@ -81,18 +77,19 @@ impl Jobset {
             })?)
     }
 
-    pub fn handle(&self, conn: &mut SqliteConnection) -> Result<handles::Jobset, Error> {
+    pub async fn handle(&self) -> Result<handles::Jobset, Error> {
         Ok(handles::Jobset {
-            project: self.project(conn)?.handle(),
+            project: self.project().await?.handle(),
             jobset: self.jobset_name.clone(),
         })
     }
 
-    pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::JobsetInfo, Error> {
+    pub async fn info(&self) -> Result<responses::JobsetInfo, Error> {
+        let mut conn = connection().await;
         let evals = evaluations
             .filter(evaluation_jobset.eq(self.jobset_id))
             .order(evaluation_id.desc())
-            .load::<Evaluation>(conn)?
+            .load::<Evaluation>(&mut *conn)?
             .iter()
             .map(|evaluation| {
                 (
@@ -101,13 +98,17 @@ impl Jobset {
                 )
             })
             .collect();
+        drop(conn);
         Ok(responses::JobsetInfo {
             flake: self.jobset_flake.clone(),
             evaluations: evals,
         })
     }
 
-    pub fn project(&self, conn: &mut SqliteConnection) -> Result<Project, Error> {
-        Ok(projects.find(self.jobset_project).first::<Project>(conn)?)
+    pub async fn project(&self) -> Result<Project, Error> {
+        let mut conn = connection().await;
+        Ok(projects
+            .find(self.jobset_project)
+            .first::<Project>(&mut *conn)?)
     }
 }

@@ -13,32 +13,35 @@ use serde_json::json;
 use std::path::Path;
 
 impl Job {
-    pub fn build(&self, conn: &mut SqliteConnection) -> Result<Build, Error> {
-        Ok(builds.find(self.job_build).first::<Build>(conn)?)
+    pub async fn build(&self) -> Result<Build, Error> {
+        let mut conn = connection().await;
+        Ok(builds.find(self.job_build).first::<Build>(&mut *conn)?)
     }
 
-    pub async fn cancel(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
+    pub async fn cancel(&self) -> Result<(), Error> {
         let r = JOBS.get().unwrap().cancel(self.job_id).await;
         if r {
             Ok(())
         } else {
-            Err(Error::JobNotRunning(self.handle(conn)?))
+            Err(Error::JobNotRunning(self.handle().await?))
         }
     }
 
-    pub fn evaluation(&self, conn: &mut SqliteConnection) -> Result<Evaluation, Error> {
+    pub async fn evaluation(&self) -> Result<Evaluation, Error> {
+        let mut conn = connection().await;
         Ok(evaluations
             .find(self.job_evaluation)
-            .first::<Evaluation>(conn)?)
+            .first::<Evaluation>(&mut *conn)?)
     }
 
-    pub fn get(conn: &mut SqliteConnection, job_handle: &handles::Job) -> Result<Self, Error> {
+    pub async fn get(job_handle: &handles::Job) -> Result<Self, Error> {
         let handles::pattern!(project_name_, jobset_name_, evaluation_num_, job_name_) = job_handle;
-        let evaluation = Evaluation::get(conn, &job_handle.evaluation)?;
+        let evaluation = Evaluation::get(&job_handle.evaluation).await?;
+        let mut conn = connection().await;
         Ok(jobs
             .filter(job_evaluation.eq(evaluation.evaluation_id))
             .filter(job_name.eq(job_name_))
-            .first::<Job>(conn)
+            .first::<Job>(&mut *conn)
             .map_err(|_| {
                 Error::JobNotFound(handles::job((
                     project_name_.clone(),
@@ -49,15 +52,16 @@ impl Job {
             })?)
     }
 
-    pub fn handle(&self, conn: &mut SqliteConnection) -> Result<handles::Job, Error> {
+    pub async fn handle(&self) -> Result<handles::Job, Error> {
         Ok(handles::Job {
-            evaluation: self.evaluation(conn)?.handle(conn)?,
+            evaluation: self.evaluation().await?.handle().await?,
             job: self.job_name.clone(),
         })
     }
 
-    pub fn info(&self, conn: &mut SqliteConnection) -> Result<responses::JobInfo, Error> {
-        let build = builds.find(self.job_build).first::<Build>(conn)?;
+    pub async fn info(&self) -> Result<responses::JobInfo, Error> {
+        let mut conn = connection().await;
+        let build = builds.find(self.job_build).first::<Build>(&mut *conn)?;
         Ok(responses::JobInfo {
             build: handles::build(build.build_hash.clone()),
             status: self.job_status.clone(),
@@ -66,25 +70,24 @@ impl Job {
 
     pub async fn run(self) -> () {
         let id = self.job_id;
-        let task = async move {
-            let mut conn = connection().await;
 
+        let task = async move {
             // abort if actions are not defined
-            let evaluation = self.evaluation(&mut conn)?;
+            let evaluation = self.evaluation().await?;
             let path = match &evaluation.evaluation_actions_path {
                 None => return Ok(()),
                 Some(path) => path,
             };
 
-            let jobset = evaluation.jobset(&mut conn)?;
-            let project = jobset.project(&mut conn)?;
-            let build = self.build(&mut conn)?;
+            let jobset = evaluation.jobset().await?;
+            let project = jobset.project().await?;
+            let build = self.build().await?;
 
             // run action `begin`
+            let mut conn = connection().await;
             let _ = diesel::update(jobs.find(id))
                 .set(job_status.eq("begin"))
                 .execute(&mut *conn);
-
             drop(conn);
 
             if Path::new(&format!("{}/begin", path)).exists() {
@@ -107,10 +110,8 @@ impl Job {
                 .await?;
 
                 // save the log
-                let mut conn = connection().await;
-                let h = self.handle(&mut conn)?;
-                let _ = Log::new(&mut conn, handles::Log::JobBegin(h), log);
-                drop(conn);
+                let h = self.handle().await?;
+                let _ = Log::new(handles::Log::JobBegin(h), log).await?;
             }
 
             // wait for build
@@ -121,9 +122,7 @@ impl Job {
             drop(conn);
 
             BUILDS.get().unwrap().wait(&self.job_build).await;
-            let mut conn = connection().await;
-            let build = self.build(&mut *conn)?;
-            drop(conn);
+            let build = self.build().await?;
 
             // run action `end`
             let mut conn = connection().await;
@@ -153,10 +152,8 @@ impl Job {
                 .await?;
 
                 // save the log
-                let mut conn = connection().await;
-                let h = self.handle(&mut conn)?;
-                let _ = Log::new(&mut conn, handles::Log::JobEnd(h), log);
-                drop(conn);
+                let h = self.handle().await?;
+                let _ = Log::new(handles::Log::JobEnd(h), log).await?;
             }
 
             Ok::<(), Error>(())
@@ -167,10 +164,11 @@ impl Job {
                 Some(Err(_)) => "error", // TODO: log error
                 None => "canceled",
             };
-            let conn = &mut *connection().await;
+            let mut conn = connection().await;
             let _ = diesel::update(jobs.find(id))
                 .set(job_status.eq(status))
-                .execute(conn);
+                .execute(&mut *conn);
+            drop(conn);
         };
         JOBS.get().unwrap().run(id, task, f).await;
     }

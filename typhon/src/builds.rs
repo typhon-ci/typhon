@@ -18,11 +18,12 @@ impl Build {
         }
     }
 
-    pub fn get(conn: &mut SqliteConnection, build_handle: &handles::Build) -> Result<Self, Error> {
+    pub async fn get(build_handle: &handles::Build) -> Result<Self, Error> {
         let build_hash_ = &build_handle.build_hash;
+        let mut conn = connection().await;
         Ok(builds
             .filter(build_hash.eq(build_hash_))
-            .first::<Build>(conn)
+            .first::<Build>(&mut *conn)
             .map_err(|_| {
                 Error::BuildNotFound(handles::Build {
                     build_hash: build_hash_.to_string(),

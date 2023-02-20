@@ -121,84 +121,85 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
 
 pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Response, Error> {
     if authorize_request(user, req) {
-        let conn = &mut *connection().await;
         Ok(match req {
-            requests::Request::ListProjects => Response::ListProjects(Project::list(conn)?),
+            requests::Request::ListProjects => Response::ListProjects(Project::list().await?),
             requests::Request::CreateProject(project_handle) => {
-                Project::create(conn, &project_handle)?;
+                Project::create(&project_handle).await?;
                 Response::Ok
             }
             requests::Request::Project(project_handle, req) => {
-                let project = Project::get(conn, &project_handle)?;
+                let project = Project::get(&project_handle).await?;
                 match req {
                     requests::Project::Delete => {
-                        project.delete(conn)?;
+                        project.delete().await?;
                         Response::Ok
                     }
-                    requests::Project::Info => Response::ProjectInfo(project.info(conn)?),
+                    requests::Project::Info => Response::ProjectInfo(project.info().await?),
                     requests::Project::Refresh => {
-                        project.refresh(conn).await?;
+                        project.refresh().await?;
                         Response::Ok
                     }
                     requests::Project::SetDecl(flake) => {
-                        project.set_decl(conn, &flake)?;
+                        project.set_decl(&flake).await?;
                         Response::Ok
                     }
                     requests::Project::SetPrivateKey(key) => {
-                        project.set_private_key(conn, &key)?;
+                        project.set_private_key(&key).await?;
                         Response::Ok
                     }
                     requests::Project::UpdateJobsets => {
-                        let jobsets = project.update_jobsets(conn).await?;
+                        let jobsets = project.update_jobsets().await?;
                         Response::ProjectUpdateJobsets(jobsets)
                     }
                 }
             }
             requests::Request::Jobset(jobset_handle, req) => {
-                let jobset = Jobset::get(conn, &jobset_handle)?;
+                let jobset = Jobset::get(&jobset_handle).await?;
                 match req {
                     requests::Jobset::Evaluate(force) => {
-                        let evaluation_handle = jobset.evaluate(conn, *force).await?;
+                        let evaluation_handle = jobset.evaluate(*force).await?;
                         Response::JobsetEvaluate(evaluation_handle)
                     }
-                    requests::Jobset::Info => Response::JobsetInfo(jobset.info(conn)?),
+                    requests::Jobset::Info => Response::JobsetInfo(jobset.info().await?),
                 }
             }
             requests::Request::Evaluation(evaluation_handle, req) => {
-                let evaluation = Evaluation::get(conn, evaluation_handle)?;
+                let evaluation = Evaluation::get(evaluation_handle).await?;
                 match req {
                     requests::Evaluation::Cancel => {
-                        evaluation.cancel(conn).await?;
+                        evaluation.cancel().await?;
                         Response::Ok
                     }
-                    requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
+                    requests::Evaluation::Info => {
+                        Response::EvaluationInfo(evaluation.info().await?)
+                    }
                     requests::Evaluation::Log => {
                         let log =
-                            Log::get(conn, handles::Log::Evaluation(evaluation_handle.clone()))?;
+                            Log::get(handles::Log::Evaluation(evaluation_handle.clone())).await?;
                         Response::Log(log.log_stderr)
                     }
                 }
             }
             requests::Request::Job(job_handle, req) => {
-                let job = Job::get(conn, &job_handle)?;
+                let job = Job::get(&job_handle).await?;
                 match req {
                     requests::Job::Cancel => {
-                        job.cancel(conn).await?;
+                        job.cancel().await?;
                         Response::Ok
                     }
-                    requests::Job::Info => Response::JobInfo(job.info(conn)?),
+                    requests::Job::Info => Response::JobInfo(job.info().await?),
                     requests::Job::LogBegin => {
-                        let log = Log::get(conn, handles::Log::JobBegin(job_handle.clone()))?;
+                        let log = Log::get(handles::Log::JobBegin(job_handle.clone())).await?;
                         Response::Log(log.log_stderr)
                     }
                     requests::Job::LogEnd => {
-                        let log = Log::get(conn, handles::Log::JobEnd(job_handle.clone()))?;
+                        let log = Log::get(handles::Log::JobEnd(job_handle.clone())).await?;
                         Response::Log(log.log_stderr)
                     }
                 }
             }
             requests::Request::Build(build_handle, req) => {
-                let build = Build::get(conn, &build_handle)?;
+                let build = Build::get(&build_handle).await?;
                 match req {
                     requests::Build::Cancel => {
                         build.cancel().await?;
