@@ -22,8 +22,8 @@ CREATE TABLE jobsets (
 CREATE TABLE evaluations (
     evaluation_id INTEGER NOT NULL PRIMARY KEY,
     evaluation_actions_path TEXT,
+    evaluation_flake_locked TEXT NOT NULL,
     evaluation_jobset INTEGER NOT NULL REFERENCES jobsets(jobset_id) ON DELETE CASCADE,
-    evaluation_locked_flake TEXT NOT NULL,
     evaluation_num INTEGER NOT NULL,
     evaluation_status TEXT NOT NULL CHECK(evaluation_status in ('pending', 'success', 'error', 'canceled')),
     evaluation_time_created BIGINT NOT NULL,

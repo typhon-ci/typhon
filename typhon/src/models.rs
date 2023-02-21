@@ -41,8 +41,8 @@ pub struct NewJobset<'a> {
 pub struct Evaluation {
     pub evaluation_id: i32,
     pub evaluation_actions_path: Option<String>,
+    pub evaluation_flake_locked: String,
     pub evaluation_jobset: i32,
-    pub evaluation_locked_flake: String,
     pub evaluation_num: i32,
     pub evaluation_status: String,
     pub evaluation_time_created: i64,
@@ -52,8 +52,8 @@ pub struct Evaluation {
 #[diesel(table_name = evaluations)]
 pub struct NewEvaluation<'a> {
     pub evaluation_actions_path: Option<&'a str>,
+    pub evaluation_flake_locked: &'a str,
     pub evaluation_jobset: i32,
-    pub evaluation_locked_flake: &'a str,
     pub evaluation_num: i32,
     pub evaluation_status: &'a str,
     pub evaluation_time_created: i64,

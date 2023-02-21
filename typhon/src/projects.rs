@@ -111,13 +111,13 @@ impl Project {
     }
 
     pub async fn refresh(&self) -> Result<(), Error> {
-        let locked_flake = nix::lock(&self.project_decl).await?;
+        let flake_locked = nix::lock(&self.project_decl).await?;
         let mut title = String::new();
         let mut description = String::new();
         let mut homepage = String::new();
         let mut actions_path = String::new();
 
-        let expr = format!("{}#typhonProject", locked_flake);
+        let expr = format!("{}#typhonProject", flake_locked);
         let typhon_project = nix::eval(expr).await?;
 
         typhon_project.get("meta").map(|metadata| {
@@ -149,7 +149,7 @@ impl Project {
                 project_description.eq(description),
                 project_homepage.eq(homepage),
                 project_actions_path.eq(actions_path),
-                project_decl_locked.eq(locked_flake),
+                project_decl_locked.eq(flake_locked),
             ))
             .execute(&mut *conn)?;
         drop(conn);

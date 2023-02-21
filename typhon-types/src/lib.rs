@@ -208,8 +208,8 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
         pub actions_path: Option<String>,
+        pub flake_locked: String,
         pub jobs: Vec<String>,
-        pub locked_flake: String,
         pub status: String,
         pub time_created: i64,
     }

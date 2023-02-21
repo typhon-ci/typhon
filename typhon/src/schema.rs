@@ -13,8 +13,8 @@ diesel::table! {
     evaluations (evaluation_id) {
         evaluation_id -> Integer,
         evaluation_actions_path -> Nullable<Text>,
+        evaluation_flake_locked -> Text,
         evaluation_jobset -> Integer,
-        evaluation_locked_flake -> Text,
         evaluation_num -> Integer,
         evaluation_status -> Text,
         evaluation_time_created -> BigInt,

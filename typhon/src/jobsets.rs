@@ -20,7 +20,7 @@ impl Jobset {
     pub async fn evaluate(&self, force: bool) -> Result<handles::Evaluation, Error> {
         let project = self.project().await?;
 
-        let locked_flake = nix::lock(&self.jobset_flake).await?;
+        let flake_locked = nix::lock(&self.jobset_flake).await?;
 
         let mut conn = connection().await;
         let evaluation = conn.transaction::<Evaluation, Error, _>(|conn| {
@@ -30,7 +30,7 @@ impl Jobset {
             if !force {
                 match old_evaluations.last() {
                     Some(eval) => {
-                        if eval.evaluation_locked_flake == locked_flake {
+                        if eval.evaluation_flake_locked == flake_locked {
                             return Ok(eval.clone());
                         }
                     }
@@ -41,12 +41,12 @@ impl Jobset {
             let status = "pending".to_string();
             let time = time::timestamp();
             let new_evaluation = NewEvaluation {
-                evaluation_num: n,
-                evaluation_jobset: self.jobset_id,
-                evaluation_locked_flake: &locked_flake,
-                evaluation_time_created: time,
-                evaluation_status: &status,
                 evaluation_actions_path: project.project_actions_path.as_ref().map(|s| s.as_str()),
+                evaluation_flake_locked: &flake_locked,
+                evaluation_jobset: self.jobset_id,
+                evaluation_num: n,
+                evaluation_status: &status,
+                evaluation_time_created: time,
             };
             Ok(diesel::insert_into(evaluations)
                 .values(&new_evaluation)

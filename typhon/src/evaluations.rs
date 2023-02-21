@@ -111,8 +111,8 @@ impl Evaluation {
         drop(conn);
         Ok(responses::EvaluationInfo {
             actions_path: self.evaluation_actions_path.clone(),
+            flake_locked: self.evaluation_flake_locked.clone(),
             jobs: jobs_names,
-            locked_flake: self.evaluation_locked_flake.clone(),
             status: self.evaluation_status.clone(),
             time_created: self.evaluation_time_created,
         })
@@ -129,12 +129,12 @@ impl Evaluation {
         let handle = self.handle().await.unwrap(); // TODO
         let id = self.evaluation_id;
         let task = async move {
-            let expr = format!("{}#typhonJobs", self.evaluation_locked_flake);
+            let expr = format!("{}#typhonJobs", self.evaluation_flake_locked);
             let attrset = nix::eval(expr).await?;
             let attrset = attrset.as_object().expect("unexpected Nix output"); // TODO: this is unsafe
             let mut jobs_: HashMap<String, String> = HashMap::new();
             for (name, _) in attrset.iter() {
-                let expr = format!("{}#typhonJobs.{}", self.evaluation_locked_flake, name);
+                let expr = format!("{}#typhonJobs.{}", self.evaluation_flake_locked, name);
                 let drv_path = nix::derivation_path(expr).await?;
                 jobs_.insert(name.to_string(), drv_path);
             }

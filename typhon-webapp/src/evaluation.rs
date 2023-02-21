@@ -112,7 +112,7 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
             None => div!["loading..."],
             Some(info) => div![
                 p![format!("Status: {}", info.status)],
-                p![format!("Locked flake: {}", info.locked_flake)],
+                p![format!("Flake locked: {}", info.flake_locked)],
                 p![format!(
                     "Actions path: {}",
                     info.actions_path.clone().unwrap_or("".into())

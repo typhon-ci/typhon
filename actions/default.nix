@@ -47,7 +47,7 @@
     , homepage ? "https://github.com/${owner}/${repo}" }:
     let
       parseInput = ''
-        flake=$(echo $input | jq '.input.locked_flake' -r)
+        flake=$(echo $input | jq '.input.flake_locked' -r)
         project=$(echo $input | jq '.input.project' -r)
         jobset=$(echo $input | jq '.input.jobset' -r)
         evaluation=$(echo $input | jq '.input.evaluation' -r)

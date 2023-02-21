@@ -104,7 +104,7 @@ impl Job {
                     "job": self.job_name,
                     "build": build.build_hash,
                     "flake": jobset.jobset_flake,
-                    "locked_flake": evaluation.evaluation_locked_flake,
+                    "flake_locked": evaluation.evaluation_flake_locked,
                     "data": SETTINGS.get().unwrap().json,
                 });
 
@@ -154,7 +154,7 @@ impl Job {
                     "job": self.job_name,
                     "build": build.build_hash,
                     "flake": jobset.jobset_flake,
-                    "locked_flake": evaluation.evaluation_locked_flake,
+                    "flake_locked": evaluation.evaluation_flake_locked,
                     "data": SETTINGS.get().unwrap().json,
                     "status": build.build_status,
                 });
