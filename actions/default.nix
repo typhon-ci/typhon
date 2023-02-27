@@ -26,6 +26,7 @@
         pkgs.lib.foldr (a: b: "${a}/bin:${b}") "${pkgs.coreutils}/bin" packages;
     in pkgs.writeShellScript "action" ''
       export PATH=${path}
+      set -euo pipefail
       ${script}
     '';
 
@@ -43,75 +44,76 @@
       '';
     };
 
-  mkGithubProject = { owner, repo, token, title ? repo, description ? ""
+  mkGithubProject = { owner, repo, secrets, title ? repo, description ? ""
     , homepage ? "https://github.com/${owner}/${repo}" }:
     let
-      parseInput = ''
-        flake=$(echo $input | jq '.input.flake_locked' -r)
-        project=$(echo $input | jq '.input.project' -r)
-        jobset=$(echo $input | jq '.input.jobset' -r)
-        evaluation=$(echo $input | jq '.input.evaluation' -r)
-        job=$(echo $input | jq '.input.job' -r)
-        build=$(echo $input | jq '.input.build' -r)
-        data=$(echo $input | jq '.input.data' -r)
-
-        rev=$(nix flake metadata --json $flake | jq '.revision' -r)
-        context="Typhon job: $job"
-        description="$project:$jobset:$evaluation:$job"
-        url=$(echo $data | jq '.url' -r) # TODO: error message if field does not exist
-      '';
-      setGithubStatus = state: ''
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $token" https://api.github.com/repos/${owner}/${repo}/statuses/$rev -d "{\"state\":\"${state}\",\"target_url\":\"$url/builds/$build\",\"description\":\"$description\",\"context\":\"$context\"}" -k
-      '';
-      mkScript = script:
+      mkGhAction = script:
         mkAction {
-          packages = [ pkgs.jq pkgs.gnused pkgs.curl pkgs.nix ];
+          packages = [ pkgs.curl pkgs.gnused pkgs.jq ];
           inherit script;
         };
+      githubStatus = mkGhAction ''
+        input=$(cat)
+
+        build=$(echo $input | jq '.input.build' -r)
+        data=$(echo $input | jq '.input.data' -r)
+        evaluation=$(echo $input | jq '.input.evaluation' -r)
+        flake=$(echo $input | jq '.input.flake' -r)
+        flake_locked=$(echo $input | jq '.input.flake_locked' -r)
+        job=$(echo $input | jq '.input.job' -r)
+        jobset=$(echo $input | jq '.input.jobset' -r)
+        project=$(echo $input | jq '.input.project' -r)
+        status=$(echo $input | jq '.input.status' -r)
+
+        token=$(echo $input | jq '.secrets.github_token' -r)
+
+        rev=$(echo $flake_locked | sed 's/github:.*\/.*\/\(.*\)/\1/')
+        target_url="$(echo $data | jq '.url' -r)/builds/$build"
+        context="Typhon: $job"
+        description="$project:$jobset:$evaluation:$job"
+        case $status in
+          "error")
+            state="failure"
+            ;;
+          "pending")
+            state="pending"
+            ;;
+          "success")
+            state="success"
+            ;;
+          *)
+            state="error"
+            ;;
+        esac
+
+        curl -s \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $token" \
+          https://api.github.com/repos/${owner}/${repo}/statuses/$rev \
+          -d "{\"state\":\"$state\",\"target_url\":\"$target_url\",\"description\":\"$description\",\"context\":\"$context\"}" \
+          -k >&2
+      '';
+      githubJobsets = mkGhAction ''
+        input=$(cat)
+
+        token=$(echo $input | jq '.secrets.github_token' -r)
+
+        curl -s \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $token" \
+          https://api.github.com/repos/${owner}/${repo}/branches \
+          -k \
+          | jq --arg o "${owner}" --arg r "${repo}" 'map({ key: .name, value: { "flake": ("github:" + $o + "/" + $r + "/" + .name) }}) | from_entries'
+      '';
     in mkProject {
       meta = { inherit title description homepage; };
       actions = {
-        jobsets = mkScript ''
-          input=$(cat)
-
-          token=$(echo $input | jq '.secrets' -r)
-
-          curl \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $token" \
-            https://api.github.com/repos/${owner}/${repo}/branches \
-            -k \
-            | jq --arg o "${owner}" --arg r "${repo}" 'map({ key: .name, value: { "flake": ("github:" + $o + "/" + $r + "/" + .name) }}) | from_entries'
-        '';
-        begin = mkScript ''
-          input=$(cat)
-
-          ${parseInput}
-          token=$(echo $input | jq '.secrets' -r)
-
-          ${setGithubStatus "pending"}
-        '';
-        end = mkScript ''
-          input=$(cat)
-
-          ${parseInput}
-          status=$(echo $input | jq '.input.status' -r)
-          token=$(echo $input | jq '.secrets' -r)
-
-          case $status in
-            "error")
-              ${setGithubStatus "failure"}
-              ;;
-            "success")
-              ${setGithubStatus "success"}
-              ;;
-            *)
-              ${setGithubStatus "error"}
-              ;;
-          esac
-        '';
+        jobsets = githubJobsets;
+        begin = githubStatus;
+        end = githubStatus;
       };
-      secrets = token;
+      inherit secrets;
     };
 
 }
