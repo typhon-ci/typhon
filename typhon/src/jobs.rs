@@ -10,7 +10,7 @@ use crate::schema::jobs::dsl::*;
 use crate::{log_event, Event};
 use crate::{BUILDS, JOBS, SETTINGS};
 use diesel::prelude::*;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::Path;
 
 impl Job {
@@ -69,6 +69,24 @@ impl Job {
         })
     }
 
+    async fn mk_input(&self) -> Result<Value, Error> {
+        let evaluation = self.evaluation().await?;
+        let jobset = evaluation.jobset().await?;
+        let project = jobset.project().await?;
+        let build = self.build().await?;
+        Ok(json!({
+            "build": build.build_hash,
+            "data": SETTINGS.get().unwrap().json,
+            "evaluation": evaluation.evaluation_num,
+            "flake": jobset.jobset_flake,
+            "flake_locked": evaluation.evaluation_flake_locked,
+            "job": self.job_name,
+            "jobset": jobset.jobset_name,
+            "project": project.project_name,
+            "status": build.build_status,
+        }))
+    }
+
     pub async fn run(self) -> () {
         let id = self.job_id;
 
@@ -85,7 +103,6 @@ impl Job {
 
             let jobset = evaluation.jobset().await?;
             let project = jobset.project().await?;
-            let build = self.build().await?;
 
             {
                 // run action `begin`
@@ -97,16 +114,7 @@ impl Job {
 
                 log_event(Event::JobUpdated(handle_bis.clone()));
 
-                let input = json!({
-                    "project": project.project_name,
-                    "jobset": jobset.jobset_name,
-                    "evaluation": evaluation.evaluation_num,
-                    "job": self.job_name,
-                    "build": build.build_hash,
-                    "flake": jobset.jobset_flake,
-                    "flake_locked": evaluation.evaluation_flake_locked,
-                    "data": SETTINGS.get().unwrap().json,
-                });
+                let input = self.mk_input().await?;
 
                 let log = if Path::new(&format!("{}/begin", path)).exists() {
                     let (_, log) = actions::run(
@@ -135,7 +143,6 @@ impl Job {
             log_event(Event::JobUpdated(handle_bis.clone()));
 
             BUILDS.get().unwrap().wait(&self.job_build).await;
-            let build = self.build().await?;
 
             {
                 // run action `end`
@@ -147,17 +154,7 @@ impl Job {
 
                 log_event(Event::JobUpdated(handle_bis.clone()));
 
-                let input = json!({
-                    "project": project.project_name,
-                    "jobset": jobset.jobset_name,
-                    "evaluation": evaluation.evaluation_num,
-                    "job": self.job_name,
-                    "build": build.build_hash,
-                    "flake": jobset.jobset_flake,
-                    "flake_locked": evaluation.evaluation_flake_locked,
-                    "data": SETTINGS.get().unwrap().json,
-                    "status": build.build_status,
-                });
+                let input = self.mk_input().await?;
 
                 let log = if Path::new(&format!("{}/end", path)).exists() {
                     let (_, log) = actions::run(
