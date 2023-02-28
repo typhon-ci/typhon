@@ -375,7 +375,7 @@ pub fn view_error<Ms: Clone + 'static>(err: &responses::ResponseError, msg_ignor
 }
 
 pub fn view_log<Ms: Clone + 'static>(log: String) -> Node<Ms> {
-    tt![log.split('\n').map(|p| p![p])]
+    tt![log.split('\n').map(|p| { p![p.replace(" ", " ")] })]
 }
 
 fn header(model: &Model) -> Node<Msg> {
