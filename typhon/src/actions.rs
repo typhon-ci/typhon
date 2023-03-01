@@ -63,15 +63,24 @@ pub async fn run(
         "secrets": secrets,
     });
 
-    let mut child = Command::new("firejail")
-        .arg("--noprofile")
-        .arg("--quiet")
+    let mut child = Command::new("bwrap")
+        .arg("--proc")
+        .arg("/proc")
+        .arg("--dev")
+        .arg("/dev")
+        .arg("--ro-bind")
+        .arg("/nix/store")
+        .arg("/nix/store")
+        .arg("--ro-bind")
+        .arg("/etc/resolv.conf")
+        .arg("/etc/resolv.conf")
+        .arg("--unshare-pid")
         .arg(&script_path)
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
-        .expect("command firejail failed to start");
+        .expect("command bwrap failed to start");
     let mut stdin = child.stdin.take().unwrap(); // TODO: check if unwrap is safe
     let mut stdout = child.stdout.take().unwrap(); // TODO: check if unwrap is safe
     let mut stderr = child.stderr.take().unwrap(); // TODO: check if unwrap is safe

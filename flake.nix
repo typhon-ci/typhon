@@ -74,7 +74,7 @@
         devShells = {
           default = pkgs.mkShell {
             name = "typhon-shell";
-            packages = [ pkgs.diesel-cli pkgs.sqlite pkgs.pkg-config ]
+            packages = [ pkgs.diesel-cli pkgs.sqlite pkgs.pkg-config pkgs.bubblewrap ]
               ++ common-devShell-packages;
             DATABASE_URL = "sqlite:typhon.sqlite";
           };

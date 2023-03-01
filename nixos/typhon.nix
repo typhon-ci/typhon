@@ -89,8 +89,6 @@ in {
   };
 
   config = mkIf cfg.enable {
-    programs.firejail.enable = true;
-
     users.users.typhon = {
       home = cfg.home;
       group = "typhon";
