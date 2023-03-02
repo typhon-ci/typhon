@@ -100,7 +100,7 @@ in {
     systemd.services.typhon = {
       description = "Typhon service";
       wantedBy = [ "multi-user.target" ];
-      path = [ pkgs.nix pkgs.git ];
+      path = [ pkgs.nix pkgs.git pkgs.bubblewrap ];
       serviceConfig = {
         ExecStart = execstart;
         Type = "simple";
