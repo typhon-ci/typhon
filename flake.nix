@@ -44,7 +44,7 @@
           rust-wasm = pkgs.rust-bin.stable.latest.default.override {
             targets = [ "wasm32-unknown-unknown" ];
           };
-          craneLib = (crane.mkLib pkgs).overrideToolchain rust-wasm;
+          craneLib = crane.lib.${system}.overrideToolchain rust-wasm;
           cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
           CARGO_PROFILE = "typhon-webapp";
           cargoArtifacts = craneLib.buildDepsOnly {
