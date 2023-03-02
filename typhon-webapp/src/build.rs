@@ -95,6 +95,7 @@ fn view_build(model: &Model) -> Node<Msg> {
             Some(info) => div![
                 p![format!("Status: {}", info.status)],
                 p![format!("Derivation: {}", info.drv)],
+                p![format!("Output: {}", info.out)],
             ],
         },
         match &model.nix_log {

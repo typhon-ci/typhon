@@ -13,12 +13,12 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 use substring::Substring;
 
-async fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), Error> {
+async fn evaluate_aux(id: i32, new_jobs: HashMap<String, (String, String)>) -> Result<(), Error> {
     let mut conn = connection().await;
     let created_jobs = conn.transaction::<Vec<(Build, Job)>, Error, _>(|conn| {
         let mut created_jobs = vec![];
-        for (name, drv) in new_jobs.iter() {
-            let hash = drv.substring(11, 43).to_string();
+        for (name, (drv_path, out_path)) in new_jobs.iter() {
+            let hash = drv_path.substring(11, 43).to_string();
 
             // Create and run build if it doesn't exist
             let build: Build = match builds
@@ -29,8 +29,9 @@ async fn evaluate_aux(id: i32, new_jobs: HashMap<String, String>) -> Result<(), 
                 Some(build) => Ok::<Build, Error>(build.clone()),
                 None => {
                     let new_build = NewBuild {
+                        build_drv: drv_path,
                         build_hash: &hash,
-                        build_drv: drv,
+                        build_out: out_path,
                         build_status: "pending",
                     };
                     let build: Build = diesel::insert_into(builds)
@@ -132,11 +133,31 @@ impl Evaluation {
             let expr = format!("{}#typhonJobs", self.evaluation_flake_locked);
             let attrset = nix::eval(expr).await?;
             let attrset = attrset.as_object().expect("unexpected Nix output"); // TODO: this is unsafe
-            let mut jobs_: HashMap<String, String> = HashMap::new();
+            let mut jobs_: HashMap<String, (String, String)> = HashMap::new();
             for (name, _) in attrset.iter() {
                 let expr = format!("{}#typhonJobs.{}", self.evaluation_flake_locked, name);
                 let drv_path = nix::derivation_path(expr).await?;
-                jobs_.insert(name.to_string(), drv_path);
+                let drv_json = nix::derivation_json(&drv_path).await?;
+                let out_path = drv_json
+                    .as_object()
+                    .ok_or(Error::Todo)?
+                    .get(&drv_path)
+                    .ok_or(Error::Todo)?
+                    .as_object()
+                    .ok_or(Error::Todo)?
+                    .get("outputs")
+                    .ok_or(Error::Todo)?
+                    .as_object()
+                    .ok_or(Error::Todo)?
+                    .get("out")
+                    .ok_or(Error::Todo)?
+                    .as_object()
+                    .ok_or(Error::Todo)?
+                    .get("path")
+                    .ok_or(Error::Todo)?
+                    .as_str()
+                    .ok_or(Error::Todo)?;
+                jobs_.insert(name.to_string(), (drv_path, out_path.to_string()));
             }
             Ok::<_, Error>(jobs_)
         };

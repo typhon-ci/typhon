@@ -223,6 +223,7 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct BuildInfo {
         pub drv: String,
+        pub out: String,
         pub status: String,
     }
 

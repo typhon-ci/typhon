@@ -43,6 +43,7 @@ CREATE TABLE builds (
     build_id INTEGER NOT NULL PRIMARY KEY,
     build_drv TEXT NOT NULL UNIQUE,
     build_hash TEXT NOT NULL UNIQUE,
+    build_out TEXT NOT NULL UNIQUE,
     build_status TEXT NOT NULL CHECK(build_status in ('pending', 'success', 'error', 'canceled'))
 );
 

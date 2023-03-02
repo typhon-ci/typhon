@@ -5,6 +5,7 @@ diesel::table! {
         build_id -> Integer,
         build_drv -> Text,
         build_hash -> Text,
+        build_out -> Text,
         build_status -> Text,
     }
 }

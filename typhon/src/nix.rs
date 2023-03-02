@@ -42,6 +42,12 @@ pub async fn build(expr: String) -> Result<String, Error> {
     Ok(store_path)
 }
 
+pub async fn derivation_json(path: &str) -> Result<Value, Error> {
+    let output = nix(vec!["show-derivation".to_string(), path.to_string()]).await?;
+    let json: Value = serde_json::from_str(&output).expect("failed to parse json");
+    Ok(json)
+}
+
 pub async fn derivation_path(expr: String) -> Result<String, Error> {
     let output = nix(vec!["show-derivation".to_string(), expr]).await?;
     let json_output: Value = serde_json::from_str(&output).expect("failed to parse json");

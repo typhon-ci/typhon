@@ -82,6 +82,7 @@ impl Job {
             "flake_locked": evaluation.evaluation_flake_locked,
             "job": self.job_name,
             "jobset": jobset.jobset_name,
+            "out": build.build_out,
             "project": project.project_name,
             "status": build.build_status,
         }))

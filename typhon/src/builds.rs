@@ -40,6 +40,7 @@ impl Build {
     pub fn info(&self) -> Result<responses::BuildInfo, Error> {
         Ok(responses::BuildInfo {
             drv: self.build_drv.clone(),
+            out: self.build_out.clone(),
             status: self.build_status.clone(),
         })
     }
