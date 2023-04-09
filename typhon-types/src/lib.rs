@@ -30,44 +30,63 @@ pub mod handles {
         JobEnd(Job),
     }
 
-    impl std::fmt::Display for Build {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}", self.build_hash)
+    macro_rules! impl_display {
+        ($ty:ident) => {
+            impl std::fmt::Display for $ty {
+                fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    write!(f, "{}", Vec::<String>::from(self.clone()).join(":"))
+                }
+            }
+        };
+    }
+
+    impl_display!(Project);
+    impl From<Project> for Vec<String> {
+        fn from(x: Project) -> Self {
+            vec![x.project]
         }
     }
-    impl std::fmt::Display for Job {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}:{}", self.evaluation, self.job)
+    impl_display!(Jobset);
+    impl From<Jobset> for Vec<String> {
+        fn from(x: Jobset) -> Self {
+            [x.project.into(), vec![x.jobset]].concat()
         }
     }
-    impl std::fmt::Display for Evaluation {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}:{}", self.jobset, self.evaluation)
+    impl_display!(Evaluation);
+    impl From<Evaluation> for Vec<String> {
+        fn from(x: Evaluation) -> Self {
+            [x.jobset.into(), vec![format!("{}", x.evaluation)]].concat()
         }
     }
-    impl std::fmt::Display for Jobset {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}:{}", self.project, self.jobset)
+    impl_display!(Job);
+    impl From<Job> for Vec<String> {
+        fn from(x: Job) -> Self {
+            [x.evaluation.into(), vec![x.job]].concat()
         }
     }
-    impl std::fmt::Display for Project {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}", self.project)
+    impl_display!(Build);
+    impl From<Build> for Vec<String> {
+        fn from(x: Build) -> Self {
+            vec![x.build_hash]
         }
     }
-    impl std::fmt::Display for Log {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            let ty = match self {
-                Log::Evaluation(_) => "evaluation",
-                Log::JobBegin(_) => "job_begin",
-                Log::JobEnd(_) => "job_end",
-            };
-            let h = match self {
-                Log::Evaluation(h) => h.to_string(),
-                Log::JobBegin(h) => h.to_string(),
-                Log::JobEnd(h) => h.to_string(),
-            };
-            write!(f, "{}:{}", ty, h)
+    impl_display!(Log);
+    impl From<Log> for Vec<String> {
+        fn from(x: Log) -> Self {
+            use Log::*;
+            vec![
+                match x {
+                    Evaluation(_) => "evaluation",
+                    JobBegin(_) => "job_begin",
+                    JobEnd(_) => "job_end",
+                }
+                .into(),
+                match x {
+                    Evaluation(h) => h.to_string(),
+                    JobBegin(h) => h.to_string(),
+                    JobEnd(h) => h.to_string(),
+                },
+            ]
         }
     }
 
