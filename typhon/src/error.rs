@@ -20,6 +20,7 @@ pub enum Error {
     ProjectNotFound(handles::Project),
     Todo,
     UnexpectedDatabaseError(diesel::result::Error),
+    LoginError,
 }
 
 impl Error {
@@ -63,6 +64,7 @@ impl std::fmt::Display for Error {
             }
             ProjectNotFound(project_handle) => write!(f, "Project {} not found", project_handle),
             NixError(e) => write!(f, "Nix error: {}", e),
+            LoginError => write!(f, "Login error"),
             Todo => write!(f, "Unspecified error"),
             UnexpectedDatabaseError(e) => write!(f, "Database error: {}", e),
         }

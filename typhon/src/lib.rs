@@ -115,7 +115,8 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
         | requests::Request::Job(_, requests::Job::LogBegin)
         | requests::Request::Job(_, requests::Job::LogEnd)
         | requests::Request::Build(_, requests::Build::Info)
-        | requests::Request::Build(_, requests::Build::NixLog) => true,
+        | requests::Request::Build(_, requests::Build::NixLog)
+        | requests::Request::Login(_) => true,
         _ => user.is_admin(),
     }
 }
@@ -210,6 +211,16 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                     requests::Build::NixLog => Response::Log(build.nixlog().await?),
                 }
             }
+            requests::Request::Login(password) => {
+                let hash = digest(password.as_bytes());
+                if hash == SETTINGS.get().unwrap().hashed_password {
+                    Response::Login {
+                        token: password.clone(),
+                    }
+                } else {
+                    Err(Error::LoginError)?
+                }
+            }
         })
     } else {
         Err(Error::AccessDenied)
@@ -243,6 +254,7 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
             | JobNotRunning(_)
             | NixError(_)
             | ProjectAlreadyExists(_)
+            | LoginError
             | LogNotFound(_) => BadRequest(format!("{}", e)),
             Todo | UnexpectedDatabaseError(_) => InternalError,
         }

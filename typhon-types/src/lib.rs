@@ -176,6 +176,7 @@ pub mod requests {
         Evaluation(handles::Evaluation, Evaluation),
         Job(handles::Job, Job),
         Build(handles::Build, Build),
+        Login(String),
     }
 
     impl std::fmt::Display for Request {
@@ -188,6 +189,7 @@ pub mod requests {
                 Request::Evaluation(h, req) => write!(f, "{:?} for evaluation {}", req, h),
                 Request::Job(h, req) => write!(f, "{:?} for job {}", req, h),
                 Request::Build(h, req) => write!(f, "{:?} for build {}", req, h),
+                Request::Login(_) => write!(f, "Log in"),
             }
         }
     }
@@ -253,6 +255,7 @@ pub mod responses {
         JobInfo(JobInfo),
         BuildInfo(BuildInfo),
         Log(String),
+        Login { token: String },
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

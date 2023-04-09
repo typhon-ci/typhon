@@ -33,6 +33,7 @@ impl Responder for ResponseWrapper {
             JobInfo(payload) => web::Json(payload).respond_to(req),
             BuildInfo(payload) => web::Json(payload).respond_to(req),
             Log(payload) => web::Json(payload).respond_to(req),
+            Login { token } => web::Json(token).respond_to(req),
         }
     }
 }
@@ -172,6 +173,11 @@ r!(
             handles::build(path.into_inner()),
             Build::NixLog,
         );
+
+    login(path: web::Path<String>) =>
+        Request::Login(
+            path.into_inner(),
+        );
 );
 
 async fn raw_request(
@@ -226,6 +232,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/cancel", web::post().to(build_cancel))
                     .route("/nixlog", web::get().to(build_nix_log)),
             )
+            .route("/login", web::post().to(login))
             .route(
                 "{anything:.*}",
                 web::route()
