@@ -246,7 +246,7 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Response {
         Ok,
-        ListProjects(Vec<String>),
+        ListProjects(Vec<(String, ProjectMetadata)>),
         ProjectInfo(ProjectInfo),
         ProjectUpdateJobsets(Vec<String>),
         JobsetEvaluate(crate::handles::Evaluation),

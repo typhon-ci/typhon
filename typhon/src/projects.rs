@@ -100,13 +100,22 @@ impl Project {
         })
     }
 
-    pub async fn list() -> Result<Vec<String>, Error> {
+    pub async fn list() -> Result<Vec<(String, responses::ProjectMetadata)>, Error> {
         let mut conn = connection().await;
         Ok(projects
             .order(project_name.asc())
             .load::<Project>(&mut *conn)?
             .iter()
-            .map(|project| project.project_name.clone())
+            .map(|project| {
+                (
+                    project.project_name.clone(),
+                    responses::ProjectMetadata {
+                        title: project.project_title.clone(),
+                        description: project.project_description.clone(),
+                        homepage: project.project_homepage.clone(),
+                    },
+                )
+            })
             .collect())
     }
 
