@@ -35,6 +35,7 @@
       packages = [ pkgs.git pkgs.gnused pkgs.jq ];
       script = ''
         heads=$(git ls-remote --heads ${url} | sed 's/.*refs\/heads\/\(.*\)/\1/')
+        cmd=""
         for head in $heads
         do
           cmd="$cmd . += {\"$head\": { \"flake\": \"git+${url}?ref=$head\" } } |"
