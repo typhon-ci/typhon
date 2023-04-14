@@ -63,9 +63,16 @@
             wasm-bindgen --out-dir $out --target web typhon_webapp.wasm
           '';
         };
+        typhon-doc = pkgs.stdenv.mkDerivation {
+          name = "typhon-doc";
+          src = ./doc;
+          nativeBuildInputs = [ pkgs.mdbook ];
+          buildPhase = "mdbook build";
+          installPhase = "cp -r book $out";
+        };
       in {
         packages = {
-          inherit typhon typhon-webapp;
+          inherit typhon typhon-webapp typhon-doc;
           default = typhon;
         };
         devShells.default = pkgs.mkShell {
@@ -84,6 +91,9 @@
             # Typhon webapp
             pkgs.nodePackages.sass
             pkgs.trunk
+
+            # Documentation
+            pkgs.mdbook
           ];
           DATABASE_URL = "sqlite:typhon.sqlite";
         };

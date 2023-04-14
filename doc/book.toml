@@ -1,0 +1,6 @@
+[book]
+authors = ["Paul-Nicolas Madelaine"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Typhon documentation"
