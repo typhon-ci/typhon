@@ -32,19 +32,17 @@
           "typhon-types.*"
           "typhon-webapp.*"
         ];
-        typhon = let
-          craneLib = crane.lib.${system};
-          cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
+        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
+          targets = [ "wasm32-unknown-unknown" ];
+        };
+        craneLib = crane.lib.${system}.overrideToolchain rustToolchain;
+        typhon = let cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
         in craneLib.buildPackage {
           name = "typhon";
           inherit src cargoArtifacts;
           buildInputs = [ pkgs.sqlite.dev ];
         };
         typhon-webapp = let
-          rust-wasm = pkgs.rust-bin.stable.latest.default.override {
-            targets = [ "wasm32-unknown-unknown" ];
-          };
-          craneLib = crane.lib.${system}.overrideToolchain rust-wasm;
           cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
           CARGO_PROFILE = "typhon-webapp";
           cargoArtifacts = craneLib.buildDepsOnly {
@@ -75,7 +73,7 @@
           packages = [
             # Rust
             pkgs.rustfmt
-            pkgs.rustup
+            rustToolchain
 
             # Typhon server
             pkgs.bubblewrap
