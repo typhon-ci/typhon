@@ -177,6 +177,20 @@ pub mod requests {
         Job(handles::Job, Job),
         Build(handles::Build, Build),
     }
+
+    impl std::fmt::Display for Request {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match self {
+                Request::ListProjects => write!(f, "List projects"),
+                Request::CreateProject(h) => write!(f, "Create project {}", h),
+                Request::Project(h, req) => write!(f, "{:?} for project {}", req, h),
+                Request::Jobset(h, req) => write!(f, "{:?} for jobset {}", req, h),
+                Request::Evaluation(h, req) => write!(f, "{:?} for evaluation {}", req, h),
+                Request::Job(h, req) => write!(f, "{:?} for job {}", req, h),
+                Request::Build(h, req) => write!(f, "{:?} for build {}", req, h),
+            }
+        }
+    }
 }
 
 pub mod responses {

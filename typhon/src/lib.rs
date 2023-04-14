@@ -218,7 +218,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
 
 /// Main entry point for Typhon requests
 pub async fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
-    log::info!("handling request {:?} for user {:?}", req, user);
+    log::info!("handling request {} for user {:?}", req, user);
     Ok(handle_request_aux(&user, &req).await.map_err(|e| {
         if e.is_internal() {
             log::error!(
