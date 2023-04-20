@@ -32,23 +32,23 @@ impl Default for Settings {
 
 pub static SETTINGS: OnceCell<Settings> = OnceCell::new();
 
-pub fn get_password() -> Option<String> {
-    LocalStorage::get("typhon_password").ok()
+pub fn get_token() -> Option<String> {
+    LocalStorage::get("typhon_token").ok()
 }
 
-pub fn set_password(password: &String) {
-    LocalStorage::insert("typhon_password", &password).expect("save password");
+pub fn set_token(token: &String) {
+    LocalStorage::insert("typhon_token", &token).expect("save token");
 }
 
-pub fn reset_password() {
-    LocalStorage::remove("typhon_password").expect("remove saved password");
+pub fn reset_token() {
+    LocalStorage::remove("typhon_token").expect("remove saved token");
 }
 
 pub async fn handle_request(
     request: &requests::Request,
 ) -> Result<responses::Response, responses::ResponseError> {
     let settings = SETTINGS.get().unwrap();
-    let password = get_password();
+    let token = get_token();
     let req = Request::new(format!(
         "{}://{}{}/api",
         if settings.server_https {
@@ -62,9 +62,9 @@ pub async fn handle_request(
     .method(Method::Post)
     .json(request)
     .expect("Failed to serialize request");
-    let req = match password {
+    let req = match token {
         None => req,
-        Some(pw) => req.header(Header::custom("password", pw)),
+        Some(token) => req.header(Header::custom("token", token)),
     };
     req.fetch()
         .await
@@ -240,7 +240,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     let settings = SETTINGS.get().unwrap();
     Model {
         page: Page::init(url, orders),
-        admin: get_password().is_some(), // TODO
+        admin: get_token().is_some(), // TODO
         ws: WebSocket::builder(
             format!(
                 "{}://{}{}/api/events",
@@ -273,13 +273,13 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             },
         ) => match login::update(msg, login_model, &mut orders.proxy(Msg::LoginMsg)) {
             login::OutMsg::Noop => (),
-            login::OutMsg::Login(pw) => {
-                set_password(&pw); // TODO
+            login::OutMsg::Login(token) => {
+                set_token(&token); // TODO
                 model.admin = true;
             }
         },
         (Msg::Logout, _) => {
-            reset_password(); // TODO
+            reset_token(); // TODO
             model.admin = false;
         }
         (

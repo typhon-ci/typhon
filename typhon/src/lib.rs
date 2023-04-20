@@ -91,7 +91,7 @@ impl FromRequest for User {
     fn from_request(req: &HttpRequest, _pl: &mut Payload) -> Self::Future {
         let user = req
             .headers()
-            .get("password")
+            .get("token")
             .map_or(User::Anonymous, |password| {
                 let hash = digest(password.as_bytes());
                 if hash == SETTINGS.get().unwrap().hashed_password {
@@ -215,6 +215,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                 let hash = digest(password.as_bytes());
                 if hash == SETTINGS.get().unwrap().hashed_password {
                     Response::Login {
+                        // TODO: manage session tokens instead of just returning the password
                         token: password.clone(),
                     }
                 } else {

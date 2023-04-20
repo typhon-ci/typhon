@@ -174,10 +174,8 @@ r!(
             Build::NixLog,
         );
 
-    login(path: web::Path<String>) =>
-        Request::Login(
-            path.into_inner(),
-        );
+    login(body: web::Json<String>) =>
+        Request::Login(body.into_inner());
 );
 
 async fn raw_request(

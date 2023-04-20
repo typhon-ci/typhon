@@ -20,7 +20,7 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
 
   testScript = { nodes, ... }:
     let
-      curl = "${pkgs.curl}/bin/curl -sf -H 'password: hello'";
+      curl = "${pkgs.curl}/bin/curl -sf -H 'token: hello'";
       url = "http://127.0.0.1/typhon/api";
       flake = "path:${../tests/empty}";
     in ''
