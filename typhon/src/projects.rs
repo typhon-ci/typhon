@@ -15,7 +15,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 impl Project {
-    pub async fn create(project_handle: &handles::Project) -> Result<(), Error> {
+    pub async fn create(project_handle: &handles::Project, decl: &String) -> Result<(), Error> {
         match Self::get(project_handle).await {
             Ok(_) => Err(Error::ProjectAlreadyExists(project_handle.clone())),
             Err(_) => {
@@ -26,6 +26,7 @@ impl Project {
                 let new_project = NewProject {
                     project_name: &project_handle.project,
                     project_key: &key,
+                    project_decl: decl,
                 };
                 let mut conn = connection().await;
                 diesel::insert_into(projects)

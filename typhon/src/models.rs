@@ -19,6 +19,7 @@ pub struct Project {
 pub struct NewProject<'a> {
     pub project_key: &'a str,
     pub project_name: &'a str,
+    pub project_decl: &'a str,
 }
 
 #[derive(Queryable, Clone)]

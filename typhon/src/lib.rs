@@ -125,8 +125,8 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
     if authorize_request(user, req) {
         Ok(match req {
             requests::Request::ListProjects => Response::ListProjects(Project::list().await?),
-            requests::Request::CreateProject(project_handle) => {
-                Project::create(&project_handle).await?;
+            requests::Request::CreateProject { handle, decl } => {
+                Project::create(&handle, &decl).await?;
                 Response::Ok
             }
             requests::Request::Project(project_handle, req) => {

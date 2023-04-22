@@ -189,7 +189,10 @@ pub mod requests {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Request {
         ListProjects,
-        CreateProject(handles::Project),
+        CreateProject {
+            handle: handles::Project,
+            decl: String,
+        },
         Project(handles::Project, Project),
         Jobset(handles::Jobset, Jobset),
         Evaluation(handles::Evaluation, Evaluation),
@@ -202,7 +205,9 @@ pub mod requests {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
                 Request::ListProjects => write!(f, "List projects"),
-                Request::CreateProject(h) => write!(f, "Create project {}", h),
+                Request::CreateProject { handle, decl } => {
+                    write!(f, "Create project {handle} with declaration {decl}")
+                }
                 Request::Project(h, req) => write!(f, "{:?} for project {}", req, h),
                 Request::Jobset(h, req) => write!(f, "{:?} for jobset {}", req, h),
                 Request::Evaluation(h, req) => write!(f, "{:?} for evaluation {}", req, h),
