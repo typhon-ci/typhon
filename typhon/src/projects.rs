@@ -94,7 +94,7 @@ impl Project {
                 homepage: self.project_homepage.clone(),
             },
             jobsets: jobsets_names,
-            public_key: public_key,
+            public_key,
             decl: self.project_decl.clone(),
             decl_locked: self.project_decl_locked.clone(),
             actions_path: self.project_actions_path.clone(),
