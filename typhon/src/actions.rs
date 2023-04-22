@@ -63,6 +63,7 @@ pub async fn run(
         "secrets": secrets,
     });
 
+    // TODO: use `--json-status-fd` to distinguish between fail from action VS fail from bwrap
     let mut child = Command::new("bwrap")
         .args(["--proc", "/proc"])
         .args(["--dev", "/dev"])
