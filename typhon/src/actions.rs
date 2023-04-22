@@ -84,13 +84,16 @@ pub async fn run(
     let mut stdin = child.stdin.take().unwrap(); // TODO: check if unwrap is safe
     let mut stdout = child.stdout.take().unwrap(); // TODO: check if unwrap is safe
     let mut stderr = child.stderr.take().unwrap(); // TODO: check if unwrap is safe
-    let _ = stdin.write(action_input.to_string().as_bytes()).await;
+    stdin
+        .write(action_input.to_string().as_bytes())
+        .await
+        .unwrap(); // TODO: check if unwrap is safe
     drop(stdin); // send EOF
 
     let mut res = String::new();
-    let _ = stdout.read_to_string(&mut res).await;
+    stdout.read_to_string(&mut res).await.unwrap();
     let mut log = String::new();
-    let _ = stderr.read_to_string(&mut log).await;
+    stderr.read_to_string(&mut log).await.unwrap();
 
     Ok((res, log))
 }
