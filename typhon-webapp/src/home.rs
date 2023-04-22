@@ -1,12 +1,17 @@
-use crate::{perform_request, view_error};
+use crate::{appurl::AppUrl, perform_request, view_error};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Model {
     error: Option<responses::ResponseError>,
-    projects: Vec<String>,
+    projects: Vec<(String, responses::ProjectMetadata)>,
     project_name: String,
+}
+impl From<Model> for AppUrl {
+    fn from(_: Model) -> AppUrl {
+        AppUrl::default()
+    }
 }
 
 #[derive(Clone)]
@@ -17,17 +22,13 @@ pub enum Msg {
     Event(Event),
     FetchProjects,
     Noop,
-    SetProjects(Vec<String>),
+    SetProjects(Vec<(String, responses::ProjectMetadata)>),
     UpdateProjectName(String),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>) -> Model {
     orders.send_msg(Msg::FetchProjects);
-    Model {
-        error: None,
-        projects: vec![],
-        project_name: "".to_string(),
-    }
+    Model::default()
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -35,7 +36,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::CreateProject => {
             let name = model.project_name.clone();
             model.project_name = "".into();
-            let req = requests::Request::CreateProject(handles::project(name));
+            let req = requests::Request::CreateProject {
+                handle: handles::project(name),
+                decl: "hello".into(),
+            };
             perform_request!(
                 orders,
                 req,
@@ -74,16 +78,29 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 fn view_home(model: &Model) -> Node<Msg> {
     div![
         h2!["Projects"],
-        ul![model.projects.iter().map(|name| li![a![
-            name,
-            attrs! { At::Href => crate::Urls::project(&handles::project(name.into())) }
-        ]])],
+        table![
+            tr![th!["Id"], th!["Name"], th!["Description"],],
+            model.projects.iter().map(|(name, meta)| tr![
+                td![a![
+                    name,
+                    attrs! { At::Href => crate::Urls::project(&handles::project(name.into())) }
+                ]],
+                td![String::from(meta.title.clone())],
+                td![String::from(meta.description.clone())]
+            ])
+        ],
     ]
 }
 
 fn view_admin(model: &Model) -> Node<Msg> {
     div![
         h2!["Administration"],
+        input![
+            attrs! {
+                At::Value => model.project_name,
+            },
+            input_ev(Ev::Input, Msg::UpdateProjectName),
+        ],
         input![
             attrs! {
                 At::Value => model.project_name,

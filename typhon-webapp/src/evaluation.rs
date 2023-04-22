@@ -1,4 +1,4 @@
-use crate::{perform_request, view_error};
+use crate::{appurl::AppUrl, perform_request, view_error};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
@@ -8,6 +8,12 @@ pub struct Model {
     handle: handles::Evaluation,
     info: Option<responses::EvaluationInfo>,
     log: Option<String>,
+}
+
+impl From<Model> for AppUrl {
+    fn from(m: Model) -> AppUrl {
+        Vec::<String>::from(m.handle).into()
+    }
 }
 
 #[derive(Clone)]

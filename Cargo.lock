@@ -2321,6 +2321,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "typhon-types",
+ "web-sys",
 ]
 
 [[package]]

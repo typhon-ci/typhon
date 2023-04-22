@@ -1,14 +1,142 @@
-use crate::{perform_request, view_error, Urls};
+use crate::{appurl::AppUrl, perform_request, view_error, Urls};
 use seed::{prelude::*, *};
 use typhon_types::*;
+
+mod editable_text {
+    use crate::{appurl::AppUrl, perform_request, view_error, Urls};
+    use seed::{prelude::*, *};
+    use typhon_types::*;
+
+    #[derive(Clone)]
+    enum State {
+        Read,
+        Edit(String),
+        Sync(String),
+    }
+    #[derive(Clone)]
+    pub struct Model {
+        pub text: String,
+        state: State,
+    }
+
+    #[derive(Clone)]
+    pub enum Msg {
+        Update(String),
+        Send,
+        Edit,
+        Cancel,
+        Synchronized,
+    }
+
+    #[derive(Clone)]
+    pub enum OutMsg {
+        NewValue(String),
+    }
+
+    pub fn value_synchronized() -> Msg {
+        Msg::Synchronized
+    }
+
+    pub fn init(text: String) -> Model {
+        Model {
+            state: State::Read,
+            text,
+        }
+    }
+
+    pub fn update(msg: Msg, model: &mut Model) -> Option<OutMsg> {
+        match (msg, &mut *model) {
+            (
+                Msg::Update(text),
+                Model {
+                    state: State::Edit(_),
+                    ..
+                },
+            ) => {
+                model.state = State::Edit(text);
+                None
+            }
+            (
+                Msg::Send,
+                Model {
+                    state: State::Edit(text),
+                    ..
+                },
+            ) => {
+                let text = text.clone();
+                model.state = State::Sync(text.clone());
+                Some(OutMsg::NewValue(text))
+            }
+            (Msg::Cancel, _) => {
+                model.state = State::Read;
+                None
+            }
+            (Msg::Edit, _) => {
+                model.state = State::Edit(model.text.clone());
+                None
+            }
+            (
+                Msg::Synchronized,
+                Model {
+                    state: State::Sync(text),
+                    ..
+                },
+            ) => {
+                model.text = text.clone();
+                model.state = State::Read;
+                None
+            }
+            _ => None,
+        }
+    }
+
+    pub fn view(model: &Model, wrap: Box<dyn FnOnce(String) -> Node<Msg>>) -> Node<Msg> {
+        match &model.state {
+            State::Read => div![
+                wrap(model.text.clone()),
+                i![C!["ri-pencil-line"], ev(Ev::Click, |_| Msg::Edit)],
+                C!["editable-text", "read"],
+                if model.text.trim().is_empty() {
+                    vec![C!["empty"]]
+                } else {
+                    vec![]
+                }
+            ],
+            State::Edit(text) => div![
+                input![
+                    attrs! {At::Value => text},
+                    input_ev(Ev::Input, Msg::Update),
+                    keyboard_ev(Ev::KeyUp, |e| {
+                        if e.key() == "Enter" {
+                            Some(Msg::Send)
+                        } else {
+                            None
+                        }
+                    })
+                ],
+                i![C!["ri-check-line"], ev(Ev::Click, |_| Msg::Send)],
+                C!["editable-text", "edit"]
+            ],
+            State::Sync(text) => div![
+                input![attrs! {At::Value => text, At::Disabled => true}],
+                C!["editable-text", "sync"]
+            ],
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Project,
     info: Option<responses::ProjectInfo>,
-    input_decl: String,
     input_private_key: String,
+    declaration: editable_text::Model,
+}
+impl From<Model> for AppUrl {
+    fn from(m: Model) -> AppUrl {
+        Vec::<String>::from(m.handle).into()
+    }
 }
 
 #[derive(Clone)]
@@ -22,26 +150,50 @@ pub enum Msg {
     GetInfo(responses::ProjectInfo),
     Noop,
     Refresh,
-    SetDecl,
     SetPrivateKey,
-    UpdateInputDecl(String),
     UpdateInputPrivateKey(String),
     UpdateJobsets,
+    MsgDeclaration(editable_text::Msg),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
     orders.send_msg(Msg::FetchInfo);
+
     Model {
         error: None,
         handle: handle.clone(),
         info: None,
-        input_decl: "".into(),
         input_private_key: "".into(),
+        declaration: editable_text::init("".to_string()),
     }
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+    macro_rules! update_text_comp {
+        ($m: expr, $t:expr, $mkmsg:expr, |$n:ident| $req:expr) => {
+            match editable_text::update($m, $t) {
+                Some(editable_text::OutMsg::NewValue($n)) => {
+                    let req = requests::Request::Project(
+                        model.handle.clone(),
+                        $req,
+                    );
+                    perform_request!(
+                        orders,
+                        req,
+                        responses::Response::Ok => $mkmsg(editable_text::value_synchronized()),
+                        Msg::Error,
+                    );
+                }
+                None => (),
+            }
+        }
+    }
     match msg {
+        Msg::MsgDeclaration(m) => {
+            update_text_comp!(m, &mut model.declaration, Msg::MsgDeclaration, |decl| {
+                requests::Project::SetDecl(decl)
+            })
+        }
         Msg::Delete => {
             let handle = model.handle.clone();
             let req = requests::Request::Project(handle, requests::Project::Delete);
@@ -75,24 +227,14 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             );
         }
         Msg::GetInfo(info) => {
-            model.info = Some(info);
+            model.info = Some(info.clone());
+            model.declaration = editable_text::init(info.decl.clone());
         }
         Msg::Noop => (),
         Msg::Refresh => {
+            model.info = None;
             let handle = model.handle.clone();
             let req = requests::Request::Project(handle, requests::Project::Refresh);
-            perform_request!(
-                orders,
-                req,
-                responses::Response::Ok => Msg::Noop,
-                Msg::Error,
-            );
-        }
-        Msg::SetDecl => {
-            let handle = model.handle.clone();
-            let decl = model.input_decl.clone();
-            model.input_decl = "".into();
-            let req = requests::Request::Project(handle, requests::Project::SetDecl(decl));
             perform_request!(
                 orders,
                 req,
@@ -113,9 +255,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
-        Msg::UpdateInputDecl(decl) => {
-            model.input_decl = decl;
-        }
         Msg::UpdateInputPrivateKey(private_key) => {
             model.input_private_key = private_key;
         }
@@ -129,6 +268,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
+        _ => log!("TODO!"),
     }
 }
 
@@ -146,32 +286,132 @@ fn copy_to_clipboard(text: &String) {
     }
 }
 
-fn view_project(model: &Model) -> Node<Msg> {
+fn show_info_block(
+    label: &str,
+    class: &str,
+    contents: Node<Msg>,
+    button: Option<Node<Msg>>,
+) -> Node<Msg> {
     div![
-        h2!["Project", " ", &model.handle.project],
+        span![label, attrs! { At::Class => "label" }],
+        contents,
+        button.as_ref().map(|button| vec![button]).unwrap_or(vec![]),
+        C![
+            class,
+            "labeled",
+            if button.is_some() {
+                "with-button"
+            } else {
+                "without-button"
+            }
+        ]
+    ]
+}
+
+fn view_project(model: &Model, is_admin: bool) -> Node<Msg> {
+    let editable_text_view = if is_admin {
+        |m: &editable_text::Model, f: Box<dyn FnOnce(String) -> Node<editable_text::Msg>>| {
+            editable_text::view(m, f)
+        }
+    } else {
+        |m: &editable_text::Model, f: Box<dyn FnOnce(String) -> Node<editable_text::Msg>>| {
+            f(m.text.clone())
+        }
+    };
+    div![
+        h2![
+            span!["Project "],
+            div![
+                span![model
+                    .info
+                    .as_ref()
+                    .map(|info| info.metadata.title.clone())
+                    .unwrap_or("loading...".into())],
+                C!["title", "labeled"]
+            ],
+            " ",
+            div![
+                "(id: ",
+                code![&model.handle.project, attrs! { At::Class => "id" }],
+                ")",
+                C!["id"]
+            ]
+        ],
+        button!["Update jobsets", ev(Ev::Click, |_| Msg::UpdateJobsets),],
         match &model.info {
             None => div!["loading..."],
             Some(info) => div![
                 div![
-                    p![format!("Title: {}", info.metadata.title)],
-                    p![format!("Description: {}", info.metadata.description)],
-                    p![
-                        "Homepage: ",
+                    C!["labels"],
+                    show_info_block(
+                        "Description",
+                        "description",
+                        span![&info.metadata.description],
+                        None
+                    ),
+                    show_info_block(
+                        "Homepage",
+                        "homepage",
                         a![
                             &info.metadata.homepage,
-                            attrs! { At::Href => &info.metadata.homepage }
-                        ]
-                    ],
+                            attrs! {At::Href => &info.metadata.homepage}
+                        ],
+                        None
+                    )
                 ],
                 div![
-                    h3!["Settings"],
-                    p![format!("Declaration: {}", info.decl)],
-                    p![format!("Declaration locked: {}", info.decl_locked)],
-                    p![format!(
-                        "Actions path: {}",
-                        info.actions_path.clone().unwrap_or("".into())
-                    )],
-                    p![format!("Public key: {}", info.public_key)],
+                    C!["labels"],
+                    show_info_block(
+                        "Flake URI",
+                        "desclaration",
+                        editable_text_view(&model.declaration, Box::new(|s| code![s.clone()]))
+                            .map_msg(Msg::MsgDeclaration),
+                        Some(div![])
+                    ),
+                    show_info_block(
+                        "Locked flake URI",
+                        "locked-declaration",
+                        code![if info.decl_locked.clone() == "" {
+                            "-".into()
+                        } else {
+                            info.decl_locked.clone()
+                        }],
+                        Some(i![C!["ri-refresh-line"], ev(Ev::Click, |_| Msg::Refresh)])
+                    ),
+                ],
+                div![
+                    C!["labels"],
+                    show_info_block(
+                        "Public key",
+                        "desclaration",
+                        code![info.public_key.clone()[0..7], "…"],
+                        Some({
+                            let public_key = info.public_key.clone();
+                            i![
+                                C!("ri-clipboard-line"),
+                                ev(Ev::Click, move |_| copy_to_clipboard(&public_key))
+                            ]
+                        })
+                    ),
+                    info.actions_path.as_ref().map(|actions_path| {
+                        show_info_block(
+                            "Actions path",
+                            "actions_path",
+                            code![
+                                actions_path
+                                    .strip_prefix("/nix/store/")
+                                    .unwrap_or(actions_path)[0..7],
+                                "…"
+                            ],
+                            Some({
+                                let actions_path = actions_path.clone().into();
+                                i![
+                                    C!("ri-clipboard-line"),
+                                    ev(Ev::Click, move |_| copy_to_clipboard(&actions_path))
+                                ]
+                            }),
+                        )
+                    })
                 ],
                 div![
                     h3!["Jobsets"],
@@ -190,43 +430,10 @@ fn view_project(model: &Model) -> Node<Msg> {
     ]
 }
 
-fn view_admin(model: &Model) -> Node<Msg> {
-    div![
-        h3!["Administration"],
-        p![button![
-            "Update jobsets",
-            ev(Ev::Click, |_| Msg::UpdateJobsets),
-        ]],
-        p![
-            input![
-                attrs! {
-                    At::Value => model.input_decl,
-                },
-                input_ev(Ev::Input, Msg::UpdateInputDecl),
-            ],
-            button!["Set declaration", ev(Ev::Click, |_| Msg::SetDecl),],
-            button!["Refresh", ev(Ev::Click, |_| Msg::Refresh),],
-        ],
-        p![
-            input![
-                attrs! {
-                    At::Value => model.input_private_key,
-                },
-                input_ev(Ev::Input, Msg::UpdateInputPrivateKey),
-            ],
-            button!["Set private key", ev(Ev::Click, |_| Msg::SetPrivateKey),]
-        ],
-        p![button!["Delete", ev(Ev::Click, |_| Msg::Delete),]],
-    ]
-}
-
 pub fn view(model: &Model, admin: bool) -> Node<Msg> {
     model
         .error
         .as_ref()
         .map(|err| view_error(err, Msg::ErrorIgnored))
-        .unwrap_or(div![
-            view_project(model),
-            if admin { view_admin(model) } else { empty![] },
-        ])
+        .unwrap_or(div![view_project(model, admin),])
 }

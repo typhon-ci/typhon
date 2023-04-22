@@ -1,3 +1,4 @@
+mod appurl;
 mod build;
 mod evaluation;
 mod home;
@@ -6,6 +7,7 @@ mod jobset;
 mod login;
 mod project;
 
+use appurl::AppUrl;
 use once_cell::sync::OnceCell;
 use seed::{prelude::*, *};
 use serde::{Deserialize, Serialize};
@@ -74,8 +76,8 @@ pub async fn handle_request(
         .expect("Failed to deserialize response")
 }
 
-pub fn perform_request_aux<Ms: 'static>(
-    orders: &mut impl Orders<Ms>,
+pub fn perform_request_aux<Ms: 'static, MsO: 'static>(
+    orders: &mut impl Orders<MsO>,
     req: requests::Request,
     succ: impl FnOnce(responses::Response) -> Ms + 'static,
     err: impl FnOnce(responses::ResponseError) -> Ms + 'static,
@@ -146,7 +148,7 @@ impl<'a> Urls<'a> {
 }
 
 #[derive(Clone)]
-enum Page {
+pub enum Page {
     Login(login::Model),
     Home(home::Model),
     Project(project::Model),
@@ -157,22 +159,26 @@ enum Page {
     NotFound,
 }
 
-impl Page {
-    fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Self {
-        let settings = SETTINGS.get().unwrap();
-        let webroot = settings.client_webroot.split('/');
-        let mut path_parts = url.remaining_path_parts();
-        for x in webroot {
-            if x != "" {
-                let y = path_parts.remove(0);
-                if x != y {
-                    return Page::NotFound;
-                }
-            }
+impl From<&Page> for AppUrl {
+    fn from(page: &Page) -> AppUrl {
+        match page {
+            Page::Login(m) => AppUrl::from("login") + m.clone().into(),
+            Page::Home(_) => AppUrl::default(),
+            Page::Project(m) => AppUrl::from("projects") + m.clone().into(),
+            Page::Jobset(m) => AppUrl::from("jobsets") + m.clone().into(),
+            Page::Evaluation(m) => AppUrl::from("evaluations") + m.clone().into(),
+            Page::Job(m) => AppUrl::from("jobs") + m.clone().into(),
+            Page::Build(m) => AppUrl::from("builds") + m.clone().into(),
+            Page::NotFound => AppUrl::from("404"),
         }
-        match path_parts.as_slice() {
+    }
+}
+
+impl Page {
+    fn from_chunks(chunks: Vec<&str>, orders: &mut impl Orders<Msg>) -> Page {
+        match chunks.as_slice() {
             [] => Page::Home(home::init(&mut orders.proxy(Msg::HomeMsg))),
-            ["login"] => Page::Login(login::init(&mut orders.proxy(Msg::LoginMsg))),
+            ["login"] => Page::Login(login::init(&mut orders.proxy(Msg::LoginMsg), None)),
             ["projects", project] => Page::Project(project::init(
                 &mut orders.proxy(Msg::ProjectMsg),
                 handles::project((*project).into()),
@@ -213,9 +219,25 @@ impl Page {
             _ => Page::NotFound,
         }
     }
+    fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Self {
+        let settings = SETTINGS.get().unwrap();
+        let webroot = settings
+            .client_webroot
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&str>>();
+        let path_parts = url.remaining_path_parts();
+        Page::from_chunks(
+            path_parts
+                .strip_prefix(webroot.as_slice())
+                .map(|slice| slice.to_vec())
+                .unwrap_or(webroot),
+            orders,
+        )
+    }
 }
 
-struct Model {
+pub struct Model {
     page: Page,
     admin: bool,
     ws: WebSocket,
@@ -224,6 +246,7 @@ struct Model {
 enum Msg {
     HomeMsg(home::Msg),
     LoginMsg(login::Msg),
+    Login,
     Logout,
     ProjectMsg(project::Msg),
     JobsetMsg(jobset::Msg),
@@ -261,9 +284,25 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+    update_aux(msg, model, orders);
+    let history = seed::browser::util::history();
+    let url = seed::Url::from(AppUrl::from(&model.page)).to_string();
+    let prev = seed::browser::util::window().location().pathname().unwrap();
+    if url != prev {
+        log!(format!("url={url}, prev={prev}"));
+        let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&url));
+    }
+}
+fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match (msg, &mut *model) {
         (Msg::UrlChanged(subs::UrlChanged(url)), _) => {
             model.page = Page::init(url, orders);
+        }
+        (Msg::Login, _) => {
+            model.page = Page::Login(login::init(
+                &mut orders.proxy(Msg::LoginMsg),
+                Some(model.page.clone()),
+            ))
         }
         (
             Msg::LoginMsg(msg),
@@ -272,11 +311,15 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => match login::update(msg, login_model, &mut orders.proxy(Msg::LoginMsg)) {
-            login::OutMsg::Noop => (),
-            login::OutMsg::Login(token) => {
-                set_token(&token); // TODO
+            Some(login::OutMsg::Login(pw, redirection)) => {
+                set_token(&pw); // TODO
                 model.admin = true;
+                model.page = match redirection {
+                    login::Redirect::ToPage(page) => page,
+                    login::Redirect::ToUrl(url) => Page::from_chunks(vec![], orders),
+                };
             }
+            None => {}
         },
         (Msg::Logout, _) => {
             reset_token(); // TODO
@@ -379,15 +422,40 @@ pub fn view_log<Ms: Clone + 'static>(log: String) -> Node<Ms> {
 }
 
 fn header(model: &Model) -> Node<Msg> {
-    div![
-        h1!["Typhon"],
-        a!["Home", attrs! { At::Href => Urls::home() }],
-        " ",
+    header![
+        main![
+            a![
+                raw!["<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<svg width=\"12pt\" height=\"12pt\" version=\"1.1\" viewBox=\"0 0 12 12\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:cc=\"http://creativecommons.org/ns#\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">
+<metadata>
+<rdf:RDF>
+<cc:Work rdf:about=\"\">
+<dc:format>image/svg+xml</dc:format>
+<dc:type rdf:resource=\"http://purl.org/dc/dcmitype/StillImage\"/>
+</cc:Work>
+</rdf:RDF>
+</metadata>
+<path d=\"m10.83 4.7059c-0.47653-1.7784-2.3041-2.8336-4.0825-2.357-1.7784 0.47653-2.8336 2.3041-2.357 4.0825m1e-7 0c0.23793 0.88795 1.1533 1.4164 2.0413 1.1785 0.88795-0.23793 1.4164-1.1533 1.1785-2.0413-0.23793-0.88795-1.1533-1.4164-2.0413-1.1785-0.88795 0.23793-1.4164 1.1533-1.1785 2.0413zm-3.2198 0.86273c0.47652 1.7784 2.3041 2.8336 4.0825 2.357 1.7784-0.47653 2.8336-2.3041 2.357-4.0825\" fill=\"none\" stroke=\"#FFF\" stroke-linecap=\"round\" stroke-linejoin=\"bevel\" stroke-miterlimit=\"10\" stroke-width=\".6\"/>
+</svg>"],
+                span!["Typhon"],
+                attrs! { At::Href => Urls::home() }
+            ]
+        ],
+        nav![a!["Home", attrs! { At::Href => Urls::home() }],],
         if model.admin {
             button!["Logout", ev(Ev::Click, |_| Msg::Logout)]
         } else {
-            a!["Login", attrs! { At::Href => Urls::login() }]
+            button![a!["Login", ev(Ev::Click, |_| Msg::Login)]]
         },
+    ]
+}
+
+fn breadcrumb(model: &Model) -> Node<Msg> {
+    nav![
+        button!["Projects"],
+        button!["F*"],
+        button!["Docs"],
+        id!("breadcrumb")
     ]
 }
 
@@ -397,26 +465,44 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
     // Thus the field is read here to avoid the warning.
     let _ = model.ws;
 
-    vec![
-        header(&model),
-        match &model.page {
-            Page::NotFound => div!["not found!"],
-            Page::Home(home_model) => home::view(&home_model, model.admin).map_msg(Msg::HomeMsg),
-            Page::Login(login_model) => login::view(&login_model).map_msg(Msg::LoginMsg),
-            Page::Project(project_model) => {
-                project::view(&project_model, model.admin).map_msg(Msg::ProjectMsg)
-            }
-            Page::Jobset(jobset_model) => {
-                jobset::view(&jobset_model, model.admin).map_msg(Msg::JobsetMsg)
-            }
-            Page::Evaluation(evaluation_model) => {
-                evaluation::view(&evaluation_model, model.admin).map_msg(Msg::EvaluationMsg)
-            }
-            Page::Job(job_model) => job::view(&job_model, model.admin).map_msg(Msg::JobMsg),
-            Page::Build(build_model) => {
-                build::view(&build_model, model.admin).map_msg(Msg::BuildMsg)
-            }
-        },
+    nodes![
+        raw!["<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">
+              <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>
+              <link href=\"https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@100;300&family=Roboto:wght@100;300;400;500&display=swap\" rel=\"stylesheet\">
+              <link href=\"https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css\" rel=\"stylesheet\">
+             "],
+        header(model),
+        main![
+            // breadcrumb(model),
+            match &model.page {
+                Page::NotFound => div!["not found!"],
+                Page::Home(home_model) => home::view(&home_model, model.admin).map_msg(Msg::HomeMsg),
+                Page::Login(login_model) => login::view(&login_model).map_msg(Msg::LoginMsg),
+                Page::Project(project_model) => {
+                    project::view(&project_model, model.admin).map_msg(Msg::ProjectMsg)
+                }
+                Page::Jobset(jobset_model) => {
+                    jobset::view(&jobset_model, model.admin).map_msg(Msg::JobsetMsg)
+                }
+                Page::Evaluation(evaluation_model) => {
+                    evaluation::view(&evaluation_model, model.admin).map_msg(Msg::EvaluationMsg)
+                }
+                Page::Job(job_model) => job::view(&job_model, model.admin).map_msg(Msg::JobMsg),
+                Page::Build(build_model) => {
+                    build::view(&build_model, model.admin).map_msg(Msg::BuildMsg)
+                }
+            }, C![
+                match &model.page {
+                    Page::NotFound => "not-found",
+                    Page::Home(home_model) => "home",
+                    Page::Login(login_model) => "login",
+                    Page::Project(project_model) => "project",
+                    Page::Jobset(jobset_model) => "jobset",
+                    Page::Evaluation(evaluation_model) => "evaluation",
+                    Page::Job(job_model) => "job",
+                    Page::Build(build_model) => "build"
+                }
+            ]],
     ]
 }
 
