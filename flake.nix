@@ -80,6 +80,7 @@
           packages = [
             # Rust
             pkgs.rustfmt
+            pkgs.rust-analyzer
             rustToolchain
 
             # Typhon server
