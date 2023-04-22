@@ -132,6 +132,20 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
+#[cfg(not(web_sys_unstable_apis))]
+fn copy_to_clipboard(_: &String) {
+    panic!()
+}
+
+#[cfg(web_sys_unstable_apis)]
+fn copy_to_clipboard(text: &String) {
+    let navigator = seed::window().navigator();
+    if let Some(clipboard) = navigator.clipboard() {
+        let _ = clipboard.write_text(&text);
+    } else {
+    }
+}
+
 fn view_project(model: &Model) -> Node<Msg> {
     div![
         h2!["Project", " ", &model.handle.project],
