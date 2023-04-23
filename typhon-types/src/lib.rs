@@ -222,10 +222,13 @@ pub mod requests {
 pub mod responses {
     use serde::{Deserialize, Serialize};
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectMetadata {
+        #[serde(default)]
         pub description: String,
+        #[serde(default)]
         pub homepage: String,
+        #[serde(default)]
         pub title: String,
     }
 
