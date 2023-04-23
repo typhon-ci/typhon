@@ -54,8 +54,8 @@ impl Build {
         let handle = self.handle();
         let id = self.build_id;
         let drv = self.build_drv.clone();
-        let task = async {
-            nix::build(drv).await?;
+        let task = async move {
+            nix::build(&drv).await?;
             Ok::<(), Error>(())
         };
         let f = move |r| async move {

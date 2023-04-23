@@ -28,6 +28,21 @@ impl std::fmt::Display for Error {
     }
 }
 
+mod sandboxed_command {
+    use tokio::process::Command;
+    pub fn new() -> Command {
+        let mut command = Command::new("bwrap");
+        command
+            .args(["--proc", "/proc"])
+            .args(["--dev", "/dev"])
+            .args(["--ro-bind", "/nix/store", "/nix/store"])
+            .args(["--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf"])
+            .args(["--ro-bind", "/etc", "/etc"]) // TODO: why do I need that
+            .arg("--unshare-pid");
+        command
+    }
+}
+
 pub async fn run(
     key: &String,
     script_path: &String,
@@ -64,12 +79,7 @@ pub async fn run(
     });
 
     // TODO: use `--json-status-fd` to distinguish between fail from action VS fail from bwrap
-    let mut child = Command::new("bwrap")
-        .args(["--proc", "/proc"])
-        .args(["--dev", "/dev"])
-        .args(["--ro-bind", "/nix/store", "/nix/store"])
-        .args(["--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf"])
-        .arg("--unshare-pid")
+    let mut child = sandboxed_command::new()
         .arg(&script_path)
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
