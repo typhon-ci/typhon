@@ -1,4 +1,12 @@
+use std::{collections::HashMap, ffi::OsStr, process::Stdio};
+
+use async_trait::async_trait;
+use serde::Deserialize;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::AsyncReadExt;
+
 use serde_json::Value;
+use tokio::io::BufReader;
 use tokio::process::Command;
 
 #[derive(Debug)]
@@ -11,77 +19,150 @@ impl std::fmt::Display for Error {
     }
 }
 
-pub async fn nix(args: Vec<String>) -> Result<String, Error> {
-    let mut cmd = Command::new("nix");
-    for arg in args {
-        cmd.arg(arg);
+const RUNNING_NIX_FAILED: &str = "command Nix failed to run";
+
+#[async_trait]
+trait CommandExtTrait {
+    fn nix<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(args: I) -> Self;
+    async fn sync_stdout(&mut self) -> Result<String, Error>;
+}
+
+#[async_trait]
+impl CommandExtTrait for Command {
+    fn nix<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(args: I) -> Command {
+        let mut cmd = Command::new("nix");
+        cmd.args(args);
+        cmd
     }
+    async fn sync_stdout(&mut self) -> Result<String, Error> {
+        let nix_output = self.output().await.expect(RUNNING_NIX_FAILED);
 
-    let nix_output = cmd.output().await.expect("command Nix failed to run");
+        if !nix_output.status.success() {
+            Err(Error(
+                String::from_utf8(nix_output.stderr).expect("failed to convert from utf8"),
+            ))
+        } else {
+            Ok(String::from_utf8(nix_output.stdout).expect("failed to convert from utf8"))
+        }
+    }
+}
 
-    if !nix_output.status.success() {
-        let stderr = &String::from_utf8(nix_output.stderr).expect("failed to convert from utf8");
-        Err(Error(stderr.clone()))
+pub async fn build(expr: &str) -> Result<Derivation, Error> {
+    let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
+        .arg(expr)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect(RUNNING_NIX_FAILED);
+    let log_events = BufReader::new(child.stderr.take().unwrap());
+    let mut lines = log_events.lines();
+    while let Some(line) = lines.next_line().await.expect("Failed to read file") {
+        println!(">>>>{}", line);
+    }
+    let mut stdout = String::new();
+    child
+        .stdout
+        .take()
+        .unwrap()
+        .read_to_string(&mut stdout)
+        .await
+        .unwrap();
+    if let [obj] = serde_json::from_str::<Value>(stdout.as_str())
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .as_slice()
+    {
+        Ok(Derivation::parse(
+            &serde_json::to_string(&obj["drvPath"]).unwrap(),
+            &obj,
+        ))
     } else {
-        Ok(String::from_utf8(nix_output.stdout).expect("failed to convert from utf8"))
+        Err(Error(format!(
+            "build: [{expr}] yielded multiple derivations"
+        )))
     }
 }
 
-pub async fn build(expr: String) -> Result<String, Error> {
-    let output = nix(vec![
-        "build".to_string(),
-        "--print-out-paths".to_string(),
-        expr,
-    ])
-    .await?;
-    let store_path = output
-        .split("\n")
-        .nth(0)
-        .map(|s| s.to_string())
-        .expect("unexpected output");
-    Ok(store_path)
+const JSON_PARSE_ERROR: &str = "nix: failed to parse JSON";
+
+/// Runs `nix show-derivation [expr]` and parse its stdout as JSON.
+/// Note that [expr] can evaluates to one unique derivation or to an
+/// attrset of [n] derivations. The resulting JSON will be an object
+/// with one or [n] keys. The keys are `.drv` paths, the values are
+/// the derivation themselves.
+pub async fn derivation_json(expr: &str) -> Result<serde_json::Value, Error> {
+    Ok(serde_json::from_str(
+        &Command::nix(["show-derivation"])
+            .arg(expr)
+            .sync_stdout()
+            .await?,
+    )
+    .expect(JSON_PARSE_ERROR))
 }
 
-pub async fn derivation_json(path: &str) -> Result<Value, Error> {
-    let output = nix(vec!["show-derivation".to_string(), path.to_string()]).await?;
-    let json: Value = serde_json::from_str(&output).expect("failed to parse json");
-    Ok(json)
+/// (partial) representation of the JSON outputted by [nix
+/// show-derivation]
+#[derive(Clone, Debug)]
+pub struct Derivation {
+    pub path: String,
+    pub outputs: HashMap<String, String>,
 }
 
-pub async fn derivation_path(expr: String) -> Result<String, Error> {
-    let output = nix(vec!["show-derivation".to_string(), expr]).await?;
-    let json_output: Value = serde_json::from_str(&output).expect("failed to parse json");
-    let m = json_output.as_object().expect("failed to parse json");
-    let keys = m.keys();
-    Ok(keys.last().expect("failed to parse json").to_string())
+impl Derivation {
+    fn parse(path: &String, json: &Value) -> Self {
+        Derivation {
+            path: path.clone(),
+            outputs: HashMap::from_iter(
+                json["outputs"]
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .map(|(x, y)| (x.clone(), serde_json::to_string(y).unwrap())),
+            ),
+        }
+    }
 }
 
-pub async fn eval(expr: String) -> Result<Value, Error> {
-    let output = nix(["eval".to_string(), "--json".to_string(), expr].to_vec()).await?;
-    Ok(serde_json::from_str(&output).expect("failed to parse json"))
+/// Here, we assume [expr] evaluates to a derivation, not an attrset
+/// of derivations.
+pub async fn derivation(expr: &str) -> Result<Derivation, Error> {
+    let json = derivation_json(expr).await?;
+    if let [(path, derivation)] = *json
+        .as_object()
+        .expect(JSON_PARSE_ERROR)
+        .iter()
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        Ok(Derivation::parse(path, derivation))
+    } else {
+        Err(Error(format!(
+            "derivation_json: [{expr}] yielded multiple derivations"
+        )))
+    }
+}
+
+pub async fn eval<T: for<'a> Deserialize<'a>>(expr: String) -> Result<T, Error> {
+    let output = Command::nix(["eval", "--json"])
+        .arg(expr)
+        .sync_stdout()
+        .await?;
+    Ok(serde_json::from_str::<T>(&output).expect(JSON_PARSE_ERROR))
 }
 
 pub async fn lock(flake_url: &String) -> Result<String, Error> {
-    let output = nix([
-        "flake".to_string(),
-        "metadata".to_string(),
-        "--refresh".to_string(),
-        "--json".to_string(),
-        flake_url.clone(),
-    ]
-    .to_vec())
-    .await?;
-    Ok(serde_json::from_str::<Value>(&output)
-        .expect("failed to parse json")
-        .as_object()
-        .expect("failed to parse json")
-        .get("url")
-        .expect("failed to parse json")
-        .as_str()
-        .expect("failed to parse json")
-        .to_string())
+    let output = Command::nix(["flake", "metadata", "--refresh", "--json"])
+        .arg(flake_url.clone())
+        .sync_stdout()
+        .await?;
+    Ok(serde_json::to_string(
+        &serde_json::from_str::<Value>(&output).expect(JSON_PARSE_ERROR)["url"],
+    )
+    .expect(JSON_PARSE_ERROR))
 }
 
 pub async fn log(drv: String) -> Result<String, Error> {
-    nix(["log".to_string(), drv].to_vec()).await
+    Command::nix(["log"]).arg(drv).sync_stdout().await
 }

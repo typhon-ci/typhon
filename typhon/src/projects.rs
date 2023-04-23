@@ -10,9 +10,11 @@ use crate::{handles, responses};
 use crate::{log_event, Event};
 use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
+use typhon_types::responses::ProjectMetadata;
 
 impl Project {
     pub async fn create(project_handle: &handles::Project, decl: &String) -> Result<(), Error> {
@@ -122,42 +124,31 @@ impl Project {
 
     pub async fn refresh(&self) -> Result<(), Error> {
         let flake_locked = nix::lock(&self.project_decl).await?;
-        let mut title = String::new();
-        let mut description = String::new();
-        let mut homepage = String::new();
-        let mut actions_path = String::new();
-
         let expr = format!("{}#typhonProject", flake_locked);
-        let typhon_project = nix::eval(expr).await?;
 
-        typhon_project.get("meta").map(|metadata| {
-            metadata
-                .get("title")
-                .map(|v| v.as_str().map(|s| title = s.to_string()));
-            metadata
-                .get("description")
-                .map(|v| v.as_str().map(|s| description = s.to_string()));
-            metadata
-                .get("homepage")
-                .map(|v| v.as_str().map(|s| homepage = s.to_string()));
-        });
+        #[derive(Deserialize)]
+        struct TyphonProject {
+            actions: Option<String>,
+            #[serde(default)]
+            metadata: ProjectMetadata,
+        }
 
-        match typhon_project.get("actions") {
-            Some(v) => {
-                let drv = nix::derivation_path(v.as_str().ok_or(Error::Todo)?.to_string()).await?;
-                actions_path = nix::build(drv).await?;
-                // TODO: check public key used to encrypt secrets
-                Ok(())
-            }
-            None => Ok::<(), Error>(()),
-        }?;
+        let TyphonProject { actions, metadata }: TyphonProject = nix::eval(expr).await?;
+
+        let actions_path = if let Some(v) = actions {
+            let drv = nix::derivation(&v).await?;
+            nix::build(&drv.path).await?.path
+            // TODO: check public key used to encrypt secrets
+        } else {
+            String::new()
+        };
 
         let mut conn = connection().await;
         diesel::update(projects.find(self.project_id))
             .set((
-                project_title.eq(title),
-                project_description.eq(description),
-                project_homepage.eq(homepage),
+                project_title.eq(metadata.title),
+                project_description.eq(metadata.description),
+                project_homepage.eq(metadata.homepage),
                 project_actions_path.eq(actions_path),
                 project_decl_locked.eq(flake_locked),
             ))

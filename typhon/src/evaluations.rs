@@ -10,52 +10,61 @@ use crate::EVALUATIONS;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 use diesel::prelude::*;
+use serde_json::Value;
 use std::collections::HashMap;
-use substring::Substring;
 
-async fn evaluate_aux(id: i32, new_jobs: HashMap<String, (String, String)>) -> Result<(), Error> {
+type JobName = String;
+type JobDrvMap = HashMap<JobName, nix::Derivation>;
+
+fn hash_of_nix_store_path(path: &str) -> &str {
+    // TODO: make this portable for any store path
+    path.strip_prefix("/nix/store/")
+        .expect("todo: hard-coded store location /nix/store/")
+}
+
+async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
     let mut conn = connection().await;
     let created_jobs = conn.transaction::<Vec<(Build, Job)>, Error, _>(|conn| {
-        let mut created_jobs = vec![];
-        for (name, (drv_path, out_path)) in new_jobs.iter() {
-            let hash = drv_path.substring(11, 43).to_string();
+        new_jobs
+            .iter()
+            .map(|(name, drv)| {
+                let hash = &hash_of_nix_store_path(name);
+                let build = builds
+                    .filter(build_hash.eq(hash))
+                    .load::<Build>(conn)?
+                    .last()
+                    .cloned()
+                    .map(Ok::<_, Error>)
+                    .unwrap_or_else(|| {
+                        let build: Build = diesel::insert_into(builds)
+                            .values(&NewBuild {
+                                build_drv: &drv.path,
+                                build_hash: hash,
+                                build_out: drv
+                                    .outputs
+                                    .iter()
+                                    .last()
+                                    .expect("TODO: derivations can have multiple outputs")
+                                    .1,
+                                build_status: "pending",
+                            })
+                            .get_result(conn)?;
+                        log_event(Event::BuildNew(build.handle()));
+                        Ok(build)
+                    })?;
 
-            // Create and run build if it doesn't exist
-            let build: Build = match builds
-                .filter(build_hash.eq(&hash))
-                .load::<Build>(conn)?
-                .last()
-            {
-                Some(build) => Ok::<Build, Error>(build.clone()),
-                None => {
-                    let new_build = NewBuild {
-                        build_drv: drv_path,
-                        build_hash: &hash,
-                        build_out: out_path,
-                        build_status: "pending",
-                    };
-                    let build: Build = diesel::insert_into(builds)
-                        .values(&new_build)
-                        .get_result(conn)?;
-                    log_event(Event::BuildNew(build.handle()));
-                    Ok(build)
-                }
-            }?;
-
-            // Create job
-            let new_job = NewJob {
-                job_build: build.build_id,
-                job_evaluation: id,
-                job_name: &name,
-                job_status: "begin",
-            };
-            let job: Job = diesel::insert_into(jobs)
-                .values(&new_job)
-                .get_result(conn)?;
-
-            created_jobs.push((build, job));
-        }
-        Ok(created_jobs)
+                // Create job
+                let job: Job = diesel::insert_into(jobs)
+                    .values(&NewJob {
+                        job_build: build.build_id,
+                        job_evaluation: id,
+                        job_name: &name,
+                        job_status: "begin",
+                    })
+                    .get_result(conn)?;
+                Ok((build, job))
+            })
+            .collect()
     })?;
     drop(conn);
 
@@ -131,37 +140,22 @@ impl Evaluation {
         let id = self.evaluation_id;
         let task = async move {
             let expr = format!("{}#typhonJobs", self.evaluation_flake_locked);
-            let attrset = nix::eval(expr).await?;
-            let attrset = attrset.as_object().expect("unexpected Nix output"); // TODO: this is unsafe
-            let mut jobs_: HashMap<String, (String, String)> = HashMap::new();
-            for (name, _) in attrset.iter() {
-                let expr = format!("{}#typhonJobs.{}", self.evaluation_flake_locked, name);
-                let drv_path = nix::derivation_path(expr).await?;
-                let drv_json = nix::derivation_json(&drv_path).await?;
-                let out_path = drv_json
-                    .as_object()
-                    .ok_or(Error::Todo)?
-                    .get(&drv_path)
-                    .ok_or(Error::Todo)?
-                    .as_object()
-                    .ok_or(Error::Todo)?
-                    .get("outputs")
-                    .ok_or(Error::Todo)?
-                    .as_object()
-                    .ok_or(Error::Todo)?
-                    .get("out")
-                    .ok_or(Error::Todo)?
-                    .as_object()
-                    .ok_or(Error::Todo)?
-                    .get("path")
-                    .ok_or(Error::Todo)?
-                    .as_str()
-                    .ok_or(Error::Todo)?;
-                jobs_.insert(name.to_string(), (drv_path, out_path.to_string()));
+            let mut jobs_ = JobDrvMap::new();
+            for job in nix::eval::<Value>(expr.clone())
+                .await?
+                .as_object()
+                .expect("unexpected Nix output")
+                .keys()
+                .cloned()
+            {
+                jobs_.insert(
+                    job.clone(),
+                    nix::derivation(&format!("{expr}.{job}")).await?,
+                );
             }
-            Ok::<_, Error>(jobs_)
+            Ok(jobs_)
         };
-        let f = move |r: Option<Result<_, Error>>| async move {
+        let f = move |r: Option<Result<JobDrvMap, Error>>| async move {
             // TODO: when logging, hide internal error messages?
             let status = match r {
                 Some(Ok(new_jobs)) => match evaluate_aux(id, new_jobs).await {
