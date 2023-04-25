@@ -1,5 +1,12 @@
 @use "sass:color";
 
+@import "@fontsource/roboto/index.css";
+@import "@fontsource/roboto/300.css";
+@import "@fontsource/roboto/400.css";
+
+@import "@fontsource/roboto-mono/index.css";
+@import "@fontsource/roboto-mono/300.css";
+
 html {
     box-sizing: border-box;
     font-family: 'Roboto', sans-serif;

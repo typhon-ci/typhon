@@ -49,19 +49,22 @@
             inherit src cargoExtraArgs CARGO_PROFILE;
             doCheck = false;
           };
-          wasm = craneLib.buildPackage {
-            name = "typhon-webapp-wasm";
-            inherit src cargoExtraArgs CARGO_PROFILE cargoArtifacts;
-            doCheck = false;
-          };
-        in pkgs.stdenv.mkDerivation {
-          name = "typhon-webapp";
-          phases = [ "buildPhase" ];
-          nativeBuildInputs = [ pkgs.wasm-bindgen-cli pkgs.binaryen ];
-          buildPhase = ''
-            wasm-opt -o typhon_webapp.wasm ${wasm}/lib/typhon_webapp.wasm
-            wasm-bindgen --out-dir $out --target web typhon_webapp.wasm
+        in craneLib.mkCargoDerivation {
+          inherit cargoArtifacts src;
+          pnameSuffix = "-trunk";
+          buildPhaseCargoCommand = ''
+            ln -s ${(pkgs.callPackage ./typhon-webapp/npm-nix/default.nix {}).nodeDependencies}/lib/node_modules typhon-webapp/node_modules
+            # See #351 on Trunk
+            echo "tools.wasm_bindgen = \"$(wasm-bindgen --version | cut -d' ' -f2)\"" >> Trunk.toml
+            trunk build --release typhon-webapp/index.html
           '';
+          installPhase = "cp -r typhon-webapp/dist $out";
+          nativeBuildInputs = with pkgs; [
+            trunk
+            wasm-bindgen-cli
+            binaryen
+            pkgs.nodePackages.sass
+          ];
         };
         typhon-doc = pkgs.stdenv.mkDerivation {
           name = "typhon-doc";
@@ -92,6 +95,7 @@
             # Typhon webapp
             pkgs.nodePackages.sass
             pkgs.trunk
+            pkgs.nodejs # npm
 
             # Documentation
             pkgs.mdbook

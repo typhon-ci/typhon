@@ -1,0 +1,10 @@
+{
+  "name": "typhon-webapp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/roboto": "^4.5.8",
+    "@fontsource/roboto-mono": "^4.5.10"
+  }
+}
