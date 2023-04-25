@@ -47,42 +47,98 @@ impl CommandExtTrait for Command {
     }
 }
 
+mod log_cache {
+    use std::future::Future;
+    pub struct Handle {}
+    pub enum Action {
+        Persist,
+        Drop,
+    }
+
+    use async_trait::async_trait;
+
+    #[async_trait]
+    pub trait T {
+        type R;
+        async fn f(self, handle: &Handle) -> (Action, Self::R);
+    }
+
+    pub async fn with_handle<F: T>(reference: &str, f: F) -> F::R {
+        let (action, result) = f.f(&Handle {}).await;
+        match action {
+            Action::Persist => (),
+            Action::Drop => (),
+        };
+        result
+    }
+    pub async fn append<'a>(_handle: &'a Handle, _line: &str) {}
+    pub fn read(_reference: &str) -> impl futures_core::stream::Stream<Item = String> {
+        async_stream::stream! {
+            yield "x".to_string();
+        }
+    }
+}
+
+struct BuildCache {
+    expr: String,
+}
+#[async_trait]
+impl log_cache::T for BuildCache {
+    type R = Result<Derivation, Error>;
+    async fn f(self, handle: &log_cache::Handle) -> (log_cache::Action, Self::R) {
+        let expr = self.expr;
+        let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
+            .arg(expr.clone())
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect(RUNNING_NIX_FAILED);
+        let log_events = BufReader::new(child.stderr.take().unwrap());
+        let mut lines = log_events.lines();
+        while let Some(line) = lines.next_line().await.expect("Failed to read file") {
+            log_cache::append(handle, &line).await
+        }
+        let mut stdout = String::new();
+        child
+            .stdout
+            .take()
+            .unwrap()
+            .read_to_string(&mut stdout)
+            .await
+            .unwrap();
+        if let [obj] = serde_json::from_str::<Value>(stdout.as_str())
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .as_slice()
+        {
+            (
+                log_cache::Action::Drop,
+                Ok(Derivation::parse(
+                    &serde_json::to_string(&obj["drvPath"]).unwrap(),
+                    &obj,
+                )),
+            )
+        } else {
+            (
+                log_cache::Action::Persist,
+                Err(Error(format!(
+                    "build: [{expr}] yielded multiple derivations"
+                ))),
+            )
+        }
+    }
+}
+
 pub async fn build(expr: &str) -> Result<Derivation, Error> {
-    let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
-        .arg(expr)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect(RUNNING_NIX_FAILED);
-    let log_events = BufReader::new(child.stderr.take().unwrap());
-    let mut lines = log_events.lines();
-    while let Some(line) = lines.next_line().await.expect("Failed to read file") {
-        println!(">>>>{}", line);
-    }
-    let mut stdout = String::new();
-    child
-        .stdout
-        .take()
-        .unwrap()
-        .read_to_string(&mut stdout)
-        .await
-        .unwrap();
-    if let [obj] = serde_json::from_str::<Value>(stdout.as_str())
-        .unwrap()
-        .as_array()
-        .unwrap()
-        .as_slice()
-    {
-        Ok(Derivation::parse(
-            &serde_json::to_string(&obj["drvPath"]).unwrap(),
-            &obj,
-        ))
-    } else {
-        Err(Error(format!(
-            "build: [{expr}] yielded multiple derivations"
-        )))
-    }
+    log_cache::with_handle(
+        expr,
+        BuildCache {
+            expr: expr.to_string(),
+        },
+    )
+    .await
 }
 
 const JSON_PARSE_ERROR: &str = "nix: failed to parse JSON";
