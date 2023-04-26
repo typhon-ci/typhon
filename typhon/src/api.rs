@@ -61,9 +61,10 @@ macro_rules! r {
 }
 
 r!(
-    create_project(path: web::Path<(String, String)>) => {
-        let (handle, decl) = path.into_inner();
-        Request::CreateProject { handle: handles::project(handle), decl }
+    create_project(path: web::Path<String>, body: web::Json<String>) => {
+        let handle = handles::project(path.into_inner());
+        let decl = body.into_inner();
+        Request::CreateProject { handle, decl }
     };
 
     list_projects() => Request::ListProjects;

@@ -37,10 +37,7 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
           typhon.succeed("${pkgs.curl}/bin/curl -f http://127.0.0.1/typhon")
 
       with subtest("Create project"):
-          typhon.succeed("${curl} -X POST ${url}/projects/test/create")
-
-      with subtest("Set project declaration"):
-          typhon.succeed("${curl} -X POST --json '\"${flake}\"' ${url}/projects/test/set_decl")
+          typhon.succeed("${curl} -X POST --json '\"${flake}\"' ${url}/projects/test/create")
 
       with subtest("Refresh project"):
           typhon.succeed("${curl} -X POST ${url}/projects/test/refresh")
