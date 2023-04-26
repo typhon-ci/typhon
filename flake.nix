@@ -36,22 +36,23 @@
           targets = [ "wasm32-unknown-unknown" ];
         };
         craneLib = crane.lib.${system}.overrideToolchain rustToolchain;
-        typhon = let cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
+        typhon = let
+          cargoToml = ./typhon/Cargo.toml;
+          cargoArtifacts = craneLib.buildDepsOnly { inherit src cargoToml; };
         in craneLib.buildPackage {
-          name = "typhon";
-          inherit src cargoArtifacts;
+          inherit src cargoToml cargoArtifacts;
           buildInputs = [ pkgs.sqlite.dev ];
         };
         typhon-webapp = let
-          cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
-          CARGO_PROFILE = "typhon-webapp";
+          cargoToml = ./typhon-webapp/Cargo.toml;
           cargoArtifacts = craneLib.buildDepsOnly {
-            inherit src cargoExtraArgs CARGO_PROFILE;
+            inherit src cargoToml;
+            cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
+            CARGO_PROFILE = "typhon-webapp";
             doCheck = false;
           };
         in craneLib.mkCargoDerivation {
-          inherit cargoArtifacts src;
-          pnameSuffix = "-trunk";
+          inherit src cargoToml cargoArtifacts;
           buildPhaseCargoCommand = ''
             ln -s ${(pkgs.callPackage ./typhon-webapp/npm-nix/default.nix {}).nodeDependencies}/lib/node_modules typhon-webapp/node_modules
             # See #351 on Trunk
