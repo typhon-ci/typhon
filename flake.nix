@@ -51,10 +51,12 @@
             CARGO_PROFILE = "typhon-webapp";
             doCheck = false;
           };
+          nodeDependencies =
+            (pkgs.callPackage ./typhon-webapp/npm-nix { }).nodeDependencies;
         in craneLib.mkCargoDerivation {
           inherit src cargoToml cargoArtifacts;
           buildPhaseCargoCommand = ''
-            ln -s ${(pkgs.callPackage ./typhon-webapp/npm-nix/default.nix {}).nodeDependencies}/lib/node_modules typhon-webapp/node_modules
+            ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
             # See #351 on Trunk
             echo "tools.wasm_bindgen = \"$(wasm-bindgen --version | cut -d' ' -f2)\"" >> Trunk.toml
             trunk build --release typhon-webapp/index.html
