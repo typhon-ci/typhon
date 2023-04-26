@@ -1,8 +1,8 @@
 {
   "name": "typhon-webapp",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "index.js",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "dependencies": {
     "@fontsource/roboto": "^4.5.8",
     "@fontsource/roboto-mono": "^4.5.10"
