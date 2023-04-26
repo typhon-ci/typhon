@@ -2368,6 +2368,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "typhon-types",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
