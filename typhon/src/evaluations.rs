@@ -16,19 +16,13 @@ use std::collections::HashMap;
 type JobName = String;
 type JobDrvMap = HashMap<JobName, nix::Derivation>;
 
-fn hash_of_nix_store_path(path: &str) -> &str {
-    // TODO: make this portable for any store path
-    path.strip_prefix("/nix/store/")
-        .expect("todo: hard-coded store location /nix/store/")
-}
-
 async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
     let mut conn = connection().await;
     let created_jobs = conn.transaction::<Vec<(Build, Job)>, Error, _>(|conn| {
         new_jobs
             .iter()
             .map(|(name, drv)| {
-                let hash = &hash_of_nix_store_path(name);
+                let hash = &drv.path.hash();
                 let build = builds
                     .filter(build_hash.eq(hash))
                     .load::<Build>(conn)?
@@ -38,7 +32,7 @@ async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
                     .unwrap_or_else(|| {
                         let build: Build = diesel::insert_into(builds)
                             .values(&NewBuild {
-                                build_drv: &drv.path,
+                                build_drv: &String::from(drv.path.clone()).as_str(),
                                 build_hash: hash,
                                 build_out: drv
                                     .outputs

@@ -137,7 +137,7 @@ impl Project {
 
         let actions_path = if let Some(v) = actions {
             let drv = nix::derivation(&v).await?;
-            nix::build(&drv.path).await?.path
+            nix::build(&drv.path).await?["out"].clone()
             // TODO: check public key used to encrypt secrets
         } else {
             String::new()
