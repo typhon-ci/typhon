@@ -89,16 +89,16 @@ pub fn view(model: &Model) -> Node<Msg> {
             ]
         ],
         if model.error {
-            vec![
-                div![
-                    i![attrs! {At::Class => "ri-error-warning-fill"}],
-                    " Incorrect password.",
-                    attrs! {
-                        At::Class => "error"
-                    }
-                ]
-            ]
-        } else { vec![] },
+            vec![div![
+                i![attrs! {At::Class => "ri-error-warning-fill"}],
+                " Incorrect password.",
+                attrs! {
+                    At::Class => "error"
+                }
+            ]]
+        } else {
+            vec![]
+        },
         div![
             div![
                 label![
