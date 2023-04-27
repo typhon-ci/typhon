@@ -85,7 +85,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         aside![
             i![attrs! {At::Class => "ri-information-line"}],
             div![
-                " Currently Typhon supports only one user, whence the username field being disabled."
+                "Currently Typhon only supports one user, hence the username field being disabled."
             ]
         ],
         if model.error {
