@@ -147,19 +147,13 @@ impl<'a> Urls<'a> {
             .add_path_part(&handle.project)
     }
     pub fn jobset(handle: &handles::Jobset) -> Url {
-        Urls::project(&handle.project)
-            .add_path_part("jobsets")
-            .add_path_part(&handle.jobset)
+        Urls::project(&handle.project).add_path_part(&handle.jobset)
     }
     pub fn evaluation(handle: &handles::Evaluation) -> Url {
-        Urls::jobset(&handle.jobset)
-            .add_path_part("evaluations")
-            .add_path_part(format!("{}", handle.evaluation))
+        Urls::jobset(&handle.jobset).add_path_part(format!("{}", handle.evaluation))
     }
     pub fn job(handle: &handles::Job) -> Url {
-        Urls::evaluation(&handle.evaluation)
-            .add_path_part("jobs")
-            .add_path_part(&handle.job)
+        Urls::evaluation(&handle.evaluation).add_path_part(&handle.job)
     }
     pub fn build(handle: &handles::Build) -> Url {
         Urls::webroot()
@@ -186,9 +180,9 @@ impl From<&Page> for AppUrl {
             Page::Login(m) => AppUrl::from("login") + m.clone().into(),
             Page::Home(_) => AppUrl::default(),
             Page::Project(m) => AppUrl::from("projects") + m.clone().into(),
-            Page::Jobset(m) => AppUrl::from("jobsets") + m.clone().into(),
-            Page::Evaluation(m) => AppUrl::from("evaluations") + m.clone().into(),
-            Page::Job(m) => AppUrl::from("jobs") + m.clone().into(),
+            Page::Jobset(m) => AppUrl::from("projects") + m.clone().into(),
+            Page::Evaluation(m) => AppUrl::from("projects") + m.clone().into(),
+            Page::Job(m) => AppUrl::from("projects") + m.clone().into(),
             Page::Build(m) => AppUrl::from("builds") + m.clone().into(),
             Page::NotFound => AppUrl::from("404"),
         }
@@ -204,11 +198,11 @@ impl Page {
                 &mut orders.proxy(Msg::ProjectMsg),
                 handles::project((*project).into()),
             )),
-            ["projects", project, "jobsets", jobset] => Page::Jobset(jobset::init(
+            ["projects", project, jobset] => Page::Jobset(jobset::init(
                 &mut orders.proxy(Msg::JobsetMsg),
                 handles::jobset(((*project).into(), (*jobset).into())),
             )),
-            ["projects", project, "jobsets", jobset, "evaluations", evaluation] => evaluation
+            ["projects", project, jobset, evaluation] => evaluation
                 .parse::<i32>()
                 .map(|evaluation| {
                     Page::Evaluation(evaluation::init(
@@ -217,22 +211,20 @@ impl Page {
                     ))
                 })
                 .unwrap_or(Page::NotFound),
-            ["projects", project, "jobsets", jobset, "evaluations", evaluation, "jobs", job] => {
-                evaluation
-                    .parse::<i32>()
-                    .map(|evaluation| {
-                        Page::Job(job::init(
-                            &mut orders.proxy(Msg::JobMsg),
-                            handles::job((
-                                (*project).into(),
-                                (*jobset).into(),
-                                evaluation,
-                                (*job).into(),
-                            )),
-                        ))
-                    })
-                    .unwrap_or(Page::NotFound)
-            }
+            ["projects", project, jobset, evaluation, job] => evaluation
+                .parse::<i32>()
+                .map(|evaluation| {
+                    Page::Job(job::init(
+                        &mut orders.proxy(Msg::JobMsg),
+                        handles::job((
+                            (*project).into(),
+                            (*jobset).into(),
+                            evaluation,
+                            (*job).into(),
+                        )),
+                    ))
+                })
+                .unwrap_or(Page::NotFound),
             ["builds", build_hash] => Page::Build(build::init(
                 &mut orders.proxy(Msg::BuildMsg),
                 handles::build((*build_hash).into()),
