@@ -118,6 +118,6 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
         .map(|err| view_error(err, Msg::ErrorIgnored))
         .unwrap_or(div![
             view_home(model),
-            if admin { view_admin(model) } else { empty![] },
+            if admin { Some(view_admin(model)) } else { None },
         ])
 }
