@@ -179,7 +179,21 @@ r!(
 
     login(body: web::Json<String>) =>
         Request::Login(body.into_inner());
+
+
 );
+
+/// Serves the log in live for derivation [path].
+async fn drv_log(path: web::Json<String>) -> HttpResponse {
+    use crate::nix;
+    use futures::stream::StreamExt;
+    let drv = nix::DrvPath::new(&path.into_inner().to_string());
+    let stream = nix::log_live(&drv).await;
+    let stream = stream.map(|x: String| {
+        Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
+    });
+    HttpResponse::Ok().streaming(stream)
+}
 
 async fn raw_request(
     user: User,
@@ -199,9 +213,10 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
             .route("/projects", web::get().to(list_projects))
+            .route("/drv-log", web::post().to(drv_log))
             .service(
                 web::scope("/projects/{project}")
-                    .route("", web::get().to(project_info))
+                    .route("", web::post().to(project_info))
                     .route("/create", web::post().to(create_project))
                     .route("/delete", web::post().to(project_delete))
                     .route("/refresh", web::post().to(project_refresh))

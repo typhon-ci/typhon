@@ -133,7 +133,8 @@ impl Project {
             metadata: ProjectMetadata,
         }
 
-        let TyphonProject { actions, metadata }: TyphonProject = nix::eval(expr).await?;
+        let TyphonProject { actions, metadata }: TyphonProject =
+            serde_json::from_value(nix::eval(expr).await?).expect("TODO");
 
         let actions_path = if let Some(v) = actions {
             let drv = nix::derivation(&v).await?;

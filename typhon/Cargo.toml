@@ -24,5 +24,6 @@ substring = "1.4"
 tokio = { version = "1.22", features = [ "full" ] }
 async-trait = "0.1.4"
 futures-core = "0.3"
+futures = "0.3"
 async-stream = "0.3"
 

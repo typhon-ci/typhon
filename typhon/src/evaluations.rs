@@ -135,7 +135,7 @@ impl Evaluation {
         let task = async move {
             let expr = format!("{}#typhonJobs", self.evaluation_flake_locked);
             let mut jobs_ = JobDrvMap::new();
-            for job in nix::eval::<Value>(expr.clone())
+            for job in nix::eval(expr.clone())
                 .await?
                 .as_object()
                 .expect("unexpected Nix output")
