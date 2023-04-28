@@ -5,14 +5,6 @@ let
   typhonPackages = typhon.packages.${config.nixpkgs.system};
   inherit (lib) mkEnableOption mkIf mkOption types;
   cfg = config.services.typhon;
-  webapp-root = pkgs.stdenv.mkDerivation {
-    name = "typhon-webapp-root";
-    phases = [ "installPhase" ];
-    installPhase = ''
-      mkdir -p $out${cfg.webroot}
-      cp -r ${cfg.webapp}/* $out${cfg.webroot}
-    '';
-  };
   execstart = let
     protocol = if cfg.https then "https" else "http";
     json =
@@ -33,10 +25,7 @@ in {
     webapp = mkOption {
       type = types.package;
       description = "Which webapp to use for the Typhon instance";
-      default = typhonPackages.typhon-webapp.override {
-        inherit (cfg) webroot https;
-        baseurl = "${cfg.domain}${cfg.webroot}/api";
-      };
+      default = typhonPackages.typhon-webapp;
     };
     home = mkOption {
       type = types.str;
@@ -91,7 +80,10 @@ in {
           proxyWebsockets = true;
         };
         locations."${if cfg.webroot == "" then "/" else cfg.webroot}" = {
-          root = webapp-root;
+          root = cfg.webapp.override {
+            inherit (cfg) webroot https;
+            baseurl = "${cfg.domain}${cfg.webroot}/api";
+          };
           extraConfig = ''
             error_page 404 =200 ${cfg.webroot}/index.html;
           '';

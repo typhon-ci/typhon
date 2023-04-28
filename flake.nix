@@ -77,16 +77,27 @@
               name = "settings.json";
               text = builtins.toJSON { inherit baseurl https; };
             };
+            tarball = stdenv.mkDerivation {
+              name = "source.tar.gz";
+              src = ./.;
+              buildPhase = ''
+                tar -czf $out \
+                  --sort=name \
+                  --transform 's/^/typhon\//' \
+                  .
+              '';
+            };
           in stdenv.mkDerivation {
             name = "typhon-webapp";
             src = webapp;
             buildPhase = ''
               substituteInPlace ./index.html --replace "WEBROOT" "${webroot}/"
-              cp "${settings}" settings.json
+              cp ${settings} settings.json
+              cp ${tarball} source.tar.gz
             '';
             installPhase = ''
-              mkdir -p $out
-              mv * $out
+              mkdir -p $out${webroot}
+              mv * $out${webroot}
             '';
           }) { };
         typhon-doc = pkgs.stdenv.mkDerivation {
