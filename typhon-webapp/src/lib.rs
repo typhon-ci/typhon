@@ -14,20 +14,42 @@ use serde::{Deserialize, Serialize};
 use typhon_types::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiServerSettings {
+    pub baseurl: String,
+    pub https: bool,
+}
+
+impl ApiServerSettings {
+    pub fn url(&self, websocket: bool) -> String {
+        format!(
+            "{}{}://{}",
+            if websocket { "ws" } else { "http" },
+            if self.https { "s" } else { "" },
+            self.baseurl
+        )
+    }
+}
+
+impl Default for ApiServerSettings {
+    fn default() -> Self {
+        Self {
+            baseurl: "127.0.0.1:8000/api".into(),
+            https: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
     pub client_webroot: String,
-    pub server_domain: String,
-    pub server_webroot: String,
-    pub server_https: bool,
+    pub api_server: ApiServerSettings,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            client_webroot: "".into(),
-            server_domain: "127.0.0.1:8000".into(),
-            server_webroot: "".into(),
-            server_https: false,
+            client_webroot: "/".into(),
+            api_server: ApiServerSettings::default(),
         }
     }
 }
@@ -51,19 +73,10 @@ pub async fn handle_request(
 ) -> Result<responses::Response, responses::ResponseError> {
     let settings = SETTINGS.get().unwrap();
     let token = get_token();
-    let req = Request::new(format!(
-        "{}://{}{}/api",
-        if settings.server_https {
-            "https"
-        } else {
-            "http"
-        },
-        settings.server_domain,
-        settings.server_webroot
-    ))
-    .method(Method::Post)
-    .json(request)
-    .expect("Failed to serialize request");
+    let req = Request::new(settings.api_server.url(false))
+        .method(Method::Post)
+        .json(request)
+        .expect("Failed to serialize request");
     let req = match token {
         None => req,
         Some(token) => req.header(Header::custom("token", token)),
@@ -112,7 +125,12 @@ struct_urls!();
 impl<'a> Urls<'a> {
     pub fn webroot() -> Url {
         let settings = SETTINGS.get().unwrap();
-        Url::new().set_path(settings.client_webroot.split('/'))
+        Url::new().set_path(
+            settings
+                .client_webroot
+                .split('/')
+                .filter(|chunk| !chunk.is_empty()),
+        )
     }
     pub fn login() -> Url {
         Urls::webroot().add_path_part("login")
@@ -265,22 +283,14 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     Model {
         page: Page::init(url, orders),
         admin: get_token().is_some(), // TODO
-        ws: WebSocket::builder(
-            format!(
-                "{}://{}{}/api/events",
-                if settings.server_https { "wss" } else { "ws" },
-                settings.server_domain,
-                settings.server_webroot
-            ),
-            orders,
-        )
-        .on_message(move |msg| {
-            msg_sender(Some(Msg::WsMessageReceived(msg)));
-        })
-        .on_error(|| {})
-        .on_close(|_| {})
-        .build_and_open()
-        .expect("failed to open websocket"),
+        ws: WebSocket::builder(format!("{}/events", settings.api_server.url(true)), orders)
+            .on_message(move |msg| {
+                msg_sender(Some(Msg::WsMessageReceived(msg)));
+            })
+            .on_error(|| {})
+            .on_close(|_| {})
+            .build_and_open()
+            .expect("failed to open websocket"),
     }
 }
 
