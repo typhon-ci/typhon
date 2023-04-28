@@ -1,11 +1,11 @@
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct AppUrl {
     pub chunks: Vec<String>,
 }
 impl From<AppUrl> for seed::Url {
     fn from(url: AppUrl) -> seed::Url {
         url.chunks.iter().fold(
-            seed::Url::new().set_path(crate::SETTINGS.get().unwrap().client_webroot.split('/')),
+            seed::Url::new().set_path(crate::webroot_chunks()),
             |url, chunk| url.add_path_part(chunk),
         )
     }

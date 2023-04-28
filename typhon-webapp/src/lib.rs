@@ -121,16 +121,19 @@ macro_rules! perform_request {
 
 pub(crate) use perform_request;
 
+pub fn webroot_chunks() -> impl Iterator<Item = &'static str> {
+    SETTINGS
+        .get()
+        .unwrap()
+        .client_webroot
+        .split('/')
+        .filter(|chunk| !chunk.is_empty())
+}
+
 struct_urls!();
 impl<'a> Urls<'a> {
     pub fn webroot() -> Url {
-        let settings = SETTINGS.get().unwrap();
-        Url::new().set_path(
-            settings
-                .client_webroot
-                .split('/')
-                .filter(|chunk| !chunk.is_empty()),
-        )
+        Url::new().set_path(webroot_chunks())
     }
     pub fn login() -> Url {
         Urls::webroot().add_path_part("login")
@@ -238,12 +241,7 @@ impl Page {
         }
     }
     fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Self {
-        let settings = SETTINGS.get().unwrap();
-        let webroot = settings
-            .client_webroot
-            .split('/')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<&str>>();
+        let webroot = webroot_chunks().collect::<Vec<_>>();
         let path_parts = url.remaining_path_parts();
         Page::from_chunks(
             path_parts
