@@ -26,5 +26,5 @@ The server will be available at `http://localhost:8000`.
 
 The frontend consists of a webapp written with [Seed](https://seed-rs.org/). It
 can be built and tested with [Trunk](https://trunkrs.dev/). To run the webapp,
-go to the `typhon-webapp/` directory and run `trunk serve`. The webapp will be
-available at `http://localhost:8080`.
+go to the `typhon-webapp/` directory and run `npm install` then `trunk serve`.
+The webapp will be available at `http://localhost:8080`.
