@@ -64,7 +64,8 @@ impl Job {
         let mut conn = connection().await;
         let build = builds.find(self.job_build).first::<Build>(&mut *conn)?;
         Ok(responses::JobInfo {
-            build: handles::build(build.build_hash.clone()),
+            build_handle: handles::build(build.build_hash.clone()),
+            build_infos: build.into(),
             status: self.job_status.clone(),
         })
     }

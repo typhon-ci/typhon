@@ -13,8 +13,12 @@ path = "src/main.rs"
 [dependencies]
 typhon-types = { path = "../typhon-types" }
 once_cell = "1.16"
-web-sys = { version = "0.3", features = ["Navigator", "Clipboard"] }
+web-sys = { version = "0.3", features = ["Navigator", "Clipboard", "ReadableStream", "Response"] }
 seed = "0.9"
 serde = { version = "1.0", features = [ "derive" ] }
 serde-wasm-bindgen = "0.4"
 wasm-bindgen-futures = "0.4"
+serde_json = "1.0"
+async-trait = "0.1.4"
+async-stream = "0.3"
+futures-core = "0.3"

@@ -259,7 +259,8 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobInfo {
-        pub build: crate::handles::Build,
+        pub build_handle: super::handles::Build,
+        pub build_infos: BuildInfo,
         pub status: String,
     }
 

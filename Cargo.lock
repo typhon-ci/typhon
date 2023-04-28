@@ -2364,10 +2364,14 @@ dependencies = [
 name = "typhon-webapp"
 version = "0.0.1"
 dependencies = [
+ "async-stream",
+ "async-trait",
+ "futures-core",
  "once_cell",
  "seed",
  "serde",
  "serde-wasm-bindgen",
+ "serde_json",
  "typhon-types",
  "wasm-bindgen-futures",
  "web-sys",

@@ -8,6 +8,16 @@ use crate::{handles, responses};
 use crate::{log_event, Event};
 use diesel::prelude::*;
 
+impl From<Build> for responses::BuildInfo {
+    fn from(build: Build) -> responses::BuildInfo {
+        responses::BuildInfo {
+            drv: build.build_drv.clone(),
+            out: build.build_out.clone(),
+            status: build.build_status.clone(),
+        }
+    }
+}
+
 impl Build {
     pub async fn cancel(&self) -> Result<(), Error> {
         let r = BUILDS.get().unwrap().cancel(self.build_id).await;
@@ -38,11 +48,7 @@ impl Build {
     }
 
     pub fn info(&self) -> Result<responses::BuildInfo, Error> {
-        Ok(responses::BuildInfo {
-            drv: self.build_drv.clone(),
-            out: self.build_out.clone(),
-            status: self.build_status.clone(),
-        })
+        Ok(self.clone().into())
     }
 
     pub async fn nixlog(&self) -> Result<String, Error> {

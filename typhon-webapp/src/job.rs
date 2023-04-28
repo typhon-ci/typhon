@@ -1,14 +1,18 @@
 use crate::{appurl::AppUrl, perform_request, view_error, view_log};
-use seed::{prelude::*, *};
+use seed::{
+    prelude::{js_sys::Promise, *},
+    *,
+};
 use typhon_types::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Job,
     info: Option<responses::JobInfo>,
     log_begin: Option<String>,
     log_end: Option<String>,
+    log: Vec<String>,
 }
 
 impl From<Model> for AppUrl {
@@ -30,6 +34,59 @@ pub enum Msg {
     GetLogBegin(String),
     GetLogEnd(String),
     Noop,
+    LogLine(String),
+}
+
+#[wasm_bindgen(inline_js = "export async function read_line_by_line(reader) {
+    let next = async () => {
+        let o = await reader.read();
+        return o.done ? null : {line: new TextDecoder().decode(o.value), next};
+    };
+    return next();
+ }
+")]
+extern "C" {
+    fn read_line_by_line(reader: js_sys::Object) -> Promise;
+}
+
+use futures_core::stream::Stream;
+pub fn fetch_logs_as_stream(drv: String) -> impl Stream<Item = String> {
+    use crate::*;
+    use async_stream::stream;
+    stream! {
+        let settings = SETTINGS.get().unwrap();
+        let token = get_token();
+        let req = Request::new(format!("{}/drv-log", settings.api_server.url(false)))
+            .method(Method::Post)
+            .json(&drv)
+            .expect("Failed to serialize request");
+        let req = match token {
+            None => req,
+            Some(token) => req.header(Header::custom("token", token)),
+        };
+        let res = req.fetch().await.unwrap();
+        let readable_stream: web_sys::ReadableStream = res.raw_response().body().unwrap();
+        let reader: js_sys::Object = readable_stream.get_reader();
+        let promise = read_line_by_line(reader);
+        let mut maybe_promise = Some(promise);
+        while let Some(promise) = maybe_promise {
+            let future = wasm_bindgen_futures::JsFuture::from(promise);
+            let it = future.await.unwrap();
+            if it.is_null() {
+                maybe_promise = None;
+            } else {
+                let o = js_sys::Object::from(it);
+                let line = js_sys::Reflect::get(&o, &"line".into()).unwrap();
+                let line: String = js_sys::JsString::from(line).into();
+                let next = js_sys::Function::from(js_sys::Reflect::get(&o, &"next".into()).unwrap());
+                let promise =
+                    js_sys::Reflect::apply(&next, &js_sys::Object::new(), &js_sys::Array::new())
+                    .unwrap();
+                yield line;
+                maybe_promise = Some(promise.into());
+            }
+        }
+    }
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
@@ -40,6 +97,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
         info: None,
         log_begin: None,
         log_end: None,
+        log: vec![],
     }
 }
 
@@ -101,6 +159,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             if info.status == "success" {
                 orders.send_msg(Msg::FetchLogEnd);
             }
+            let drv = info.build_infos.drv.clone();
+            orders
+                .proxy(Msg::LogLine)
+                .stream(fetch_logs_as_stream(drv.into()));
             model.info = Some(info);
         }
         Msg::GetLogBegin(log) => {
@@ -110,6 +172,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.log_end = Some(log);
         }
         Msg::Noop => (),
+        Msg::LogLine(line) => model.log.push(line),
     }
 }
 
@@ -147,15 +210,24 @@ fn view_job(model: &Model) -> Node<Msg> {
                 p![
                     "Build: ",
                     a![
-                        format!("{}", info.build),
+                        format!("{}", info.build_handle),
                         attrs! {
-                            At::Href => crate::Urls::build(&info.build)
+                            At::Href => crate::Urls::build(&info.build_handle)
                         },
                     ]
                 ],
                 p![format!("Status: {}", info.status)],
             ],
         },
+        code![
+            &model
+                .log
+                .join("\n")
+                .split("\n")
+                .map(|line| div![line])
+                .collect::<Vec<_>>(),
+            style![St::Background => "#EEFFFFFF"]
+        ],
         match &model.log_begin {
             None => empty![],
             Some(log) => div![h3!["Log (begin)"], view_log(log.clone()),],
