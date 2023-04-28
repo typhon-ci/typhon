@@ -53,22 +53,42 @@
           };
           nodeDependencies =
             (pkgs.callPackage ./typhon-webapp/npm-nix { }).nodeDependencies;
-        in craneLib.mkCargoDerivation {
-          inherit src cargoToml cargoArtifacts;
-          buildPhaseCargoCommand = ''
-            ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
-            # See #351 on Trunk
-            echo "tools.wasm_bindgen = \"$(wasm-bindgen --version | cut -d' ' -f2)\"" >> Trunk.toml
-            trunk build --release typhon-webapp/index.html
-          '';
-          installPhase = "cp -r typhon-webapp/dist $out";
-          nativeBuildInputs = with pkgs; [
-            trunk
-            wasm-bindgen-cli
-            binaryen
-            pkgs.nodePackages.sass
-          ];
-        };
+          webapp = craneLib.mkCargoDerivation {
+            inherit src cargoToml cargoArtifacts;
+            buildPhaseCargoCommand = ''
+              ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
+              # See #351 on Trunk
+              echo "tools.wasm_bindgen = \"$(wasm-bindgen --version | cut -d' ' -f2)\"" >> Trunk.toml
+              echo "build.public_url = \"WEBROOT\"" >> Trunk.toml
+              trunk build --release typhon-webapp/index.html
+            '';
+            installPhase = "cp -r typhon-webapp/dist $out";
+            nativeBuildInputs = with pkgs; [
+              trunk
+              wasm-bindgen-cli
+              binaryen
+              pkgs.nodePackages.sass
+            ];
+          };
+        in pkgs.callPackage ({ stdenv, writeTextFile, webroot ? ""
+          , baseurl ? "127.0.0.1:8000/api", https ? false }:
+          let
+            settings = writeTextFile {
+              name = "settings.json";
+              text = builtins.toJSON { inherit baseurl https; };
+            };
+          in stdenv.mkDerivation {
+            name = "typhon-webapp";
+            src = webapp;
+            buildPhase = ''
+              substituteInPlace ./index.html --replace "WEBROOT" "${webroot}/"
+              cp "${settings}" settings.json
+            '';
+            installPhase = ''
+              mkdir -p $out
+              mv * $out
+            '';
+          }) { };
         typhon-doc = pkgs.stdenv.mkDerivation {
           name = "typhon-doc";
           src = ./doc;

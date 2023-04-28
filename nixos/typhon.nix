@@ -5,42 +5,12 @@ let
   typhonPackages = typhon.packages.${config.nixpkgs.system};
   inherit (lib) mkEnableOption mkIf mkOption types;
   cfg = config.services.typhon;
-  index = pkgs.writeTextFile {
-    name = "index.html";
-    text = ''
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
-        </head>
-        <body>
-          <div id="app"></div>
-          <script type="module">
-            import init, { app } from '${cfg.webroot}/typhon_webapp.js';
-
-            async function run() {
-              await init();
-              app({
-                "client_webroot": "${cfg.webroot}",
-                "server_domain": "${cfg.domain}",
-                "server_webroot": "${cfg.webroot}",
-                "server_https": ${if cfg.https then "true" else "false"}
-              });
-            }
-
-            run();
-          </script>
-        </body>
-      </html>
-    '';
-  };
   webapp-root = pkgs.stdenv.mkDerivation {
-    name = "typhon-webapp";
+    name = "typhon-webapp-root";
     phases = [ "installPhase" ];
     installPhase = ''
-      mkdir -p $out/${cfg.webroot}
-      cp ${cfg.webapp}/* $out/${cfg.webroot}
-      cp ${index} $out/${cfg.webroot}/index.html
+      mkdir -p $out${cfg.webroot}
+      cp -r ${cfg.webapp}/* $out${cfg.webroot}
     '';
   };
   execstart = let
@@ -63,7 +33,10 @@ in {
     webapp = mkOption {
       type = types.package;
       description = "Which webapp to use for the Typhon instance";
-      default = typhonPackages.typhon-webapp;
+      default = typhonPackages.typhon-webapp.override {
+        inherit (cfg) webroot https;
+        baseurl = "${cfg.domain}${cfg.webroot}/api";
+      };
     };
     home = mkOption {
       type = types.str;

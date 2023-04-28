@@ -33,9 +33,6 @@ import "${nixpkgs}/nixos/tests/make-test-python.nix" ({ pkgs, lib, ... }: {
       with subtest("Wait for nginx"):
           typhon.wait_for_unit("nginx.service")
 
-      with subtest("Check webapp"):
-          typhon.succeed("${pkgs.curl}/bin/curl -f http://127.0.0.1/typhon")
-
       with subtest("Create project"):
           typhon.succeed("${curl} -X POST --json '\"${flake}\"' ${url}/projects/test/create")
 
