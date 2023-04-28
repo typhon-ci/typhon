@@ -26,7 +26,7 @@ async fn load_settings() -> Settings {
     });
     use seed::prelude::*;
     let settings_path = format!("{client_webroot}settings.json");
-    let req = Request::new("settings.json").method(Method::Get);
+    let req = Request::new(&settings_path).method(Method::Get);
     let api_server = match req.fetch().await {
         Ok(data) if data.status().is_ok() => data
             .json()
