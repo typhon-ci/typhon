@@ -243,6 +243,7 @@ pub struct Model {
     ws: WebSocket,
 }
 
+#[derive(Debug)]
 enum Msg {
     HomeMsg(home::Msg),
     LoginMsg(login::Msg),

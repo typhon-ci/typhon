@@ -14,7 +14,7 @@ impl From<Model> for AppUrl {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Error(responses::ResponseError),
     ErrorIgnored,

@@ -19,7 +19,7 @@ mod editable_text {
         state: State,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub enum Msg {
         Update(String),
         Send,
@@ -139,7 +139,7 @@ impl From<Model> for AppUrl {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Delete,
     Deleted,

@@ -14,7 +14,7 @@ impl From<Model> for AppUrl {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Msg {
     CreateProject,
     Error(responses::ResponseError),
