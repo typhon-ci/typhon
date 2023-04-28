@@ -14,6 +14,7 @@ pub enum Error {
     FromUtf8Error(std::string::FromUtf8Error),
     NixCommand { stdout: String, stderr: String },
     ExpectedDrvGotAttrset { expr: String },
+    BuildFailed,
 }
 
 impl std::fmt::Display for Error {
@@ -164,42 +165,51 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
         .read_to_string(&mut stdout)
         .await
         .unwrap();
-    if let [obj] = serde_json::from_str::<Value>(stdout.as_str())
-        .unwrap()
-        .as_array()
-        .unwrap()
-        .as_slice()
-    {
-        Ok(obj["outputs"]
-            .as_object()
-            .ok_or_else(|| Error::UnexpectedOutput {
+    let success = child
+        .wait()
+        .await
+        .map(|status| status.success())
+        .unwrap_or(false);
+    if success {
+        if let [obj] = serde_json::from_str::<Value>(stdout.as_str())
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .as_slice()
+        {
+            Ok(obj["outputs"]
+                .as_object()
+                .ok_or_else(|| Error::UnexpectedOutput {
+                    context: format!(
+                        "When building {:?}, got malformed [outputs] key in JSON {} ",
+                        &obj, &path
+                    ),
+                })?
+                .iter()
+                .map(|(name, path)| {
+                    Ok((
+                        name.clone(),
+                        path.as_str()
+                            .ok_or_else(|| Error::UnexpectedOutput {
+                                context: format!(
+                                    "While building {:?}, got malformed [outputs] key in JSON {}",
+                                    path, &obj
+                                ),
+                            })?
+                            .into(),
+                    ))
+                })
+                .collect::<Result<HashMap<_, _>, Error>>()?)
+        } else {
+            Err(Error::UnexpectedOutput {
                 context: format!(
-                    "When building {:?}, got malformed [outputs] key in JSON {} ",
-                    &obj, &path
+                    "Expected exactly one derivation while building {:?}, got zero, two, or more.",
+                    path
                 ),
-            })?
-            .iter()
-            .map(|(name, path)| {
-                Ok((
-                    name.clone(),
-                    path.as_str()
-                        .ok_or_else(|| Error::UnexpectedOutput {
-                            context: format!(
-                                "While building {:?}, got malformed [outputs] key in JSON {}",
-                                path, &obj
-                            ),
-                        })?
-                        .into(),
-                ))
             })
-            .collect::<Result<HashMap<_, _>, Error>>()?)
+        }
     } else {
-        Err(Error::UnexpectedOutput {
-            context: format!(
-                "Expected exactly one derivation while building {:?}, got zero, two, or more.",
-                path
-            ),
-        })
+        Err(Error::BuildFailed)
     }
 }
 
