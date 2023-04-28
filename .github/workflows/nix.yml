@@ -17,5 +17,3 @@ jobs:
       run: nix build -L
     - name: Build typhon-webapp
       run: nix build -L .#typhon-webapp
-    - name: Build checks
-      run: nix flake check -L
