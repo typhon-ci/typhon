@@ -157,6 +157,10 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
             .await
             .unwrap();
     }
+    log_cache::CACHE
+        .send(log_cache::Message::Reset { drv: path.clone() })
+        .await
+        .unwrap();
     let mut stdout = String::new();
     child
         .stdout
