@@ -6,7 +6,7 @@ use typhon_types::*;
 pub struct Model {
     error: Option<responses::ResponseError>,
     projects: Vec<(String, responses::ProjectMetadata)>,
-    project_name: String,
+    new_project: (String, String),
 }
 impl From<Model> for AppUrl {
     fn from(_: Model) -> AppUrl {
@@ -23,7 +23,8 @@ pub enum Msg {
     FetchProjects,
     Noop,
     SetProjects(Vec<(String, responses::ProjectMetadata)>),
-    UpdateProjectName(String),
+    UpdateNewProjectName(String),
+    UpdateNewProjectExpr(String),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>) -> Model {
@@ -34,12 +35,11 @@ pub fn init(orders: &mut impl Orders<Msg>) -> Model {
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::CreateProject => {
-            let name = model.project_name.clone();
-            model.project_name = "".into();
             let req = requests::Request::CreateProject {
-                handle: handles::project(name),
-                decl: "hello".into(),
+                handle: handles::project(model.new_project.0.clone()),
+                decl: model.new_project.1.clone(),
             };
+            model.new_project = <_>::default();
             perform_request!(
                 orders,
                 req,
@@ -69,13 +69,16 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::SetProjects(l) => {
             model.projects = l;
         }
-        Msg::UpdateProjectName(name) => {
-            model.project_name = name;
+        Msg::UpdateNewProjectName(name) => {
+            model.new_project.0 = name;
+        }
+        Msg::UpdateNewProjectExpr(expr) => {
+            model.new_project.1 = expr;
         }
     }
 }
 
-fn view_home(model: &Model) -> Node<Msg> {
+fn view_home(model: &Model, admin: bool) -> Node<Msg> {
     div![
         h2!["Projects"],
         table![
@@ -86,28 +89,51 @@ fn view_home(model: &Model) -> Node<Msg> {
                     attrs! { At::Href => crate::Urls::project(&handles::project(name.into())) }
                 ]],
                 td![String::from(meta.title.clone())],
-                td![String::from(meta.description.clone())]
+                td![String::from(meta.description.clone())],
             ])
         ],
-    ]
-}
-
-fn view_admin(model: &Model) -> Node<Msg> {
-    div![
-        h2!["Administration"],
-        input![
-            attrs! {
-                At::Value => model.project_name,
-            },
-            input_ev(Ev::Input, Msg::UpdateProjectName),
-        ],
-        input![
-            attrs! {
-                At::Value => model.project_name,
-            },
-            input_ev(Ev::Input, Msg::UpdateProjectName),
-        ],
-        button!["Create project", ev(Ev::Click, |_| Msg::CreateProject),],
+        admin.then(|| {
+            let empty = model.new_project == <_>::default();
+            let enter = (!empty).then(|| {
+                keyboard_ev(Ev::KeyUp, |e| {
+                    if e.key() == "Enter" {
+                        Some(Msg::CreateProject)
+                    } else {
+                        None
+                    }
+                })
+            });
+            section![
+                h2!["Add a project"],
+                div![
+                    label!["Identifier:"],
+                    input![
+                        attrs! {
+                            At::Value => model.new_project.0,
+                            At::Placeholder => "myproject",
+                        },
+                        input_ev(Ev::Input, Msg::UpdateNewProjectName),
+                        enter.clone()
+                    ],
+                    label!["Flake URI:"],
+                    input![
+                        attrs! {
+                            At::Value => model.new_project.1,
+                            At::Placeholder => "github:org/repo",
+                        },
+                        input_ev(Ev::Input, Msg::UpdateNewProjectExpr),
+                        enter
+                    ],
+                    div![],
+                    button![
+                        "Add project",
+                        (!empty).then(|| ev(Ev::Click, |_| Msg::CreateProject)),
+                        empty.then(|| attrs! {At::Disabled => true}),
+                    ],
+                    C!["add-project"],
+                ],
+            ]
+        })
     ]
 }
 
@@ -116,8 +142,5 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
         .error
         .as_ref()
         .map(|err| view_error(err, Msg::ErrorIgnored))
-        .unwrap_or(div![
-            view_home(model),
-            if admin { Some(view_admin(model)) } else { None },
-        ])
+        .unwrap_or_else(|| view_home(model, admin))
 }

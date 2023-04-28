@@ -21,7 +21,7 @@ body {
     margin: 0;
 }
 
-$first: #2c3e50;
+$first: color.adjust(#2c3e50, $lightness: 0%);
 $second: color.adjust(#34495e, $lightness: 50%);
 
 code {
@@ -100,16 +100,21 @@ code {
         button {
             background: $first;
             border-radius: 3px;
-            padding: 0.4em 0.8em;
+            padding: 0.25em 0.8em;
             background: $first;
             color: white;
             border: 1px solid color.adjust($first, $lightness: 30%);
+            &:disabled {
+                background: color.adjust($first, $lightness: 50%, $saturation: -20%);
+                border: 1px solid color.adjust($first, $lightness: 60%);
+                opacity: 0.7;
+            }
         }
         input {
             background: color.adjust($first, $lightness: 75%);
             border: 1px solid color.adjust($first, $lightness: 55%);
             border-radius: 3px;
-            padding: 0.4em;
+            padding: 0.3em;
             font-family: inherit;
             font-weight: inherit;
             font-size: 105%;
@@ -142,8 +147,25 @@ code {
             tr:last-child {
                 border-bottom: 0px;
             }
+            margin-bottom: 1em;
         }
         margin: 2em;
+    }
+    & > main.home > div {
+        .add-project {
+            max-width: 350px;
+            width: auto;
+            display: grid;
+            align-items: center;
+            grid-template-columns: auto 1fr;
+            row-gap: 0.2em;
+            label {
+                padding: 0.4em;
+                padding-left: 0px;
+            }
+            input {
+            }
+        }
     }
     & > main.project > div {
         .editable-text {
