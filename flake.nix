@@ -43,6 +43,16 @@
           inherit src cargoToml cargoArtifacts;
           buildInputs = [ pkgs.sqlite.dev ];
         };
+        typhon-api-client-test = let
+          cargoToml = ./typhon/api-client-test/Cargo.toml;
+          cargoExtraArgs = "-p typhon-api-client-test";
+          nativeBuildInputs = [ pkgs.openssl pkgs.pkg-config ];
+          cargoArtifacts = craneLib.buildDepsOnly {
+            inherit src cargoToml cargoExtraArgs nativeBuildInputs;
+          };
+        in craneLib.buildPackage {
+          inherit src cargoToml cargoArtifacts cargoExtraArgs nativeBuildInputs;
+        };
         typhon-webapp = let
           cargoToml = ./typhon-webapp/Cargo.toml;
           RUSTFLAGS = "--cfg=web_sys_unstable_apis";
@@ -118,7 +128,7 @@
         };
       in {
         packages = {
-          inherit typhon typhon-webapp typhon-doc;
+          inherit typhon typhon-webapp typhon-doc typhon-api-client-test;
           default = typhon;
         };
         devShells.default = pkgs.mkShell {
@@ -127,6 +137,7 @@
             # Rust
             pkgs.rustfmt
             pkgs.rust-analyzer
+            pkgs.openssl
             rustToolchain
 
             # Typhon server
@@ -145,9 +156,42 @@
           ];
           DATABASE_URL = "sqlite:typhon.sqlite";
         };
-        checks.default = import ./nixos/test.nix {
-          inherit system nixpkgs;
-          typhon = self;
+        checks = {
+          api = pkgs.stdenv.mkDerivation {
+            name = "Test API";
+            phases = ["configurePhase" "installPhase"];
+            DATABASE_URL = "/tmp/typhon.sqlite";
+            configurePhase = ''
+              export HOME=$(mktemp -d)
+              mkdir -p ~/.config/nix
+              echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
+            '';
+            installPhase = ''
+              # start Typhon server
+              typhon -p $(echo -n password | sha256sum | head -c 64) -j null -w "" &
+              sleep 1
+
+              # run the test client
+              PROJECT_DECL="path:${./tests/empty}" typhon-api-client-test
+
+              # kill the server and creates $out
+              kill %1 && touch $out
+            '';
+            nativeBuildInputs = [
+              typhon-api-client-test
+              typhon
+              pkgs.coreutils
+              pkgs.bubblewrap
+              pkgs.diesel-cli
+              pkgs.pkg-config
+              pkgs.sqlite
+              pkgs.nix
+            ];
+          };
+          nixos = import ./nixos/test.nix {
+            inherit system nixpkgs;
+            typhon = self;
+          };
         };
         actions = import ./actions { inherit pkgs; };
       }) // {
