@@ -49,7 +49,6 @@
           cargoArtifacts = craneLib.buildDepsOnly {
             inherit src cargoToml RUSTFLAGS;
             cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
-            CARGO_PROFILE = "typhon-webapp";
             doCheck = false;
           };
           nodeDependencies =
