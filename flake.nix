@@ -62,7 +62,15 @@
               echo "build.public_url = \"WEBROOT\"" >> Trunk.toml
               trunk build --release typhon-webapp/index.html
             '';
-            installPhaseCommand = "cp -r typhon-webapp/dist $out";
+            # we only need to remove references on *.wasm files
+            doNotRemoveReferencesToVendorDir = true;
+            installPhaseCommand = ''
+              cp -r typhon-webapp/dist $out
+              find "$out/" -name "*.wasm" -print0 | \
+                while read -d $'\0' file; do
+                  removeReferencesToVendoredSources $file
+                done
+            '';
             nativeBuildInputs = with pkgs; [
               trunk
               wasm-bindgen-cli
