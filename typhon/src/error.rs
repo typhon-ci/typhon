@@ -11,6 +11,7 @@ pub enum Error {
     BuildNotRunning(handles::Build),
     EvaluationNotFound(handles::Evaluation),
     EvaluationNotRunning(handles::Evaluation),
+    IllegalProjectHandle(handles::Project),
     JobNotFound(handles::Job),
     JobNotRunning(handles::Job),
     JobsetNotFound(handles::Jobset),
@@ -41,6 +42,9 @@ impl std::fmt::Display for Error {
             BadJobsetDecl(s) => write!(f, "Bad jobset declaration: {}", s),
             BuildNotFound(build_handle) => write!(f, "Build {} not found", build_handle),
             BuildNotRunning(build_handle) => write!(f, "Build {} is not running", build_handle),
+            IllegalProjectHandle(handle) => {
+                write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contains dashes [-] or underscores [_].", handle.project)
+            }
             JobNotFound(job_handle) => {
                 write!(f, "Job {} not found", job_handle)
             }

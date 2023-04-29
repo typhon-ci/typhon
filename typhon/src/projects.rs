@@ -18,6 +18,9 @@ use typhon_types::responses::ProjectMetadata;
 
 impl Project {
     pub async fn create(project_handle: &handles::Project, decl: &String) -> Result<(), Error> {
+        if !project_handle.legal() {
+            return Err(Error::IllegalProjectHandle(project_handle.clone()));
+        }
         match Self::get(project_handle).await {
             Ok(_) => Err(Error::ProjectAlreadyExists(project_handle.clone())),
             Err(_) => {

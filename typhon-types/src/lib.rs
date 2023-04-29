@@ -4,6 +4,17 @@ pub mod handles {
     pub struct Project {
         pub project: String,
     }
+    impl Project {
+        pub fn legal(&self) -> bool {
+            use lazy_static::lazy_static;
+            use regex::Regex;
+            lazy_static! {
+                static ref RE: Regex = Regex::new("^[A-z0-9-_]+$").unwrap();
+            }
+            RE.is_match(&self.project)
+        }
+    }
+
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Jobset {
         pub project: Project,

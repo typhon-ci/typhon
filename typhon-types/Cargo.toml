@@ -3,6 +3,10 @@ name = "typhon-types"
 version = "0.0.1"
 edition = "2021"
 
+[dependencies]
+lazy_static = "1.4"
+regex = "1"
+
 [dependencies.serde]
 version = "1.0"
 features = ["derive"]

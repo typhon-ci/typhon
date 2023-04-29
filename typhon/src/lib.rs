@@ -253,6 +253,7 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
             | BuildNotRunning(_)
             | EvaluationNotRunning(_)
             | JobNotRunning(_)
+            | IllegalProjectHandle(_)
             | NixError(_)
             | ProjectAlreadyExists(_)
             | LoginError
