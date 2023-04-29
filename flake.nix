@@ -53,7 +53,7 @@
           };
           nodeDependencies =
             (pkgs.callPackage ./typhon-webapp/npm-nix { }).nodeDependencies;
-          webapp = craneLib.mkCargoDerivation {
+          webapp = craneLib.buildPackage {
             inherit src cargoToml cargoArtifacts;
             buildPhaseCargoCommand = ''
               ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
@@ -62,13 +62,14 @@
               echo "build.public_url = \"WEBROOT\"" >> Trunk.toml
               trunk build --release typhon-webapp/index.html
             '';
-            installPhase = "cp -r typhon-webapp/dist $out";
+            installPhaseCommand = "cp -r typhon-webapp/dist $out";
             nativeBuildInputs = with pkgs; [
               trunk
               wasm-bindgen-cli
               binaryen
               pkgs.nodePackages.sass
             ];
+            doCheck = false;
           };
         in pkgs.callPackage ({ stdenv, writeTextFile, webroot ? ""
           , baseurl ? "127.0.0.1:8000/api", https ? false }:
