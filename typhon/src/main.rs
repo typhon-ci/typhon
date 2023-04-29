@@ -60,7 +60,7 @@ async fn main() -> std::io::Result<()> {
     };
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let conn = SqliteConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
+        .unwrap_or_else(|e| panic!("Error connecting to {}, with error {:#?}", database_url, e));
     typhon::SETTINGS
         .set(settings)
         .expect("failed to initialize state value");
