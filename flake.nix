@@ -45,8 +45,9 @@
         };
         typhon-webapp = let
           cargoToml = ./typhon-webapp/Cargo.toml;
+          RUSTFLAGS = "--cfg=web_sys_unstable_apis";
           cargoArtifacts = craneLib.buildDepsOnly {
-            inherit src cargoToml;
+            inherit src cargoToml RUSTFLAGS;
             cargoExtraArgs = "-p typhon-webapp --target wasm32-unknown-unknown";
             CARGO_PROFILE = "typhon-webapp";
             doCheck = false;
@@ -54,7 +55,7 @@
           nodeDependencies =
             (pkgs.callPackage ./typhon-webapp/npm-nix { }).nodeDependencies;
           webapp = craneLib.buildPackage {
-            inherit src cargoToml cargoArtifacts;
+            inherit src cargoToml cargoArtifacts RUSTFLAGS;
             buildPhaseCargoCommand = ''
               ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
               # See #351 on Trunk
@@ -67,7 +68,7 @@
               trunk
               wasm-bindgen-cli
               binaryen
-              pkgs.nodePackages.sass
+              nodePackages.sass
             ];
             doCheck = false;
           };
