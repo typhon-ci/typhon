@@ -5,7 +5,6 @@ use std::iter;
 use std::process::Stdio;
 use std::str::FromStr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::process::Command;
 
 #[derive(Debug)]
 pub enum Error {

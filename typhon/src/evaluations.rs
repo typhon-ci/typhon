@@ -10,7 +10,6 @@ use crate::EVALUATIONS;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 use diesel::prelude::*;
-use serde_json::Value;
 use std::collections::HashMap;
 
 type JobName = String;
