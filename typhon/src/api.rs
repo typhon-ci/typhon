@@ -3,6 +3,7 @@ use crate::requests::*;
 use crate::SETTINGS;
 use crate::{handle_request, handles, Response, ResponseError, User};
 use actix_cors::Cors;
+use actix_files::NamedFile;
 use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, Error, HttpRequest, HttpResponse, Responder,
 };
@@ -179,9 +180,23 @@ r!(
 
     login(body: web::Json<String>) =>
         Request::Login(body.into_inner());
-
-
 );
+
+async fn dist(
+    user: User,
+    path: web::Path<(String, String)>,
+) -> Result<impl Responder, ResponseErrorWrapper> {
+    let (build, path) = path.into_inner();
+    let req = Request::Build(handles::build(build), Build::Info);
+    let rsp = handle_request(user, req)
+        .await
+        .map_err(ResponseErrorWrapper)?;
+    let out = match rsp {
+        Response::BuildInfo(info) => Ok(info.out),
+        _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
+    }?;
+    Ok(NamedFile::open_async(format!("{out}/{path}")).await)
+}
 
 /// Serves the log in live for derivation [path].
 async fn drv_log(path: web::Json<String>) -> HttpResponse {
@@ -246,7 +261,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/builds/{build}")
                     .route("", web::get().to(build_info))
                     .route("/cancel", web::post().to(build_cancel))
-                    .route("/nixlog", web::get().to(build_nix_log)),
+                    .route("/nixlog", web::get().to(build_nix_log))
+                    .route("/dist/{path:.*}", web::get().to(dist)),
             )
             .route("/login", web::post().to(login))
             .route(
