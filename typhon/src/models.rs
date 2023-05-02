@@ -81,6 +81,7 @@ pub struct NewJob<'a> {
 #[derive(Queryable, Clone)]
 pub struct Build {
     pub build_id: i32,
+    pub build_dist: bool,
     pub build_drv: String,
     pub build_hash: String,
     pub build_out: String,
@@ -90,6 +91,7 @@ pub struct Build {
 #[derive(Insertable)]
 #[diesel(table_name = builds)]
 pub struct NewBuild<'a> {
+    pub build_dist: bool,
     pub build_drv: &'a str,
     pub build_hash: &'a str,
     pub build_out: &'a str,

@@ -41,6 +41,7 @@ CREATE TABLE jobs (
 
 CREATE TABLE builds (
     build_id INTEGER NOT NULL PRIMARY KEY,
+    build_dist BOOLEAN NOT NULL,
     build_drv TEXT NOT NULL UNIQUE,
     build_hash TEXT NOT NULL UNIQUE,
     build_out TEXT NOT NULL UNIQUE,

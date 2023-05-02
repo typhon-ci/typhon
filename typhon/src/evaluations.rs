@@ -13,14 +13,14 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 
 type JobName = String;
-type JobDrvMap = HashMap<JobName, nix::Derivation>;
+type JobDrvMap = HashMap<JobName, (nix::Derivation, bool)>;
 
 async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
     let mut conn = connection().await;
     let created_jobs = conn.transaction::<Vec<(Build, Job)>, Error, _>(|conn| {
         new_jobs
             .iter()
-            .map(|(name, drv)| {
+            .map(|(name, (drv, dist))| {
                 let hash = &drv.path.hash();
                 let build = builds
                     .filter(build_hash.eq(hash))
@@ -31,6 +31,7 @@ async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
                     .unwrap_or_else(|| {
                         let build: Build = diesel::insert_into(builds)
                             .values(&NewBuild {
+                                build_dist: *dist,
                                 build_drv: &String::from(drv.path.clone()).as_str(),
                                 build_hash: hash,
                                 build_out: drv
@@ -143,7 +144,13 @@ impl Evaluation {
             {
                 jobs_.insert(
                     job.clone(),
-                    nix::derivation(&format!("{expr}.{job}")).await?,
+                    (
+                        nix::derivation(&format!("{expr}.{job}")).await?,
+                        nix::eval(format!("{expr}.{job}.passthru.typhonDist"))
+                            .await
+                            .map(|json| json.as_bool().unwrap_or(false))
+                            .unwrap_or(false),
+                    ),
                 );
             }
             Ok(jobs_)

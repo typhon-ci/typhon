@@ -3,6 +3,7 @@
 diesel::table! {
     builds (build_id) {
         build_id -> Integer,
+        build_dist -> Bool,
         build_drv -> Text,
         build_hash -> Text,
         build_out -> Text,
