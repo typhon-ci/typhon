@@ -191,11 +191,17 @@ async fn dist(
     let rsp = handle_request(user, req)
         .await
         .map_err(ResponseErrorWrapper)?;
-    let out = match rsp {
-        Response::BuildInfo(info) => Ok(info.out),
+    let info = match rsp {
+        Response::BuildInfo(info) => Ok(info),
         _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
     }?;
-    Ok(NamedFile::open_async(format!("{out}/{path}")).await)
+    if info.dist {
+        Ok(NamedFile::open_async(format!("{}/{}", info.out, path)).await)
+    } else {
+        Err(ResponseErrorWrapper(ResponseError::BadRequest(
+            "typhonDist is not set".into(),
+        )))
+    }
 }
 
 /// Serves the log in live for derivation [path].
