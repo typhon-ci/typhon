@@ -1,4 +1,4 @@
-use crate::{appurl::AppUrl, perform_request, view_error, view_log};
+use crate::{appurl::AppUrl, perform_request, view_error, view_log, SETTINGS};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
@@ -102,6 +102,17 @@ fn view_build(model: &Model) -> Node<Msg> {
                 p![format!("Status: {}", info.status)],
                 p![format!("Derivation: {}", info.drv)],
                 p![format!("Output: {}", info.out)],
+                if info.dist {
+                    let api_url = SETTINGS.get().unwrap().api_server.url(false);
+                    a![
+                        "Dist",
+                        attrs! {
+                            At::Href => format!("{}/builds/{}/dist/index.html", api_url, model.handle),
+                        },
+                    ]
+                } else {
+                    empty![]
+                }
             ],
         },
         match &model.nix_log {
