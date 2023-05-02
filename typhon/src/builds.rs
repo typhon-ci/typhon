@@ -11,6 +11,7 @@ use diesel::prelude::*;
 impl From<Build> for responses::BuildInfo {
     fn from(build: Build) -> responses::BuildInfo {
         responses::BuildInfo {
+            dist: build.build_dist,
             drv: build.build_drv.clone(),
             out: build.build_out.clone(),
             status: build.build_status.clone(),
