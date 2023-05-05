@@ -184,19 +184,20 @@ r!(
 
 async fn dist(
     user: User,
-    path: web::Path<(String, String)>,
+    path: web::Path<(String, String, i32, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
-    let (build, path) = path.into_inner();
-    let req = Request::Build(handles::build(build), Build::Info);
+    let (project, jobset, evaluation, job, path) = path.into_inner();
+    let handle = handles::job((project, jobset, evaluation, job));
+    let req = Request::Job(handle, Job::Info);
     let rsp = handle_request(user, req)
         .await
         .map_err(ResponseErrorWrapper)?;
     let info = match rsp {
-        Response::BuildInfo(info) => Ok(info),
+        Response::JobInfo(info) => Ok(info),
         _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
     }?;
     if info.dist {
-        Ok(NamedFile::open_async(format!("{}/{}", info.out, path)).await)
+        Ok(NamedFile::open_async(format!("{}/{}", info.build_infos.out, path)).await)
     } else {
         Err(ResponseErrorWrapper(ResponseError::BadRequest(
             "typhonDist is not set".into(),
@@ -258,7 +259,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                                             .route("", web::get().to(job_info))
                                             .route("/cancel", web::post().to(job_cancel))
                                             .route("/logs/begin", web::get().to(job_log_begin))
-                                            .route("/logs/end", web::get().to(job_log_end)),
+                                            .route("/logs/end", web::get().to(job_log_end))
+                                            .route("/dist/{path:.*}", web::get().to(dist)),
                                     ),
                             ),
                     ),
@@ -267,8 +269,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/builds/{build}")
                     .route("", web::get().to(build_info))
                     .route("/cancel", web::post().to(build_cancel))
-                    .route("/nixlog", web::get().to(build_nix_log))
-                    .route("/dist/{path:.*}", web::get().to(dist)),
+                    .route("/nixlog", web::get().to(build_nix_log)),
             )
             .route("/login", web::post().to(login))
             .route(

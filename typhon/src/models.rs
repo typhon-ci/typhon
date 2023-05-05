@@ -64,6 +64,7 @@ pub struct NewEvaluation<'a> {
 pub struct Job {
     pub job_id: i32,
     pub job_build: i32,
+    pub job_dist: bool,
     pub job_evaluation: i32,
     pub job_name: String,
     pub job_status: String,
@@ -73,6 +74,7 @@ pub struct Job {
 #[diesel(table_name = jobs)]
 pub struct NewJob<'a> {
     pub job_build: i32,
+    pub job_dist: bool,
     pub job_evaluation: i32,
     pub job_name: &'a str,
     pub job_status: &'a str,
@@ -81,7 +83,6 @@ pub struct NewJob<'a> {
 #[derive(Queryable, Clone)]
 pub struct Build {
     pub build_id: i32,
-    pub build_dist: bool,
     pub build_drv: String,
     pub build_hash: String,
     pub build_out: String,
@@ -91,7 +92,6 @@ pub struct Build {
 #[derive(Insertable)]
 #[diesel(table_name = builds)]
 pub struct NewBuild<'a> {
-    pub build_dist: bool,
     pub build_drv: &'a str,
     pub build_hash: &'a str,
     pub build_out: &'a str,

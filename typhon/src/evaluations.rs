@@ -31,7 +31,6 @@ async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
                     .unwrap_or_else(|| {
                         let build: Build = diesel::insert_into(builds)
                             .values(&NewBuild {
-                                build_dist: *dist,
                                 build_drv: &String::from(drv.path.clone()).as_str(),
                                 build_hash: hash,
                                 build_out: drv
@@ -51,6 +50,7 @@ async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
                 let job: Job = diesel::insert_into(jobs)
                     .values(&NewJob {
                         job_build: build.build_id,
+                        job_dist: *dist,
                         job_evaluation: id,
                         job_name: &name,
                         job_status: "begin",

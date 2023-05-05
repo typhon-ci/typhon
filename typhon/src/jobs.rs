@@ -66,6 +66,7 @@ impl Job {
         Ok(responses::JobInfo {
             build_handle: handles::build(build.build_hash.clone()),
             build_infos: build.into(),
+            dist: self.job_dist,
             status: self.job_status.clone(),
         })
     }

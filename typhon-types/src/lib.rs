@@ -272,12 +272,12 @@ pub mod responses {
     pub struct JobInfo {
         pub build_handle: super::handles::Build,
         pub build_infos: BuildInfo,
+        pub dist: bool,
         pub status: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct BuildInfo {
-        pub dist: bool,
         pub drv: String,
         pub out: String,
         pub status: String,

@@ -3,7 +3,6 @@
 diesel::table! {
     builds (build_id) {
         build_id -> Integer,
-        build_dist -> Bool,
         build_drv -> Text,
         build_hash -> Text,
         build_out -> Text,
@@ -27,6 +26,7 @@ diesel::table! {
     jobs (job_id) {
         job_id -> Integer,
         job_build -> Integer,
+        job_dist -> Bool,
         job_evaluation -> Integer,
         job_name -> Text,
         job_status -> Text,

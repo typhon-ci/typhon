@@ -33,6 +33,7 @@ CREATE TABLE evaluations (
 CREATE TABLE jobs (
     job_id INTEGER NOT NULL PRIMARY KEY,
     job_build INTEGER NOT NULL REFERENCES builds(build_id) ON DELETE CASCADE,
+    job_dist BOOLEAN NOT NULL,
     job_evaluation INTEGER NOT NULL REFERENCES evaluations(evaluation_id) ON DELETE CASCADE,
     job_name TEXT NOT NULL,
     job_status TEXT CHECK(job_status in ('begin', 'waiting', 'end', 'success', 'error', 'canceled')) NOT NULL,
@@ -41,7 +42,6 @@ CREATE TABLE jobs (
 
 CREATE TABLE builds (
     build_id INTEGER NOT NULL PRIMARY KEY,
-    build_dist BOOLEAN NOT NULL,
     build_drv TEXT NOT NULL UNIQUE,
     build_hash TEXT NOT NULL UNIQUE,
     build_out TEXT NOT NULL UNIQUE,

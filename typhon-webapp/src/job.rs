@@ -1,4 +1,4 @@
-use crate::{appurl::AppUrl, perform_request, view_error, view_log};
+use crate::{appurl::AppUrl, perform_request, view_error, view_log, SETTINGS};
 use seed::{
     prelude::{js_sys::Promise, *},
     *,
@@ -217,6 +217,21 @@ fn view_job(model: &Model) -> Node<Msg> {
                     ]
                 ],
                 p![format!("Status: {}", info.status)],
+                if info.dist {
+                    let api_url = SETTINGS.get().unwrap().api_server.url(false);
+                    let job = &model.handle.job;
+                    let evaluation = &model.handle.evaluation.evaluation;
+                    let jobset = &model.handle.evaluation.jobset.jobset;
+                    let project = &model.handle.evaluation.jobset.project.project;
+                    a![
+                        "Dist",
+                        attrs! {
+                            At::Href => format!("{}/projects/{}/jobsets/{}/evaluations/{}/jobs/{}/dist/index.html", api_url, project, jobset, evaluation, job),
+                        },
+                    ]
+                } else {
+                    empty![]
+                }
             ],
         },
         code![
