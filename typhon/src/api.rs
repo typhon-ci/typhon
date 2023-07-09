@@ -1,7 +1,7 @@
 use crate::listeners::Session;
 use crate::requests::*;
-use crate::SETTINGS;
 use crate::{handle_request, handles, Response, ResponseError, User};
+use crate::{BUILD_LOGS, SETTINGS};
 use actix_cors::Cors;
 use actix_files::NamedFile;
 use actix_web::{
@@ -209,12 +209,17 @@ async fn dist(
 async fn drv_log(path: web::Json<String>) -> HttpResponse {
     use crate::nix;
     use futures::stream::StreamExt;
-    let drv = nix::DrvPath::new(&path.into_inner().to_string());
-    let stream = nix::log_live(&drv).await;
-    let stream = stream.map(|x: String| {
-        Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
-    });
-    HttpResponse::Ok().streaming(stream)
+    let path = path.into_inner().to_string();
+    let drv = nix::DrvPath::new(&path);
+    match BUILD_LOGS.get().unwrap().listen(&drv).await {
+        Some(stream) => {
+            let stream = stream.map(|x: String| {
+                Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
+            });
+            HttpResponse::Ok().streaming(stream)
+        }
+        None => HttpResponse::Ok().body(web::Bytes::from(nix::log(path).await.unwrap())),
+    }
 }
 
 async fn raw_request(

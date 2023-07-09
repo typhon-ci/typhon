@@ -79,6 +79,9 @@ async fn main() -> std::io::Result<()> {
     typhon::LISTENERS
         .set(Mutex::new(typhon::listeners::Listeners::new()))
         .expect("failed to initialize state value");
+    typhon::BUILD_LOGS
+        .set(typhon::logs::live::Cache::new())
+        .expect("failed to initialize state value");
 
     // Enable foreign key support
     let _ = typhon::connection()

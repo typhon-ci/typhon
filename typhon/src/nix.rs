@@ -1,3 +1,4 @@
+use crate::BUILD_LOGS;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::{collections::HashMap, ffi::OsStr, process::Stdio};
@@ -62,78 +63,9 @@ impl CommandExtTrait for Command {
     }
 }
 
-mod log_cache {
-    use std::collections::HashMap;
-
-    use super::DrvPath;
-    use once_cell::sync::Lazy;
-    use tokio::sync::mpsc;
-
-    #[derive(Debug)]
-    pub enum Message {
-        Reset {
-            drv: DrvPath,
-        },
-        SendLine {
-            drv: DrvPath,
-            line: String,
-        },
-        ListenLog {
-            drv: DrvPath,
-            lines_sender: mpsc::Sender<String>,
-        },
-    }
-
-    pub static CACHE: Lazy<mpsc::Sender<Message>> = Lazy::new(|| {
-        let (sender, mut receiver) = mpsc::channel(30);
-        tokio::spawn(async move {
-            type Listeners = Vec<mpsc::Sender<String>>;
-            let mut state: HashMap<DrvPath, (Vec<String>, Listeners)> = HashMap::new();
-            while let Some(i) = receiver.recv().await {
-                match i {
-                    Message::Reset { drv } => {
-                        state.remove(&drv);
-                    }
-                    Message::SendLine { drv, line } => {
-                        if !state.contains_key(&drv) {
-                            state.insert(drv.clone(), (vec![], Vec::new()));
-                        }
-                        let (lines, listeners) = state.get_mut(&drv).unwrap();
-                        lines.push(line.clone());
-
-                        for i in 0..listeners.len() {
-                            if let Err(_) = listeners[i].send(line.clone()).await {
-                                listeners.remove(i);
-                            }
-                        }
-                    }
-                    Message::ListenLog { drv, lines_sender } => {
-                        if let Some((lines, listeners)) = state.get_mut(&drv) {
-                            for line in lines {
-                                lines_sender.send(line.clone()).await.unwrap();
-                            }
-                            listeners.push(lines_sender);
-                        } else {
-                            lines_sender
-                                .send(
-                                    super::log(drv.into())
-                                        .await
-                                        .unwrap_or_else(|err| format!("{:?}", err)),
-                                )
-                                .await
-                                .unwrap();
-                            drop(lines_sender)
-                        }
-                    }
-                }
-            }
-        });
-        sender
-    });
-}
-
 /// Runs `nix build` on a derivation path
 pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
+    let build_logs = BUILD_LOGS.get().unwrap();
     let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
         .arg(&path)
         .stdin(Stdio::inherit())
@@ -143,23 +75,11 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
         .expect(RUNNING_NIX_FAILED);
     let log_events = BufReader::new(child.stderr.take().unwrap());
     let mut lines = log_events.lines();
-    log_cache::CACHE
-        .send(log_cache::Message::Reset { drv: path.clone() })
-        .await
-        .unwrap();
+    build_logs.reset(&path).await;
     while let Some(line) = lines.next_line().await.expect("Failed to read file") {
-        log_cache::CACHE
-            .send(log_cache::Message::SendLine {
-                drv: path.clone(),
-                line,
-            })
-            .await
-            .unwrap();
+        build_logs.send_line(&path, line).await;
     }
-    log_cache::CACHE
-        .send(log_cache::Message::Reset { drv: path.clone() })
-        .await
-        .unwrap();
+    build_logs.reset(&path).await;
     let mut stdout = String::new();
     child
         .stdout
@@ -347,25 +267,6 @@ pub async fn lock(flake_url: &String) -> Result<String, Error> {
             .expect(JSON_PARSE_ERROR)
             .into(),
     )
-}
-
-pub async fn log_live(drv: &DrvPath) -> impl futures_core::stream::Stream<Item = String> {
-    use tokio::sync::mpsc;
-
-    let (sender, mut receiver) = mpsc::channel(30);
-    log_cache::CACHE
-        .send(log_cache::Message::ListenLog {
-            drv: drv.clone(),
-            lines_sender: sender,
-        })
-        .await
-        .unwrap();
-
-    async_stream::stream! {
-        while let Some(i) = receiver.recv().await {
-            yield i;
-        }
-    }
 }
 
 pub async fn log(drv: String) -> Result<String, Error> {

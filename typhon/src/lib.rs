@@ -4,7 +4,6 @@ mod error;
 mod evaluations;
 mod jobs;
 mod jobsets;
-mod logs;
 mod models;
 mod nix;
 mod projects;
@@ -13,6 +12,7 @@ mod time;
 
 pub mod api;
 pub mod listeners;
+pub mod logs;
 pub mod tasks;
 
 pub use typhon_types::{
@@ -64,6 +64,7 @@ pub static BUILDS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static JOBS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
 pub static CONNECTION: OnceCell<Connection> = OnceCell::new();
 pub static LISTENERS: OnceCell<Mutex<listeners::Listeners>> = OnceCell::new();
+pub static BUILD_LOGS: OnceCell<logs::live::Cache<nix::DrvPath>> = OnceCell::new();
 
 pub async fn connection<'a>() -> tokio::sync::MutexGuard<'a, SqliteConnection> {
     CONNECTION.get().unwrap().conn.lock().await
