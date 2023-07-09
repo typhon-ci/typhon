@@ -157,9 +157,10 @@ pub async fn derivation_json(expr: &str) -> Result<serde_json::Value, Error> {
 pub struct DrvPath {
     path: String,
 }
+
 impl std::fmt::Display for DrvPath {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Evaluation error: {}", self.path)
+        write!(f, "{}", self.path)
     }
 }
 
