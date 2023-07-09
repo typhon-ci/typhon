@@ -67,7 +67,7 @@ impl CommandExtTrait for Command {
 pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
     let build_logs = BUILD_LOGS.get().unwrap();
     let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
-        .arg(&path)
+        .arg(format!("{}^*", path))
         .stdin(Stdio::inherit())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
