@@ -75,6 +75,39 @@ impl CommandExtTrait for Command {
     }
 }
 
+async fn handle_logs(buffer: BufReader<tokio::process::ChildStderr>) {
+    let mut lines = buffer.lines();
+    use messages::*;
+    let mut state: HashMap<Id, String> = HashMap::new();
+    while let Some(line) = lines.next_line().await.unwrap() {
+        if let Some(Message { id, body }) = parse(line) {
+            match (body, state.get(&id).map(|s| DrvPath::new(s.as_str()))) {
+                (MessageBody::Start { drv }, _) => {
+                    BUILD_LOGS.reset(&DrvPath::new(&drv)).await;
+                    if let Some(_) = state.insert(id, drv) {
+                        panic!()
+                    }
+                }
+                (MessageBody::Stop, Some(drv)) => {
+                    BUILD_LOGS.reset(&drv).await;
+                    state.remove(&id);
+                }
+                (MessageBody::Phase { phase }, Some(drv)) => {
+                    let msg = format!(
+                        "@nix {} \"action\": \"setPhase\", \"phase\": \"{}\" {}",
+                        "{", "}", phase
+                    );
+                    BUILD_LOGS.send_line(&drv, msg).await;
+                }
+                (MessageBody::BuildLogLine { line }, Some(drv)) => {
+                    BUILD_LOGS.send_line(&drv, line).await;
+                }
+                _ => (),
+            }
+        }
+    }
+}
+
 /// Runs `nix build` on a derivation path
 pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
     let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
@@ -84,13 +117,7 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
         .stderr(Stdio::piped())
         .spawn()
         .expect(RUNNING_NIX_FAILED);
-    let log_events = BufReader::new(child.stderr.take().unwrap());
-    let mut lines = log_events.lines();
-    BUILD_LOGS.reset(&path).await;
-    while let Some(line) = lines.next_line().await.expect("Failed to read file") {
-        BUILD_LOGS.send_line(&path, line).await;
-    }
-    BUILD_LOGS.reset(&path).await;
+    handle_logs(BufReader::new(child.stderr.take().unwrap())).await;
     let mut stdout = String::new();
     child
         .stdout
@@ -283,4 +310,90 @@ pub async fn lock(flake_url: &String) -> Result<String, Error> {
 
 pub async fn log(drv: String) -> Result<String, Error> {
     Command::nix(["log"]).arg(drv).sync_stdout().await
+}
+
+/// This module parses https://github.com/NixOS/nix/blob/7474a90db69813d051ab1bef35c7d0ab958d9ccd/src/libutil/logging.hh
+mod messages {
+    use serde_repr::*;
+
+    /// Comes from https://github.com/NixOS/nix/blob/7474a90db69813d051ab1bef35c7d0ab958d9ccd/src/libutil/logging.hh
+    #[derive(Serialize_repr, Deserialize_repr, Debug, Clone)]
+    #[repr(u8)]
+    enum ActivityType {
+        Unknown = 0,
+        CopyPath = 100,
+        FileTransfer = 101,
+        Realise = 102,
+        CopyPaths = 103,
+        Builds = 104,
+        Build = 105,
+        OptimiseStore = 106,
+        VerifyPaths = 107,
+        Substitute = 108,
+        QueryPathInfo = 109,
+        PostBuildHook = 110,
+        BuildWaiting = 111,
+    }
+
+    /// Comes from https://github.com/NixOS/nix/blob/7474a90db69813d051ab1bef35c7d0ab958d9ccd/src/libutil/logging.hh
+    #[derive(Serialize_repr, Deserialize_repr, Debug, Clone)]
+    #[repr(u8)]
+    enum ResultType {
+        FileLinked = 100,
+        BuildLogLine = 101,
+        UntrustedPath = 102,
+        CorruptedPath = 103,
+        SetPhase = 104,
+        Progress = 105,
+        SetExpected = 106,
+        PostBuildLogLine = 107,
+    }
+
+    /// The unique identifer of a "activity" in Nix
+    pub type Id = u64;
+
+    /// A subset of the actual enum of messages from Nix. This
+    /// captures only what we care about.
+    #[derive(Debug, Clone)]
+    pub struct Message {
+        pub id: Id,
+        pub body: MessageBody,
+    }
+    #[derive(Debug, Clone)]
+    pub enum MessageBody {
+        Start { drv: String },
+        Phase { phase: String },
+        BuildLogLine { line: String },
+        Stop,
+    }
+
+    pub fn parse(raw: String) -> Option<Message> {
+        let o: serde_json::Value = serde_json::from_str(raw.strip_prefix("@nix ")?).ok()?;
+        let typ = o["type"].clone();
+        let fields = o["fields"].clone();
+        let first_field = serde_json::from_value::<String>(fields[0].clone()).ok();
+        let id = o["id"].clone().as_u64();
+        let body = match o["action"].as_str()? {
+            "result" => {
+                let kind = serde_json::from_value::<ResultType>(typ).ok()?;
+                match kind {
+                    ResultType::BuildLogLine => MessageBody::BuildLogLine { line: first_field? },
+                    ResultType::SetPhase => MessageBody::Phase {
+                        phase: first_field?,
+                    },
+                    _ => None?,
+                }
+            }
+            "start" => {
+                let kind = serde_json::from_value::<ActivityType>(typ).ok()?;
+                match kind {
+                    ActivityType::Build => MessageBody::Start { drv: first_field? },
+                    _ => None?,
+                }
+            }
+            "stop" => MessageBody::Stop,
+            _ => None?,
+        };
+        Some(Message { id: id?, body })
+    }
 }
