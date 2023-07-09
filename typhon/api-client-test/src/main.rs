@@ -119,6 +119,7 @@ async fn main() {
     let jobset = handles::jobset((name.to_string(), jobset.to_string()));
     s!(Res::JobsetEvaluate(evaluation) = Req::Jobset(jobset, requests::Jobset::Evaluate(true)));
     let mut status = "pending".to_string();
+    let mut elapsed_time: u64 = 0;
     while status == "pending" {
         println!("Query evaluation's status...");
         s!(Res::EvaluationInfo(responses::EvaluationInfo {
@@ -127,6 +128,15 @@ async fn main() {
         }) = Req::Evaluation(evaluation.clone(), requests::Evaluation::Info));
         status = new_status;
         println!("   > status is '{}'", status.bold());
-        sleep(Duration::from_millis(200));
+        const WAIT_TIME_MS: u64 = 200;
+        const MAX_TIME_SEC: u64 = 60;
+        sleep(Duration::from_millis(WAIT_TIME_MS));
+        elapsed_time += WAIT_TIME_MS;
+        if elapsed_time > MAX_TIME_SEC * 1000 {
+            panic!(
+                "API is not responding: evaluation took more than {} seconds.",
+                MAX_TIME_SEC
+            );
+        }
     }
 }
