@@ -26,10 +26,6 @@ use requests::Request as Req;
 use responses::Response as Res;
 
 macro_rules! p {
-    // (let $pat:pat = $e:expr) => {
-    //     let value = $e;
-    //     let $pat = value else { panic!("{:#?}", value) };
-    // };
     (let $pat:pat = $e:expr) => {
         let value = $e;
         let $pat = value
