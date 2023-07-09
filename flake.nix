@@ -145,6 +145,7 @@
             pkgs.diesel-cli
             pkgs.pkg-config
             pkgs.sqlite
+            pkgs.nix
 
             # Typhon webapp
             pkgs.nodePackages.sass
