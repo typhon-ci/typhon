@@ -10,10 +10,18 @@ use tokio::process::Command;
 #[derive(Debug)]
 pub enum Error {
     SerdeJson(serde_json::Error),
-    UnexpectedOutput { context: String },
+    UnexpectedOutput {
+        context: String,
+    },
     FromUtf8Error(std::string::FromUtf8Error),
-    NixCommand { stdout: String, stderr: String },
-    ExpectedDrvGotAttrset { expr: String },
+    NixCommand {
+        cmd: String,
+        stdout: String,
+        stderr: String,
+    },
+    ExpectedDrvGotAttrset {
+        expr: String,
+    },
     BuildFailed,
 }
 
@@ -56,7 +64,11 @@ impl CommandExtTrait for Command {
         let stderr = String::from_utf8(nix_output.stderr)?;
 
         if !nix_output.status.success() {
-            Err(Error::NixCommand { stdout, stderr })
+            Err(Error::NixCommand {
+                cmd: format!("{:?}", self),
+                stdout,
+                stderr,
+            })
         } else {
             Ok(stdout)
         }
