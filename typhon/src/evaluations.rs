@@ -72,7 +72,7 @@ async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
 
 impl Evaluation {
     pub async fn cancel(&self) -> Result<(), Error> {
-        let r = EVALUATIONS.get().unwrap().cancel(self.evaluation_id).await;
+        let r = EVALUATIONS.cancel(self.evaluation_id).await;
         if r {
             Ok(())
         } else {
@@ -181,6 +181,6 @@ impl Evaluation {
 
             log_event(Event::EvaluationFinished(handle));
         };
-        EVALUATIONS.get().unwrap().run(id, task, f).await;
+        EVALUATIONS.run(id, task, f).await;
     }
 }

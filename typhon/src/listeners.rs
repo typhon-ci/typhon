@@ -1,3 +1,4 @@
+use crate::LISTENERS;
 use typhon_types::*;
 
 use actix::prelude::*;
@@ -40,7 +41,7 @@ impl Actor for Session {
         self.heartbeat(ctx);
         let addr = ctx.address();
         let _ = tokio::spawn(async move {
-            let listeners = &mut *crate::LISTENERS.get().unwrap().lock().await;
+            let listeners = &mut *LISTENERS.lock().await;
             listeners.sessions.insert(addr);
         });
     }
@@ -48,8 +49,7 @@ impl Actor for Session {
     fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
         let addr = ctx.address();
         let _ = tokio::spawn(async move {
-            let ref mut listeners = crate::LISTENERS.get().unwrap().lock().await;
-            let _ = listeners.sessions.remove(&addr);
+            let _ = LISTENERS.lock().await.sessions.remove(&addr);
         });
         Running::Stop
     }

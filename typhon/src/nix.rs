@@ -65,7 +65,6 @@ impl CommandExtTrait for Command {
 
 /// Runs `nix build` on a derivation path
 pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
-    let build_logs = BUILD_LOGS.get().unwrap();
     let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
         .arg(format!("{}^*", path))
         .stdin(Stdio::inherit())
@@ -75,11 +74,11 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
         .expect(RUNNING_NIX_FAILED);
     let log_events = BufReader::new(child.stderr.take().unwrap());
     let mut lines = log_events.lines();
-    build_logs.reset(&path).await;
+    BUILD_LOGS.reset(&path).await;
     while let Some(line) = lines.next_line().await.expect("Failed to read file") {
-        build_logs.send_line(&path, line).await;
+        BUILD_LOGS.send_line(&path, line).await;
     }
-    build_logs.reset(&path).await;
+    BUILD_LOGS.reset(&path).await;
     let mut stdout = String::new();
     child
         .stdout

@@ -20,7 +20,7 @@ impl From<Build> for responses::BuildInfo {
 
 impl Build {
     pub async fn cancel(&self) -> Result<(), Error> {
-        let r = BUILDS.get().unwrap().cancel(self.build_id).await;
+        let r = BUILDS.cancel(self.build_id).await;
         if r {
             Ok(())
         } else {
@@ -76,6 +76,6 @@ impl Build {
                 .execute(conn);
             log_event(Event::BuildFinished(handle));
         };
-        BUILDS.get().unwrap().run(id, task, f).await;
+        BUILDS.run(id, task, f).await;
     }
 }

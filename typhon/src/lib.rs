@@ -23,14 +23,45 @@ use error::Error;
 use models::*;
 
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
+use clap::Parser;
 use diesel::prelude::*;
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use serde_json::Value;
 use sha256::digest;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use tokio::sync::Mutex;
+
+/// Typhon, Nix-based continuous integration
+#[derive(Parser, Debug)]
+#[command(name = "Typhon")]
+#[command(about = "Nix-based continuous integration", long_about = None)]
+pub struct Args {
+    /// Hashed password
+    #[arg(long, short)]
+    pub password: String,
+
+    /// Webroot
+    #[arg(long, short)]
+    pub webroot: String,
+
+    /// Json data for the jobs
+    #[arg(long, short)]
+    pub json: String,
+
+    /// Silence all output
+    #[arg(long, short)]
+    pub quiet: bool,
+
+    /// Verbose mode (-v, -vv, -vvv, etc)
+    #[arg(long, short, action = clap::ArgAction::Count)]
+    pub verbose: u8,
+
+    /// Timestamp (sec, ms, ns, none)
+    #[arg(long, short)]
+    pub ts: Option<stderrlog::Timestamp>,
+}
 
 #[derive(Debug)]
 pub struct Settings {
@@ -58,16 +89,30 @@ impl fmt::Debug for Connection {
 }
 
 // Typhon's state
-pub static SETTINGS: OnceCell<Settings> = OnceCell::new();
-pub static EVALUATIONS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
-pub static BUILDS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
-pub static JOBS: OnceCell<tasks::Tasks<i32>> = OnceCell::new();
-pub static CONNECTION: OnceCell<Connection> = OnceCell::new();
-pub static LISTENERS: OnceCell<Mutex<listeners::Listeners>> = OnceCell::new();
-pub static BUILD_LOGS: OnceCell<logs::live::Cache<nix::DrvPath>> = OnceCell::new();
+pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
+    let args = Args::parse();
+    Settings {
+        hashed_password: args.password.clone(),
+        json: serde_json::from_str(&args.json).expect("failed to parse json"),
+        webroot: args.webroot.clone(),
+    }
+});
+pub static EVALUATIONS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static BUILDS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static JOBS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
+    use diesel::Connection as _;
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let conn = SqliteConnection::establish(&database_url)
+        .unwrap_or_else(|e| panic!("Error connecting to {}, with error {:#?}", database_url, e));
+    Connection::new(conn)
+});
+pub static LISTENERS: Lazy<Mutex<listeners::Listeners>> =
+    Lazy::new(|| Mutex::new(listeners::Listeners::new()));
+pub static BUILD_LOGS: Lazy<logs::live::Cache<nix::DrvPath>> = Lazy::new(logs::live::Cache::new);
 
 pub async fn connection<'a>() -> tokio::sync::MutexGuard<'a, SqliteConnection> {
-    CONNECTION.get().unwrap().conn.lock().await
+    CONNECTION.conn.lock().await
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -95,7 +140,7 @@ impl FromRequest for User {
             .get("token")
             .map_or(User::Anonymous, |password| {
                 let hash = digest(password.as_bytes());
-                if hash == SETTINGS.get().unwrap().hashed_password {
+                if hash == SETTINGS.hashed_password {
                     User::Admin
                 } else {
                     User::Anonymous
@@ -214,7 +259,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
             }
             requests::Request::Login(password) => {
                 let hash = digest(password.as_bytes());
-                if hash == SETTINGS.get().unwrap().hashed_password {
+                if hash == SETTINGS.hashed_password {
                     Response::Login {
                         // TODO: manage session tokens instead of just returning the password
                         token: password.clone(),
@@ -267,7 +312,6 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
 pub fn log_event(event: Event) {
     log::info!("event: {:?}", event);
     let _ = tokio::spawn(async move {
-        let listeners = &*LISTENERS.get().unwrap();
-        listeners.lock().await.log(event);
+        LISTENERS.lock().await.log(event);
     });
 }

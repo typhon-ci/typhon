@@ -20,7 +20,7 @@ impl Job {
     }
 
     pub async fn cancel(&self) -> Result<(), Error> {
-        let r = JOBS.get().unwrap().cancel(self.job_id).await;
+        let r = JOBS.cancel(self.job_id).await;
         if r {
             Ok(())
         } else {
@@ -78,7 +78,7 @@ impl Job {
         let build = self.build().await?;
         Ok(json!({
             "build": build.build_hash,
-            "data": SETTINGS.get().unwrap().json,
+            "data": SETTINGS.json,
             "evaluation": evaluation.evaluation_num,
             "flake": jobset.jobset_flake,
             "flake_locked": evaluation.evaluation_flake_locked,
@@ -145,7 +145,7 @@ impl Job {
 
             log_event(Event::JobUpdated(handle_bis.clone()));
 
-            BUILDS.get().unwrap().wait(&self.job_build).await;
+            BUILDS.wait(&self.job_build).await;
 
             {
                 // run action `end`
@@ -191,6 +191,6 @@ impl Job {
             drop(conn);
             log_event(Event::JobUpdated(handle));
         };
-        JOBS.get().unwrap().run(id, task, f).await;
+        JOBS.run(id, task, f).await;
     }
 }

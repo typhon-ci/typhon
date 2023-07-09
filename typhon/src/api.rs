@@ -211,7 +211,7 @@ async fn drv_log(path: web::Json<String>) -> HttpResponse {
     use futures::stream::StreamExt;
     let path = path.into_inner().to_string();
     let drv = nix::DrvPath::new(&path);
-    match BUILD_LOGS.get().unwrap().listen(&drv).await {
+    match BUILD_LOGS.listen(&drv).await {
         Some(stream) => {
             let stream = stream.map(|x: String| {
                 Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
@@ -236,7 +236,7 @@ async fn events(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, 
 pub fn config(cfg: &mut web::ServiceConfig) {
     let cors = Cors::permissive(); // TODO: configure
     cfg.service(
-        web::scope(&format!("{}/api", SETTINGS.get().unwrap().webroot))
+        web::scope(&format!("{}/api", SETTINGS.webroot))
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
             .route("/projects", web::get().to(list_projects))
