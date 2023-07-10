@@ -1,3 +1,4 @@
+use crate::actions::webhooks;
 use crate::listeners::Session;
 use crate::requests::*;
 use crate::{handle_request, handles, Response, ResponseError, User};
@@ -8,6 +9,7 @@ use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, Error, HttpRequest, HttpResponse, Responder,
 };
 use actix_web_actors::ws;
+use std::collections::HashMap;
 
 struct ResponseWrapper(crate::Response);
 #[derive(Debug)]
@@ -233,6 +235,55 @@ async fn events(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, 
     ws::start(Session::new(), &req, stream)
 }
 
+async fn webhook(
+    path: web::Path<String>,
+    req: HttpRequest,
+    body: String,
+) -> Result<HttpResponse, Error> {
+    let project_handle = handles::project(path.into_inner().to_string());
+    let project = crate::models::Project::get(&project_handle)
+        .await
+        .map_err(|e| {
+            if e.is_internal() {
+                log::error!("webhook raised error: {:?}", e);
+            }
+            ResponseErrorWrapper(e.into())
+        })?;
+    let input = webhooks::Input {
+        headers: req
+            .headers()
+            .into_iter()
+            .map(|(name, value)| {
+                Ok((
+                    name.as_str().to_string(),
+                    std::str::from_utf8(value.as_bytes())
+                        .map_err(|_| {
+                            ResponseErrorWrapper(ResponseError::BadRequest(
+                                "non-utf8 characters in request headers".to_string(),
+                            ))
+                        })?
+                        .to_string(),
+                ))
+            })
+            .collect::<Result<HashMap<_, _>, Error>>()?,
+        body,
+    };
+    let requests = project
+        .webhook(input)
+        .await
+        .map_err(|e| {
+            if e.is_internal() {
+                log::error!("webhook raised error: {:?}", e);
+            }
+            ResponseErrorWrapper(e.into())
+        })?
+        .into_iter();
+    for req in requests {
+        let _ = handle_request(User::Admin, req).await;
+    }
+    Ok(HttpResponse::Ok().finish())
+}
+
 pub fn config(cfg: &mut web::ServiceConfig) {
     let cors = Cors::permissive(); // TODO: configure
     cfg.service(
@@ -250,6 +301,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/update_jobsets", web::post().to(project_update_jobsets))
                     .route("/set_decl", web::post().to(project_set_decl))
                     .route("/set_private_key", web::post().to(project_set_private_key))
+                    .route("/webhook", web::post().to(webhook))
                     .service(
                         web::scope("/jobsets/{jobset}")
                             .route("", web::get().to(jobset_info))

@@ -254,4 +254,33 @@ impl Project {
 
         Ok(decls.into_keys().collect())
     }
+
+    pub async fn webhook(
+        &self,
+        input: actions::webhooks::Input,
+    ) -> Result<Vec<typhon_types::requests::Request>, Error> {
+        match &self.project_actions_path {
+            Some(path) => {
+                if Path::new(&format!("{}/webhook", path)).exists() {
+                    let action_input = serde_json::to_value(input).unwrap();
+                    let (action_output, _) = actions::run(
+                        &self.project_key,
+                        &format!("{}/webhook", path),
+                        &format!("{}/secrets", path),
+                        &action_input,
+                    )
+                    .await?;
+                    let commands: actions::webhooks::Output =
+                        serde_json::from_str(&action_output).map_err(|_| Error::Todo)?;
+                    Ok(commands
+                        .into_iter()
+                        .map(|cmd| cmd.lift(self.handle()))
+                        .collect())
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            None => Ok(Vec::new()),
+        }
+    }
 }

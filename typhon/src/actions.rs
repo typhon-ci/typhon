@@ -101,3 +101,39 @@ pub async fn run(
 
     Ok((res, log))
 }
+
+pub mod webhooks {
+    use crate::handles;
+    use crate::requests;
+    use serde::{Deserialize, Serialize};
+    use std::collections::HashMap;
+
+    #[derive(Clone, Serialize)]
+    pub struct Input {
+        pub headers: HashMap<String, String>,
+        pub body: String,
+    }
+
+    #[derive(Clone, Deserialize)]
+    #[serde(tag = "command")]
+    pub enum Command {
+        UpdateJobsets,
+        EvaluateJobset { jobset: String },
+    }
+
+    impl Command {
+        pub fn lift(self, project: handles::Project) -> requests::Request {
+            match self {
+                Command::UpdateJobsets => {
+                    requests::Request::Project(project, requests::Project::UpdateJobsets)
+                }
+                Command::EvaluateJobset { jobset } => requests::Request::Jobset(
+                    handles::Jobset { project, jobset },
+                    requests::Jobset::Evaluate(true),
+                ),
+            }
+        }
+    }
+
+    pub type Output = Vec<Command>;
+}
