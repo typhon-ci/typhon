@@ -1,20 +1,25 @@
-typhon:
-{ config, lib, pkgs, ... }:
-
-let
+typhon: {
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
   typhonPackages = typhon.packages.${config.nixpkgs.system};
   inherit (lib) mkEnableOption mkIf mkOption types;
   cfg = config.services.typhon;
   execstart = let
-    protocol = if cfg.https then "https" else "http";
+    protocol =
+      if cfg.https
+      then "https"
+      else "http";
     json =
-      builtins.toJSON { url = "${protocol}://${cfg.domain}${cfg.webroot}"; };
-  in pkgs.writeShellScript "typhon-execstart" ''
-    cd ${cfg.home}
-    DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -j '${json}' -w "${cfg.webroot}"
-  '';
+      builtins.toJSON {url = "${protocol}://${cfg.domain}${cfg.webroot}";};
+  in
+    pkgs.writeShellScript "typhon-execstart" ''
+      cd ${cfg.home}
+      DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -j '${json}' -w "${cfg.webroot}"
+    '';
 in {
-
   options.services.typhon = {
     enable = mkEnableOption "typhon";
     package = mkOption {
@@ -57,12 +62,12 @@ in {
       createHome = true;
       isSystemUser = true;
     };
-    users.groups.typhon = { };
+    users.groups.typhon = {};
 
     systemd.services.typhon = {
       description = "Typhon service";
-      wantedBy = [ "multi-user.target" ];
-      path = [ pkgs.nix pkgs.git pkgs.bubblewrap ];
+      wantedBy = ["multi-user.target"];
+      path = [pkgs.nix pkgs.git pkgs.bubblewrap];
       serviceConfig = {
         ExecStart = execstart;
         Type = "simple";
@@ -79,7 +84,11 @@ in {
           recommendedProxySettings = true;
           proxyWebsockets = true;
         };
-        locations."${if cfg.webroot == "" then "/" else cfg.webroot}" = {
+        locations."${
+          if cfg.webroot == ""
+          then "/"
+          else cfg.webroot
+        }" = {
           root = cfg.webapp.override {
             inherit (cfg) webroot https;
             baseurl = "${cfg.domain}${cfg.webroot}/api";
@@ -91,5 +100,4 @@ in {
       };
     };
   };
-
 }
