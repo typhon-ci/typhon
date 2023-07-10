@@ -7,7 +7,6 @@
     "Cargo.toml"
     "Cargo.lock"
     "typhon.*"
-    "typhon-types.*"
   ];
 
   cargoToml = ../typhon/Cargo.toml;

@@ -16,8 +16,6 @@
     "Cargo.toml"
     "Cargo.lock"
     "typhon.*"
-    "typhon-types.*"
-    "typhon-webapp.*"
   ];
 
   cargoToml = ../typhon-webapp/Cargo.toml;

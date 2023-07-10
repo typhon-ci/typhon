@@ -8,7 +8,6 @@
     "Cargo.toml"
     "Cargo.lock"
     "typhon.*"
-    "typhon-types.*"
   ];
 
   cargoToml = ../typhon/api-client-test/Cargo.toml;
