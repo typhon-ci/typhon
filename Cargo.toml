@@ -1,9 +1,9 @@
 [workspace]
 members = [
   "typhon",
-  "typhon/api-client-test",
   "typhon-types",
   "typhon-webapp",
+  "typhon-api-client-test",
 ]
 default-members = [
   "typhon"

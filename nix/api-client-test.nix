@@ -10,7 +10,7 @@
     "typhon.*"
   ];
 
-  cargoToml = ../typhon/api-client-test/Cargo.toml;
+  cargoToml = ../typhon-api-client-test/Cargo.toml;
 
   cargoExtraArgs = "-p typhon-api-client-test";
 
