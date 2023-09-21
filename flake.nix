@@ -55,6 +55,7 @@
         api = pkgs.callPackage ./nix/check-api.nix {
           inherit typhon typhon-api-client-test;
         };
+        formatted = pkgs.callPackage ./nix/check-formatted.nix {inherit rustToolchain;};
         nixos = pkgs.callPackage ./nix/nixos/test.nix {typhon = self;};
       };
 

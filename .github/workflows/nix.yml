@@ -24,3 +24,5 @@ jobs:
       run: nix build -L .#typhon-webapp
     - name: Run API tests
       run: nix build -L .#checks.x86_64-linux.api
+    - name: Check formatting
+      run: nix build -L .#checks.x86_64-linux.formatted
