@@ -8,6 +8,7 @@ members = [
 default-members = [
   "typhon"
 ]
+resolver = "2"
 
 [workspace.dependencies]
 typhon-types = { path = "./typhon-types" }
