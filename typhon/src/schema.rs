@@ -73,11 +73,4 @@ diesel::joinable!(jobsets -> projects (jobset_project));
 diesel::joinable!(logs -> evaluations (log_evaluation));
 diesel::joinable!(logs -> jobs (log_job));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    builds,
-    evaluations,
-    jobs,
-    jobsets,
-    logs,
-    projects,
-);
+diesel::allow_tables_to_appear_in_same_query!(builds, evaluations, jobs, jobsets, logs, projects,);

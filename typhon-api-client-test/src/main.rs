@@ -28,13 +28,19 @@ use responses::Response as Res;
 macro_rules! p {
     (let $pat:pat = $e:expr) => {
         let value = $e;
-        let $pat = value
-                else {
-                    println!("{}", " failed!".red());
-                    println!("     {} {}", "Expected something of the shape".red(), stringify!($pat).green().bold());
-                    println!("     {}", format!("Got instead: \n\n{}\n", format!("{:#?}", value).bold()).red());
-                    panic!()
-                };
+        let $pat = value else {
+            println!("{}", " failed!".red());
+            println!(
+                "     {} {}",
+                "Expected something of the shape".red(),
+                stringify!($pat).green().bold()
+            );
+            println!(
+                "     {}",
+                format!("Got instead: \n\n{}\n", format!("{:#?}", value).bold()).red()
+            );
+            panic!()
+        };
     };
 }
 use std::io::Write;
