@@ -1,4 +1,4 @@
-name: Nix build
+name: Nix
 
 on:
   push:
@@ -9,7 +9,6 @@ on:
 
 jobs:
   default:
-    name: 'nix build'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
