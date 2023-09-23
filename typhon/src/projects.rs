@@ -6,6 +6,7 @@ use crate::models::*;
 use crate::nix;
 use crate::schema::jobsets::dsl::*;
 use crate::schema::projects::dsl::*;
+use crate::CURRENT_SYSTEM;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 use age::secrecy::ExposeSecret;
@@ -131,13 +132,15 @@ impl Project {
 
         #[derive(Deserialize)]
         struct TyphonProject {
-            actions: Option<String>,
+            actions: Option<HashMap<String, String>>,
             #[serde(default)]
             metadata: ProjectMetadata,
         }
 
         let TyphonProject { actions, metadata }: TyphonProject =
             serde_json::from_value(nix::eval(expr).await?).expect("TODO");
+
+        let actions: Option<&String> = actions.as_ref().map(|m| m.get(&*CURRENT_SYSTEM)).flatten();
 
         let actions_path = if let Some(v) = actions {
             let drv = nix::derivation(&v).await?;
