@@ -18,14 +18,16 @@
     };
   };
 
-  outputs = {
+  outputs = inputs @ {
     self,
     flake-utils,
     nixpkgs,
     crane,
     rust-overlay,
-  }:
-    flake-utils.lib.eachDefaultSystem (system: let
+  }: let
+    lib = import ./lib inputs;
+  in
+    flake-utils.lib.eachSystem lib.systems (system: let
       pkgs = import nixpkgs {
         inherit system;
         overlays = [(import rust-overlay)];
@@ -42,7 +44,6 @@
         pkgs.callPackage ./nix/api-client-test.nix {inherit craneLib;};
       typhon-devshell =
         pkgs.callPackage ./nix/devshell.nix {inherit rustToolchain;};
-      typhon-actions = import ./nix/actions {inherit pkgs;};
     in {
       packages = {
         inherit typhon typhon-webapp typhon-doc typhon-api-client-test;
@@ -58,10 +59,9 @@
         formatted = pkgs.callPackage ./nix/check-formatted.nix {inherit rustToolchain;};
         nixos = pkgs.callPackage ./nix/nixos/test.nix {typhon = self;};
       };
-
-      actions = typhon-actions;
     })
     // {
+      inherit lib;
       nixosModules.default = import ./nix/nixos/typhon.nix self;
     };
 }
