@@ -243,7 +243,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route("/drv-log", web::post().to(drv_log))
             .service(
                 web::scope("/projects/{project}")
-                    .route("", web::post().to(project_info))
+                    .route("", web::get().to(project_info))
                     .route("/create", web::post().to(create_project))
                     .route("/delete", web::post().to(project_delete))
                     .route("/refresh", web::post().to(project_refresh))
