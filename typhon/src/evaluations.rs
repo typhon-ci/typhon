@@ -6,6 +6,7 @@ use crate::schema::builds::dsl::*;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
 use crate::schema::jobsets::dsl::*;
+use crate::CURRENT_SYSTEM;
 use crate::EVALUATIONS;
 use crate::{handles, responses};
 use crate::{log_event, Event};
@@ -133,7 +134,10 @@ impl Evaluation {
         let handle = self.handle().await.unwrap(); // TODO
         let id = self.evaluation_id;
         let task = async move {
-            let expr = format!("{}#typhonJobs", self.evaluation_flake_locked);
+            let expr = format!(
+                "{}#typhonJobs.{}",
+                self.evaluation_flake_locked, *CURRENT_SYSTEM,
+            );
             let mut jobs_ = JobDrvMap::new();
             for job in nix::eval(expr.clone())
                 .await?

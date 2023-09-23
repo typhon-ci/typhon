@@ -295,6 +295,23 @@ pub async fn eval(expr: String) -> Result<serde_json::Value, Error> {
     )?)
 }
 
+pub fn current_system() -> String {
+    String::from_utf8(
+        std::process::Command::new("nix")
+            .args([
+                "eval",
+                "--impure",
+                "--raw",
+                "--expr",
+                "builtins.currentSystem",
+            ])
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap()
+}
+
 pub async fn lock(flake_url: &String) -> Result<String, Error> {
     let output = Command::nix(["flake", "metadata", "--refresh", "--json"])
         .arg(flake_url.clone())

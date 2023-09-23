@@ -110,6 +110,7 @@ pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
 pub static LISTENERS: Lazy<Mutex<listeners::Listeners>> =
     Lazy::new(|| Mutex::new(listeners::Listeners::new()));
 pub static BUILD_LOGS: Lazy<logs::live::Cache<nix::DrvPath>> = Lazy::new(logs::live::Cache::new);
+pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);
 
 pub async fn connection<'a>() -> tokio::sync::MutexGuard<'a, SqliteConnection> {
     CONNECTION.conn.lock().await
