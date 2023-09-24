@@ -1,14 +1,14 @@
 utils: {lib}: let
   inherit
     (lib)
-    mkAction
+    eachSystem
     ;
 in {
   mkGithubJobsets = {
     owner,
     repo,
   }:
-    mkAction (system: let
+    eachSystem (system: let
       pkgs = utils.pkgs.${system};
     in
       pkgs.writeShellApplication {

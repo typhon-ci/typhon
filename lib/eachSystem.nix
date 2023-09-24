@@ -4,5 +4,5 @@ utils: {lib}: let
     systems
     ;
 in {
-  mkAction = utils.lib.genAttrs systems;
+  eachSystem = utils.lib.genAttrs systems;
 }

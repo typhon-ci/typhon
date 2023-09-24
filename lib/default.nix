@@ -2,8 +2,8 @@ inputs: let
   utils = import ./utils.nix inputs;
   x =
     utils.importer "lib" [
+      ./eachSystem.nix
       ./github
-      ./mkAction.nix
       ./mkGitJobsets.nix
       ./mkProject.nix
       ./systems.nix

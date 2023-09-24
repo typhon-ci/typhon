@@ -1,11 +1,11 @@
 utils: {lib}: let
   inherit
     (lib)
-    mkAction
+    eachSystem
     ;
 in {
   mkGitJobsets = url:
-    mkAction (system: let
+    eachSystem (system: let
       pkgs = utils.pkgs.${system};
     in
       pkgs.writeShellApplication {
