@@ -2,6 +2,7 @@ inputs: let
   utils = import ./utils.nix inputs;
   x =
     utils.importer "lib" [
+      ./dummyWebhook.nix
       ./eachSystem.nix
       ./github
       ./mkGitJobsets.nix
