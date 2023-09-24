@@ -15,7 +15,6 @@ in {
         name = "action";
         runtimeInputs = [
           pkgs.curl
-          pkgs.gnused
           pkgs.jq
         ];
         text = ''
