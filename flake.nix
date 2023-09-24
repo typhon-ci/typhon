@@ -8,6 +8,7 @@
       url = "github:ipetkov/crane";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-overlay.follows = "rust-overlay";
     };
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
