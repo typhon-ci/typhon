@@ -92,3 +92,28 @@ impl From<actions::Error> for Error {
         Error::ActionError(e)
     }
 }
+
+impl Into<typhon_types::responses::ResponseError> for Error {
+    fn into(self) -> typhon_types::responses::ResponseError {
+        use {typhon_types::responses::ResponseError::*, Error::*};
+        match self {
+            BuildNotFound(_)
+            | EvaluationNotFound(_)
+            | JobNotFound(_)
+            | JobsetNotFound(_)
+            | ProjectNotFound(_) => ResourceNotFound(format!("{}", self)),
+            AccessDenied
+            | ActionError(_)
+            | BadJobsetDecl(_)
+            | BuildNotRunning(_)
+            | EvaluationNotRunning(_)
+            | JobNotRunning(_)
+            | IllegalProjectHandle(_)
+            | NixError(_)
+            | ProjectAlreadyExists(_)
+            | LoginError
+            | LogNotFound(_) => BadRequest(format!("{}", self)),
+            Todo | UnexpectedDatabaseError(_) => InternalError,
+        }
+    }
+}

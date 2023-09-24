@@ -287,26 +287,7 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
                 e
             );
         }
-        use {error::Error::*, ResponseError::*};
-        match e {
-            BuildNotFound(_)
-            | EvaluationNotFound(_)
-            | JobNotFound(_)
-            | JobsetNotFound(_)
-            | ProjectNotFound(_) => ResourceNotFound(format!("{}", e)),
-            AccessDenied
-            | ActionError(_)
-            | BadJobsetDecl(_)
-            | BuildNotRunning(_)
-            | EvaluationNotRunning(_)
-            | JobNotRunning(_)
-            | IllegalProjectHandle(_)
-            | NixError(_)
-            | ProjectAlreadyExists(_)
-            | LoginError
-            | LogNotFound(_) => BadRequest(format!("{}", e)),
-            Todo | UnexpectedDatabaseError(_) => InternalError,
-        }
+        e.into()
     })?)
 }
 
