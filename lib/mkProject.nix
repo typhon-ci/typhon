@@ -28,6 +28,7 @@ in {
           ${linkAction "jobsets"}
           ${linkAction "begin"}
           ${linkAction "end"}
+          ${linkAction "webhook"}
           ${linkSecrets}
         ''
     );
