@@ -28,9 +28,8 @@ use the `mkGithubProject` helper function:
   inputs = { typhon.url = "github:typhon-ci/typhon"; };
 
   outputs = { self, typhon }:
-    let libTyphon = typhon.actions."x86_64-linux";
-    in {
-      typhonProject = libTyphon.mkGithubProject {
+    {
+      typhonProject = typhon.lib.github.mkGithubProject {
         owner = "user";
         repo = "project";
         secrets = ./secrets.age;
@@ -51,8 +50,7 @@ created on Typhon. It contains a JSON object with your GitHub token:
 Encrypt the JSON file with `age`:
 
 ```shell
-nix shell nixpkgs#age
-age --encrypt -r $public_key -o secrets.age secrets.json
+nix run nixpkgs#age -- --encrypt -r $public_key -o secrets.age secrets.json
 ```
 
 Finally, you need to commit the lock file of your flake.
@@ -71,7 +69,7 @@ For instance, you can declare GNU hello as your only job:
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
     in {
-      typhonJobs = {
+      typhonJobs.${system} = {
         inherit (pkgs) hello;
       };
     };

@@ -10,8 +10,9 @@ expose a `typhonProject` attribute defining the project settings.
 
 `typhonProject` contains two attributes: `meta` and `actions`. `meta` is an
 attribute set which defines metadata about your project: a title, a description
-and a homepage. `actions` is a derivation that builds actions for your project.
-Actions are another core concept of Typhon and are introduced below.
+and a homepage. `actions` is an attribute set of derivations that build actions
+for your project. Actions are another core concept of Typhon and are introduced
+below.
 
 ## Actions
 
@@ -27,10 +28,10 @@ are three actions a project can define.
   your project. They are typically used to set statuses on your repository, but
   can also be used for deployment.
 
-The `actions` attribute of `typhonProject` can also expose a `secrets` file.
-This is an age encrypted JSON file that typically contains tokens for the
-actions. It must be encrypted with the project's public key and is decrypted at
-runtime and passed as input to the actions.
+Actions can also expose a `secrets` file. This is an age encrypted JSON file
+that typically contains tokens for the actions. It must be encrypted with the
+project's public key and is decrypted at runtime and passed as input to the
+actions.
 
 ## Jobsets
 
