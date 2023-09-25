@@ -274,6 +274,7 @@ pub mod responses {
         pub build_infos: BuildInfo,
         pub dist: bool,
         pub status: String,
+        pub system: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -37,7 +37,8 @@ CREATE TABLE jobs (
     job_evaluation INTEGER NOT NULL REFERENCES evaluations(evaluation_id) ON DELETE CASCADE,
     job_name TEXT NOT NULL,
     job_status TEXT CHECK(job_status in ('begin', 'waiting', 'end', 'success', 'error', 'canceled')) NOT NULL,
-    UNIQUE(job_evaluation, job_name)
+    job_system TEXT NOT NULL,
+    UNIQUE(job_evaluation, job_system, job_name)
 );
 
 CREATE TABLE builds (

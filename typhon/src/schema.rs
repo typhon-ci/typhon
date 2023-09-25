@@ -30,6 +30,7 @@ diesel::table! {
         job_evaluation -> Integer,
         job_name -> Text,
         job_status -> Text,
+        job_system -> Text,
     }
 }
 

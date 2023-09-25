@@ -68,6 +68,7 @@ pub struct Job {
     pub job_evaluation: i32,
     pub job_name: String,
     pub job_status: String,
+    pub job_system: String,
 }
 
 #[derive(Insertable)]
@@ -78,6 +79,7 @@ pub struct NewJob<'a> {
     pub job_evaluation: i32,
     pub job_name: &'a str,
     pub job_status: &'a str,
+    pub job_system: &'a str,
 }
 
 #[derive(Queryable, Clone)]

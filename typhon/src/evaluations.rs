@@ -55,6 +55,7 @@ async fn evaluate_aux(id: i32, new_jobs: JobDrvMap) -> Result<(), Error> {
                         job_evaluation: id,
                         job_name: &name,
                         job_status: "begin",
+                        job_system: &*CURRENT_SYSTEM,
                     })
                     .get_result(conn)?;
                 Ok((build, job))

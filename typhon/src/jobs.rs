@@ -7,6 +7,7 @@ use crate::responses;
 use crate::schema::builds::dsl::*;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
+use crate::CURRENT_SYSTEM;
 use crate::{log_event, Event};
 use crate::{BUILDS, JOBS, SETTINGS};
 use diesel::prelude::*;
@@ -42,6 +43,7 @@ impl Job {
         Ok(jobs
             .filter(job_evaluation.eq(evaluation.evaluation_id))
             .filter(job_name.eq(job_name_))
+            .filter(job_system.eq(&*CURRENT_SYSTEM))
             .first::<Job>(&mut *conn)
             .map_err(|_| {
                 Error::JobNotFound(handles::job((
@@ -68,6 +70,7 @@ impl Job {
             build_infos: build.into(),
             dist: self.job_dist,
             status: self.job_status.clone(),
+            system: self.job_system.clone(),
         })
     }
 
@@ -87,6 +90,7 @@ impl Job {
             "out": build.build_out,
             "project": project.project_name,
             "status": build.build_status,
+            "system": self.job_system,
         }))
     }
 
