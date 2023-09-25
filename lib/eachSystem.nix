@@ -1,4 +1,4 @@
-utils: {lib}: let
+utils: lib: let
   inherit
     (lib)
     systems

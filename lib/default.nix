@@ -1,7 +1,7 @@
 inputs: let
   utils = import ./utils.nix inputs;
-  x =
-    utils.importer "lib" [
+  self =
+    utils.importer null [
       ./dummyWebhook.nix
       ./eachSystem.nix
       ./github
@@ -9,6 +9,6 @@ inputs: let
       ./mkProject.nix
       ./systems.nix
     ]
-    x;
+    self;
 in
-  x.lib
+  self

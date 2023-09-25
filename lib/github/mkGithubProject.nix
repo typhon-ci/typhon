@@ -1,4 +1,4 @@
-_: {lib}: let
+_: lib: let
   inherit
     (lib)
     mkProject
