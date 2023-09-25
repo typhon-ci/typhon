@@ -5,6 +5,7 @@ _: lib: let
     ;
   inherit
     (lib.github)
+    githubWebhook
     mkGithubJobsets
     mkGithubStatus
     ;
@@ -23,6 +24,7 @@ in {
         jobsets = mkGithubJobsets {inherit owner repo;};
         begin = mkGithubStatus {inherit owner repo;};
         end = mkGithubStatus {inherit owner repo;};
+        webhook = githubWebhook;
       };
       inherit secrets;
     };
