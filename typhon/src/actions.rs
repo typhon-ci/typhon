@@ -108,7 +108,7 @@ pub mod webhooks {
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
 
-    #[derive(Clone, Serialize)]
+    #[derive(Clone, Debug, Serialize)]
     pub struct Input {
         pub headers: HashMap<String, String>,
         pub body: String,

@@ -240,15 +240,6 @@ async fn webhook(
     req: HttpRequest,
     body: String,
 ) -> Result<HttpResponse, Error> {
-    let project_handle = handles::project(path.into_inner().to_string());
-    let project = crate::models::Project::get(&project_handle)
-        .await
-        .map_err(|e| {
-            if e.is_internal() {
-                log::error!("webhook raised error: {:?}", e);
-            }
-            ResponseErrorWrapper(e.into())
-        })?;
     let input = webhooks::Input {
         headers: req
             .headers()
@@ -268,6 +259,19 @@ async fn webhook(
             .collect::<Result<HashMap<_, _>, Error>>()?,
         body,
     };
+
+    log::info!("handling webhook {:?}", input);
+
+    let project_handle = handles::project(path.into_inner().to_string());
+    let project = crate::models::Project::get(&project_handle)
+        .await
+        .map_err(|e| {
+            if e.is_internal() {
+                log::error!("webhook raised error: {:?}", e);
+            }
+            ResponseErrorWrapper(e.into())
+        })?;
+
     let requests = project
         .webhook(input)
         .await
@@ -278,9 +282,11 @@ async fn webhook(
             ResponseErrorWrapper(e.into())
         })?
         .into_iter();
+
     for req in requests {
         let _ = handle_request(User::Admin, req).await;
     }
+
     Ok(HttpResponse::Ok().finish())
 }
 
