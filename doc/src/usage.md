@@ -1,104 +1,112 @@
 # Usage
 
 This section gives an example of how to use Typhon with a GitHub project. Let's
-assume your username is "user" and you have two repositories, "project" and
-"config". "project" is the repository you want to put under CI, "config" is
-going to contain the Typhon declaration. These two repositories can actually be
-the same.
+assume your username is `$user` and you have two repositories,
+`github.com/$user/$project` and `github.com/$user/$config`. `$project` is the
+repository you want to put under CI, `$config` is going to contain the Typhon
+declaration. These two repositories can actually be the same, but separating the
+two can mitigate security concerns. Finally, let's assume your Typhon instance
+URL is `$typhon_url` (you must have https enabled).
 
-## Generate a GitHub token
+## Creating a new Typhon project
 
-Generate a token on GitHub and make sure it has permission to update statuses on
-the "project" repository.
+Log in to your Typhon instance and create a new project, with an identifier
+`$id` (typically `$id == $project`). Set the declaration to use the flake URI
+`github:$user/$config`. Once the project is created, a public key is associated
+to it, let's call it `$pk`.
 
-## Create a project
+## GitHub settings
 
-Log in to your Typhon instance and create a new project. As the declaration, use
-the flake URI `github:user/config`. Once the project is created, a public key
-is associated to it.
+We need to generate a token on GitHub and make sure it has permission to update
+statuses on `$project`, let's call it `$token`. Then let's generate a random
+string `$secret` and add a webhook to `$project` with the following settings:
+- payload URL: `$typhon_url/api/projects/$id/webhook`
+- content type: `application/json`
+- secret: `$secret`
+- events: Just the `push` event
 
-## Declare a project
+## The configuration flake
 
-Create a flake in the "config" repository, then add a `typhonProject` attribute.
-In practice, you can rely on Typhon's library to declare projects. Here, you can
-use the `mkGithubProject` helper function:
+Let's create a flake in the `$config` repository, then add a `typhonProject`
+attribute. We're going to import `typhon` as a flake input and use the
+`mkGithubProject` helper function from the library:
 
 ```nix
 {
-  inputs = { typhon.url = "github:typhon-ci/typhon"; };
+  inputs = {typhon.url = "github:typhon-ci/typhon";};
 
-  outputs = { self, typhon }:
-    {
-      typhonProject = typhon.lib.github.mkGithubProject {
-        owner = "user";
-        repo = "project";
-        secrets = ./secrets.age;
-      };
+  outputs = {
+    self,
+    typhon,
+  }: {
+    typhonProject = typhon.lib.github.mkGithubProject {
+      owner = "$user";
+      repo = "$project";
+      secrets = ./secrets.age;
     };
+  };
 }
 ```
 
-The `secrets.age` file must be encrypted with the public key of the project you
-created on Typhon. It contains a JSON object with your GitHub token:
+We need to generate the `secrets.age` file. First let's write a `secrets.json`
+file containing the secrets you generated (don't commit it!):
 
 ```json
 {
-  "github_token": "..."
+  "github_token": "$token",
+  "github_webhook_secret": "$secret"
 }
 ```
 
-Encrypt the JSON file with `age`:
+Then, we encrypt the JSON file with `age`, using the public key of the project:
 
 ```shell
-nix run nixpkgs#age -- --encrypt -r $public_key -o secrets.age secrets.json
+nix run nixpkgs#age -- --encrypt -r "$pk" -o secrets.age secrets.json
 ```
 
-Finally, you need to commit the lock file of your flake.
+We also need to generate the lock file:
 
-## Declare jobs
+```shell
+nix flake lock
+```
 
-In the "project" repository, create a flake with a `typhonJobs` attribute.
-For instance, you can declare GNU hello as your only job:
+Finally, we commit `secrets.age`, `flake.nix` and `flake.lock`.
+
+## The project flake
+
+In the `$project` repository, we create a flake with a `typhonJobs` attribute.
+For instance, let's declare GNU hello as your only job:
 
 ```nix
 {
-  inputs = { nixpkgs.url = "nixpkgs"; };
+  inputs = {nixpkgs.url = "nixpkgs";};
 
-  outputs = { self, nixpkgs }:
-    let
-      system = "x86_64-linux";
-      pkgs = import nixpkgs { inherit system; };
-    in {
-      typhonJobs.${system} = {
-        inherit (pkgs) hello;
-      };
+  outputs = {
+    self,
+    nixpkgs,
+  }: let
+    system = "x86_64-linux";
+    pkgs = nixpkgs.legacyPackages.${system};
+  in {
+    typhonJobs.${system} = {
+      inherit (pkgs) hello;
     };
+  };
 }
 ```
 
-You also need to commit the lock file in this repository.
+We need to generate a lock file and commit `flake.nix` and `flake.lock`.
 
-## Refresh
+## Refreshing the project declaration
 
-Go to your project's page on Typhon and refresh the declaration. This is not
-done automatically on purpose. Always be careful before refreshing, if a
-malicious commit was made on "config" this could compromise your secrets.
+Let's go to your project's page on Typhon and refresh the declaration. This is
+not done automatically on purpose. Always be careful before refreshing: if a
+malicious commit was made on `$config`, your secrets could be compromised. Once
+this is done, your Typhon project is using the settings declared in `$config`.
 
-## Update jobsets
+## Verifying everything is working
 
-You should now be able to update the jobsets of your project. A list of jobsets
-should appear, one for each branch of your repository. At the moment this is not
-done automatically, at some point it should be done either periodically by
-Typhon or through the use of webhooks.
-
-## Evaluate a jobset
-
-Go to a jobset's page and run an evaluation, it should appear promptly. Do this
-after each commit on the corresponding branch. This too should be automatic in
-the future.
-
-## You're done
-
-By going to the evaluation's page you will see the evaluation's status. Once it
-is finished and successful, you will be able to browse your jobs. Statuses
-should appear on your commits on GitHub.
+We can now update the jobsets of your project from the project interface. A list
+of jobsets should appear, one for each branch of your repository. Now, any push
+to the repository should generate an evaluation in the corresponding jobset and
+statuses should appear on your repository.
