@@ -14,7 +14,8 @@ shell.
 The backend uses [Actix](https://actix.rs/) for the web server and
 [Diesel](https://diesel.rs/) for the database management.
 
-To run the server, go to the `typhon/` directory and run:
+To run the server, first make sure that `/nix/var/nix/gcroots/typhon/` exists
+and that you have write access to the directory. Then go to `typhon/` and run:
 
 ```shell
 cargo run -- -p $(echo -n password | sha256sum | head -c 64) -j null -w ""
@@ -26,5 +27,5 @@ The server will be available at `http://localhost:8000`.
 
 The frontend consists of a webapp written with [Seed](https://seed-rs.org/). It
 can be built and tested with [Trunk](https://trunkrs.dev/). To run the webapp,
-go to the `typhon-webapp/` directory and run `npm install` then `trunk serve`.
-The webapp will be available at `http://localhost:8080`.
+go to `typhon-webapp/` and run `npm install` then `trunk serve`. The webapp will
+be available at `http://localhost:8080`.
