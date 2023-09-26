@@ -20,5 +20,6 @@ seed.workspace = true
 serde-wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+time.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
