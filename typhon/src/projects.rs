@@ -1,6 +1,7 @@
 use crate::actions;
 use crate::connection;
 use crate::error::Error;
+use crate::gcroots;
 use crate::jobsets::JobsetDecl;
 use crate::models::*;
 use crate::nix;
@@ -9,6 +10,7 @@ use crate::schema::projects::dsl::*;
 use crate::CURRENT_SYSTEM;
 use crate::{handles, responses};
 use crate::{log_event, Event};
+
 use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
 use serde::Deserialize;
@@ -160,6 +162,7 @@ impl Project {
                 project_decl_locked.eq(flake_locked),
             ))
             .execute(&mut *conn)?;
+        gcroots::update(&mut *conn);
         drop(conn);
         log_event(Event::ProjectUpdated(self.handle()));
 
@@ -248,6 +251,7 @@ impl Project {
 
             Ok(())
         })?;
+        gcroots::update(&mut *conn);
         drop(conn);
 
         log_event(Event::ProjectJobsetsUpdated(self.handle()));

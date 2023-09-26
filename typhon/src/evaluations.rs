@@ -1,5 +1,6 @@
 use crate::connection;
 use crate::error::Error;
+use crate::gcroots;
 use crate::models::*;
 use crate::nix;
 use crate::schema::builds::dsl::*;
@@ -10,6 +11,7 @@ use crate::CURRENT_SYSTEM;
 use crate::EVALUATIONS;
 use crate::{handles, responses};
 use crate::{log_event, Event};
+
 use diesel::prelude::*;
 use std::collections::HashMap;
 
@@ -182,6 +184,7 @@ impl Evaluation {
             let _ = diesel::update(evaluations.find(id))
                 .set(evaluation_status.eq(status))
                 .execute(&mut *conn);
+            gcroots::update(&mut *conn);
             drop(conn);
 
             log_event(Event::EvaluationFinished(handle));

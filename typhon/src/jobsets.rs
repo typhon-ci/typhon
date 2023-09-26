@@ -1,5 +1,6 @@
 use crate::connection;
 use crate::error::Error;
+use crate::gcroots;
 use crate::models::*;
 use crate::nix;
 use crate::schema::evaluations::dsl::*;
@@ -8,6 +9,7 @@ use crate::schema::projects::dsl::*;
 use crate::time;
 use crate::{handles, responses};
 use crate::{log_event, Event};
+
 use diesel::prelude::*;
 use serde::Deserialize;
 
@@ -52,6 +54,7 @@ impl Jobset {
                 .values(&new_evaluation)
                 .get_result(&mut *conn)?)
         })?;
+        gcroots::update(&mut *conn);
         drop(conn);
 
         let handle = evaluation.handle().await?;

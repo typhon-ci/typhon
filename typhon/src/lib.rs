@@ -2,6 +2,7 @@ mod actions;
 mod builds;
 mod error;
 mod evaluations;
+mod gcroots;
 mod jobs;
 mod jobsets;
 mod models;
