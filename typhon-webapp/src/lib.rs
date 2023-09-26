@@ -1,5 +1,6 @@
 mod appurl;
 mod build;
+mod editable_text;
 mod evaluation;
 mod home;
 mod job;
