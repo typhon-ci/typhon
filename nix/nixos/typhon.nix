@@ -7,7 +7,12 @@ typhon: {
   typhonPackages = typhon.packages.${config.nixpkgs.system};
   inherit (lib) mkEnableOption mkIf mkOption types;
   cfg = config.services.typhon;
-  execstart = let
+  gcrootsDir = "/nix/var/nix/gcroots/typhon";
+  init-execstart = pkgs.writeShellScript "typhon-init" ''
+    [ -e ${gcrootsDir} ] || mkdir ${gcrootsDir}
+    chown typhon:typhon ${gcrootsDir}
+  '';
+  typhon-execstart = let
     protocol =
       if cfg.https
       then "https"
@@ -64,16 +69,28 @@ in {
     };
     users.groups.typhon = {};
 
+    systemd.services.typhon-init = {
+      description = "Typhon init";
+      wantedBy = ["multi-user.target"];
+      serviceConfig = {
+        ExecStart = init-execstart;
+        RemainAfterExit = true;
+        Type = "oneshot";
+      };
+    };
+
     systemd.services.typhon = {
       description = "Typhon service";
       wantedBy = ["multi-user.target"];
       path = [pkgs.nix pkgs.git pkgs.bubblewrap];
       serviceConfig = {
-        ExecStart = execstart;
+        ExecStart = typhon-execstart;
         Type = "simple";
         User = "typhon";
         Group = "typhon";
       };
+      requires = ["typhon-init.service"];
+      after = ["typhon-init.service"];
     };
 
     services.nginx = {
