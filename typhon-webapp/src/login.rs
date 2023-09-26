@@ -1,8 +1,9 @@
+use crate::appurl::AppUrl;
 use crate::perform_request;
-use crate::{appurl::AppUrl, perform_request_aux};
+
+use typhon_types::*;
 
 use seed::{prelude::*, *};
-use typhon_types::*;
 
 pub struct Model {
     error: bool,

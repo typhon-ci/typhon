@@ -1,4 +1,4 @@
-use crate::{appurl::AppUrl, perform_request, view_error, view_log, SETTINGS};
+use crate::{appurl::AppUrl, perform_request, view_error, view_log};
 use seed::{prelude::*, *};
 use typhon_types::*;
 

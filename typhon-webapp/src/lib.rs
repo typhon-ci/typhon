@@ -447,15 +447,6 @@ fn header(model: &Model) -> Node<Msg> {
     ]
 }
 
-fn breadcrumb(model: &Model) -> Node<Msg> {
-    nav![
-        button!["Projects"],
-        button!["F*"],
-        button!["Docs"],
-        id!("breadcrumb")
-    ]
-}
-
 fn view(model: &Model) -> impl IntoNodes<Msg> {
     // The websocket needs to be stored in the app model because the connection is closed on drop.
     // However, the app never uses the websocket, causing a warning that the field is not read.
@@ -468,7 +459,6 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
              "],
         header(model),
         main![
-            // breadcrumb(model),
             match &model.page {
                 Page::NotFound => div!["not found!"],
                 Page::Home(home_model) => home::view(&home_model, model.admin).map_msg(Msg::HomeMsg),
@@ -489,13 +479,13 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
             }, C![
                 match &model.page {
                     Page::NotFound => "not-found",
-                    Page::Home(home_model) => "home",
-                    Page::Login(login_model) => "login",
-                    Page::Project(project_model) => "project",
-                    Page::Jobset(jobset_model) => "jobset",
-                    Page::Evaluation(evaluation_model) => "evaluation",
-                    Page::Job(job_model) => "job",
-                    Page::Build(build_model) => "build"
+                    Page::Home(_) => "home",
+                    Page::Login(_) => "login",
+                    Page::Project(_) => "project",
+                    Page::Jobset(_) => "jobset",
+                    Page::Evaluation(_) => "evaluation",
+                    Page::Job(_) => "job",
+                    Page::Build(_) => "build"
                 }
             ]],
     ]

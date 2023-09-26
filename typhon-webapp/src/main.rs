@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use typhon_webapp::{app, ApiServerSettings, Settings};
 
 /// Finds the webroot of the webapp by grapping the [link] tag

@@ -3,9 +3,7 @@ use seed::{prelude::*, *};
 use typhon_types::*;
 
 mod editable_text {
-    use crate::{appurl::AppUrl, perform_request, view_error, Urls};
     use seed::{prelude::*, *};
-    use typhon_types::*;
 
     #[derive(Clone)]
     enum State {
@@ -24,7 +22,6 @@ mod editable_text {
         Update(String),
         Send,
         Edit,
-        Cancel,
         Synchronized,
     }
 
@@ -66,10 +63,6 @@ mod editable_text {
                 let text = text.clone();
                 model.state = State::Sync(text.clone());
                 Some(OutMsg::NewValue(text))
-            }
-            (Msg::Cancel, _) => {
-                model.state = State::Read;
-                None
             }
             (Msg::Edit, _) => {
                 model.state = State::Edit(model.text.clone());
@@ -129,7 +122,6 @@ pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Project,
     info: Option<responses::ProjectInfo>,
-    input_private_key: String,
     declaration: editable_text::Model,
 }
 
@@ -141,8 +133,8 @@ impl Model {
 
 #[derive(Clone, Debug)]
 pub enum Msg {
-    Delete,
-    Deleted,
+    //Delete,
+    //Deleted,
     Error(responses::ResponseError),
     ErrorIgnored,
     Event(Event),
@@ -150,8 +142,6 @@ pub enum Msg {
     GetInfo(responses::ProjectInfo),
     Noop,
     Refresh,
-    SetPrivateKey,
-    UpdateInputPrivateKey(String),
     UpdateJobsets,
     MsgDeclaration(editable_text::Msg),
 }
@@ -163,7 +153,6 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
         error: None,
         handle: handle.clone(),
         info: None,
-        input_private_key: "".into(),
         declaration: editable_text::init("".to_string()),
     }
 }
@@ -194,19 +183,19 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 requests::Project::SetDecl(decl)
             })
         }
-        Msg::Delete => {
-            let handle = model.handle.clone();
-            let req = requests::Request::Project(handle, requests::Project::Delete);
-            perform_request!(
-                orders,
-                req,
-                responses::Response::Ok => Msg::Deleted,
-                Msg::Error,
-            );
-        }
-        Msg::Deleted => {
-            orders.request_url(Urls::home());
-        }
+        //Msg::Delete => {
+        //    let handle = model.handle.clone();
+        //    let req = requests::Request::Project(handle, requests::Project::Delete);
+        //    perform_request!(
+        //        orders,
+        //        req,
+        //        responses::Response::Ok => Msg::Deleted,
+        //        Msg::Error,
+        //    );
+        //}
+        //Msg::Deleted => {
+        //    orders.request_url(Urls::home());
+        //}
         Msg::Error(err) => {
             model.error = Some(err);
         }
@@ -242,22 +231,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
-        Msg::SetPrivateKey => {
-            let handle = model.handle.clone();
-            let private_key = model.input_private_key.clone();
-            model.input_private_key = "".into();
-            let req =
-                requests::Request::Project(handle, requests::Project::SetPrivateKey(private_key));
-            perform_request!(
-                orders,
-                req,
-                responses::Response::Ok => Msg::Noop,
-                Msg::Error,
-            );
-        }
-        Msg::UpdateInputPrivateKey(private_key) => {
-            model.input_private_key = private_key;
-        }
         Msg::UpdateJobsets => {
             let handle = model.handle.clone();
             let req = requests::Request::Project(handle, requests::Project::UpdateJobsets);
@@ -268,7 +241,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
-        _ => log!("TODO!"),
     }
 }
 
