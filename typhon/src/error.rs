@@ -26,8 +26,9 @@ pub enum Error {
 
 impl Error {
     pub fn is_internal(&self) -> bool {
+        use Error::*;
         match self {
-            Error::UnexpectedDatabaseError(_) | Error::Todo => true,
+            ActionError(actions::Error::Unexpected) | UnexpectedDatabaseError(_) | Todo => true,
             _ => false,
         }
     }
@@ -97,6 +98,9 @@ impl Into<typhon_types::responses::ResponseError> for Error {
     fn into(self) -> typhon_types::responses::ResponseError {
         use {typhon_types::responses::ResponseError::*, Error::*};
         match self {
+            ActionError(actions::Error::Unexpected) | UnexpectedDatabaseError(_) | Todo => {
+                InternalError
+            }
             BuildNotFound(_)
             | EvaluationNotFound(_)
             | JobNotFound(_)
@@ -113,7 +117,6 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | ProjectAlreadyExists(_)
             | LoginError
             | LogNotFound(_) => BadRequest(format!("{}", self)),
-            Todo | UnexpectedDatabaseError(_) => InternalError,
         }
     }
 }

@@ -14,6 +14,7 @@ pub enum Error {
     ScriptNotFound,
     SecretsNotFound,
     WrongRecipient,
+    Unexpected,
 }
 
 impl std::fmt::Display for Error {
@@ -26,6 +27,7 @@ impl std::fmt::Display for Error {
             ScriptNotFound => write!(f, "Action script not found"),
             SecretsNotFound => write!(f, "Secrets file not found"),
             WrongRecipient => write!(f, "Secrets file uncrypted with wrong key"),
+            Unexpected => write!(f, "Unexpected error"),
         }
     }
 }
@@ -88,13 +90,13 @@ pub async fn run(
         .stdout(Stdio::piped())
         .spawn()
         .expect("command bwrap failed to start");
-    let mut stdin = child.stdin.take().unwrap(); // TODO: check if unwrap is safe
-    let mut stdout = child.stdout.take().unwrap(); // TODO: check if unwrap is safe
-    let mut stderr = child.stderr.take().unwrap(); // TODO: check if unwrap is safe
+    let mut stdin = child.stdin.take().ok_or(Error::Unexpected)?;
+    let mut stdout = child.stdout.take().ok_or(Error::Unexpected)?;
+    let mut stderr = child.stderr.take().ok_or(Error::Unexpected)?;
     stdin
         .write(action_input.to_string().as_bytes())
         .await
-        .unwrap(); // TODO: check if unwrap is safe
+        .map_err(|_| Error::Unexpected)?;
     drop(stdin); // send EOF
 
     let mut res = String::new();
