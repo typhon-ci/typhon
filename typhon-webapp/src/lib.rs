@@ -162,7 +162,6 @@ impl<'a> Urls<'a> {
     }
 }
 
-#[derive(Clone)]
 pub enum Page {
     Login(login::Model),
     Home(home::Model),
@@ -174,22 +173,20 @@ pub enum Page {
     NotFound,
 }
 
-impl From<&Page> for AppUrl {
-    fn from(page: &Page) -> AppUrl {
-        match page {
-            Page::Login(m) => AppUrl::from("login") + m.clone().into(),
+impl Page {
+    pub fn app_url(&self) -> AppUrl {
+        match self {
+            Page::Login(m) => AppUrl::from("login") + m.app_url(),
             Page::Home(_) => AppUrl::default(),
-            Page::Project(m) => AppUrl::from("projects") + m.clone().into(),
-            Page::Jobset(m) => AppUrl::from("projects") + m.clone().into(),
-            Page::Evaluation(m) => AppUrl::from("projects") + m.clone().into(),
-            Page::Job(m) => AppUrl::from("projects") + m.clone().into(),
-            Page::Build(m) => AppUrl::from("builds") + m.clone().into(),
+            Page::Project(m) => AppUrl::from("projects") + m.app_url(),
+            Page::Jobset(m) => AppUrl::from("projects") + m.app_url(),
+            Page::Evaluation(m) => AppUrl::from("projects") + m.app_url(),
+            Page::Job(m) => AppUrl::from("projects") + m.app_url(),
+            Page::Build(m) => AppUrl::from("builds") + m.app_url(),
             Page::NotFound => AppUrl::from("404"),
         }
     }
-}
 
-impl Page {
     fn from_chunks(chunks: Vec<&str>, orders: &mut impl Orders<Msg>) -> Page {
         match chunks.as_slice() {
             [] => Page::Home(home::init(&mut orders.proxy(Msg::HomeMsg))),
@@ -232,6 +229,7 @@ impl Page {
             _ => Page::NotFound,
         }
     }
+
     fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Self {
         let webroot = webroot_chunks().collect::<Vec<_>>();
         let path_parts = url.remaining_path_parts();
@@ -287,7 +285,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     update_aux(msg, model, orders);
     let history = seed::browser::util::history();
-    let url = seed::Url::from(AppUrl::from(&model.page)).to_string();
+    let url = seed::Url::from(model.page.app_url()).to_string();
     let prev = seed::browser::util::window().location().pathname().unwrap();
     if url != prev {
         log!(format!("url={url}, prev={prev}"));
@@ -302,7 +300,7 @@ fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         (Msg::Login, _) => {
             model.page = Page::Login(login::init(
                 &mut orders.proxy(Msg::LoginMsg),
-                Some(model.page.clone()),
+                Some(model.page.app_url()),
             ))
         }
         (
@@ -312,13 +310,10 @@ fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => match login::update(msg, login_model, &mut orders.proxy(Msg::LoginMsg)) {
-            Some(login::OutMsg::Login(pw, redirection)) => {
+            Some(login::OutMsg::Login(pw, url)) => {
                 set_token(&pw); // TODO
                 model.admin = true;
-                model.page = match redirection {
-                    login::Redirect::ToPage(page) => page,
-                    login::Redirect::ToUrl(url) => Page::from_chunks(vec![], orders),
-                };
+                model.page = Page::init(url.into(), orders);
             }
             None => {}
         },

@@ -1,17 +1,17 @@
 use crate::perform_request;
 use crate::{appurl::AppUrl, perform_request_aux};
+
 use seed::{prelude::*, *};
 use typhon_types::*;
 
-#[derive(Clone)]
 pub struct Model {
     error: bool,
     password: String,
-    previous_page: Option<Box<crate::Page>>,
+    previous_page_url: Option<AppUrl>,
 }
 
-impl From<Model> for AppUrl {
-    fn from(_: Model) -> AppUrl {
+impl Model {
+    pub fn app_url(&self) -> AppUrl {
         AppUrl::default()
     }
 }
@@ -24,33 +24,21 @@ pub enum Msg {
     LoggedIn { token: String },
 }
 
-pub enum Redirect {
-    ToPage(crate::Page),
-    ToUrl(String),
-}
-
 pub enum OutMsg {
-    Login(String, Redirect),
+    Login(String, AppUrl),
 }
 
-pub fn init(_orders: &mut impl Orders<Msg>, previous_page: Option<crate::Page>) -> Model {
+pub fn init(_orders: &mut impl Orders<Msg>, previous_page_url: Option<AppUrl>) -> Model {
     Model {
         error: false,
         password: "".into(),
-        previous_page: previous_page.map(Box::new),
+        previous_page_url,
     }
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) -> Option<OutMsg> {
     match msg {
         Msg::Enter => {
-            // let redirect = OutMsg::Login(
-            //     model.password.clone(),
-            //     match &model.previous_page {
-            //         None => Redirect::ToUrl("".into()),
-            //         Some(page) => Redirect::ToPage(*page.clone()),
-            //     },
-            // );
             let req = requests::Request::Login(model.password.clone());
             perform_request!(
                 orders,
@@ -62,10 +50,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) -> Opt
         }
         Msg::LoggedIn { token } => Some(OutMsg::Login(
             token,
-            match &model.previous_page {
-                None => Redirect::ToUrl("".into()),
-                Some(page) => Redirect::ToPage(*page.clone()),
-            },
+            model.previous_page_url.clone().unwrap_or("".into()),
         )),
         Msg::Error => {
             model.password = "".into();

@@ -2,15 +2,15 @@ use crate::{appurl::AppUrl, perform_request, view_error};
 use seed::{prelude::*, *};
 use typhon_types::*;
 
-#[derive(Clone)]
 pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Jobset,
     info: Option<responses::JobsetInfo>,
 }
-impl From<Model> for AppUrl {
-    fn from(m: Model) -> AppUrl {
-        Vec::<String>::from(m.handle).into()
+
+impl Model {
+    pub fn app_url(&self) -> AppUrl {
+        Vec::<String>::from(self.handle.clone()).into()
     }
 }
 

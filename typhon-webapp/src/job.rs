@@ -5,7 +5,6 @@ use seed::{
 };
 use typhon_types::*;
 
-#[derive(Clone, Debug)]
 pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Job,
@@ -15,9 +14,9 @@ pub struct Model {
     log: Vec<String>,
 }
 
-impl From<Model> for AppUrl {
-    fn from(m: Model) -> AppUrl {
-        Vec::<String>::from(m.handle).into()
+impl Model {
+    pub fn app_url(&self) -> AppUrl {
+        Vec::<String>::from(self.handle.clone()).into()
     }
 }
 

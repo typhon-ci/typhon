@@ -13,7 +13,7 @@ mod editable_text {
         Edit(String),
         Sync(String),
     }
-    #[derive(Clone)]
+
     pub struct Model {
         pub text: String,
         state: State,
@@ -125,7 +125,6 @@ mod editable_text {
     }
 }
 
-#[derive(Clone)]
 pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Project,
@@ -133,9 +132,10 @@ pub struct Model {
     input_private_key: String,
     declaration: editable_text::Model,
 }
-impl From<Model> for AppUrl {
-    fn from(m: Model) -> AppUrl {
-        Vec::<String>::from(m.handle).into()
+
+impl Model {
+    pub fn app_url(&self) -> AppUrl {
+        Vec::<String>::from(self.handle.clone()).into()
     }
 }
 
