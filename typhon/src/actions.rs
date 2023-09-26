@@ -10,6 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 pub enum Error {
     InvalidKey,
     InvalidSecrets,
+    NonUtf8,
     ScriptNotFound,
     SecretsNotFound,
     WrongRecipient,
@@ -17,12 +18,14 @@ pub enum Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use Error::*;
         match self {
-            Error::InvalidKey => write!(f, "Invalid key"),
-            Error::InvalidSecrets => write!(f, "Wrong secrets format"),
-            Error::ScriptNotFound => write!(f, "Action script not found"),
-            Error::SecretsNotFound => write!(f, "Secrets file not found"),
-            Error::WrongRecipient => write!(f, "Secrets file uncrypted with wrong key"),
+            InvalidKey => write!(f, "Invalid key"),
+            InvalidSecrets => write!(f, "Wrong secrets format"),
+            NonUtf8 => write!(f, "Action outputted non-UTF8 characters"),
+            ScriptNotFound => write!(f, "Action script not found"),
+            SecretsNotFound => write!(f, "Secrets file not found"),
+            WrongRecipient => write!(f, "Secrets file uncrypted with wrong key"),
         }
     }
 }
@@ -95,9 +98,15 @@ pub async fn run(
     drop(stdin); // send EOF
 
     let mut res = String::new();
-    stdout.read_to_string(&mut res).await.unwrap();
+    stdout
+        .read_to_string(&mut res)
+        .await
+        .map_err(|_| Error::NonUtf8)?;
     let mut log = String::new();
-    stderr.read_to_string(&mut log).await.unwrap();
+    stderr
+        .read_to_string(&mut log)
+        .await
+        .map_err(|_| Error::NonUtf8)?;
 
     Ok((res, log))
 }
