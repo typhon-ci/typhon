@@ -3,14 +3,11 @@ use time;
 
 #[derive(Clone, Debug)]
 pub enum Msg {
-    StartHovering,
-    StopHovering,
     Tick,
 }
 
 pub struct Model {
     date_time: time::OffsetDateTime,
-    hovering: bool,
     timer_handle: StreamHandle,
 }
 
@@ -22,21 +19,17 @@ fn now() -> time::OffsetDateTime {
 
 pub fn init(orders: &mut impl Orders<Msg>, timestamp: &i64) -> Model {
     let date_time = time::OffsetDateTime::UNIX_EPOCH + time::Duration::new(*timestamp, 0);
-    let hovering = false;
     let timer_handle = orders.stream_with_handle(streams::interval(100, || Msg::Tick));
     Model {
         date_time,
-        hovering,
         timer_handle,
     }
 }
 
-pub fn update(msg: Msg, model: &mut Model, _orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg>) {
     use Msg::*;
     match msg {
         Tick => (),
-        StartHovering => model.hovering = true,
-        StopHovering => model.hovering = false,
     }
 }
 
@@ -45,19 +38,40 @@ pub fn view(model: &Model) -> Node<Msg> {
     let _ = model.timer_handle;
 
     let duration = now() - model.date_time;
-    div![
-        if model.hovering || duration > time::Duration::WEEK {
-            format!("{}", model.date_time)
-        } else if duration >= time::Duration::DAY {
+    span![
+        if duration > time::Duration::WEEK {
+            format!(
+                "{}-{:02}-{:02}",
+                model.date_time.year(),
+                model.date_time.month() as u8,
+                model.date_time.day()
+            )
+        } else if duration >= 2 * time::Duration::DAY {
             format!("{} days ago", duration.whole_days())
-        } else if duration >= time::Duration::HOUR {
+        } else if duration >= time::Duration::DAY {
+            format!("1 day ago")
+        } else if duration >= 2 * time::Duration::HOUR {
             format!("{} hours ago", duration.whole_hours())
-        } else if duration >= time::Duration::MINUTE {
+        } else if duration >= time::Duration::HOUR {
+            format!("1 hour ago")
+        } else if duration >= 2 * time::Duration::MINUTE {
             format!("{} minutes ago", duration.whole_minutes())
-        } else {
+        } else if duration >= time::Duration::MINUTE {
+            format!("1 minute ago")
+        } else if duration >= 2 * time::Duration::SECOND {
             format!("{} seconds ago", duration.whole_seconds())
+        } else {
+            format!("just now")
         },
-        ev(Ev::MouseEnter, |_| Msg::StartHovering),
-        ev(Ev::MouseLeave, |_| Msg::StopHovering),
+        attrs! { At::Title => format!(
+                "{}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+                model.date_time.year(),
+                model.date_time.month() as u8,
+                model.date_time.day(),
+                model.date_time.hour(),
+                model.date_time.minute(),
+                model.date_time.second(),
+            ),
+        },
     ]
 }
