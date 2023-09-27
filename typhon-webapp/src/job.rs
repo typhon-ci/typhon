@@ -152,13 +152,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             );
         }
         Msg::GetInfo(info) => {
-            if info.status == "waiting" || info.status == "end" || info.status == "success" {
+            if info.begin_status != "pending" {
                 orders.send_msg(Msg::FetchLogBegin);
             }
-            if info.status == "success" {
+            if info.end_status != "pending" {
                 orders.send_msg(Msg::FetchLogEnd);
             }
-            let drv = info.build_infos.drv.clone();
+            let drv = info.build_drv.clone();
             orders
                 .proxy(Msg::LogLine)
                 .stream(fetch_logs_as_stream(drv.into()));
@@ -181,51 +181,49 @@ fn view_job(model: &Model) -> Node<Msg> {
             "Job",
             " ",
             a![
-                &model.handle.evaluation.jobset.project.project,
+                &model.handle.evaluation.jobset.project.name,
                 attrs! {
                     At::Href => crate::Urls::project(&model.handle.evaluation.jobset.project),
                 },
             ],
             ":",
             a![
-                &model.handle.evaluation.jobset.jobset,
+                &model.handle.evaluation.jobset.name,
                 attrs! {
                     At::Href => crate::Urls::jobset(&model.handle.evaluation.jobset),
                 },
             ],
             ":",
             a![
-                &model.handle.evaluation.evaluation,
+                &model.handle.evaluation.num,
                 attrs! {
                     At::Href => crate::Urls::evaluation(&model.handle.evaluation)
                 },
             ],
             ":",
-            &model.handle.job,
+            &model.handle.system,
+            ":",
+            &model.handle.name,
         ],
         match &model.info {
             None => div!["loading..."],
             Some(info) => div![
-                p![
-                    "Build: ",
-                    a![
-                        format!("{}", info.build_handle),
-                        attrs! {
-                            At::Href => crate::Urls::build(&info.build_handle)
-                        },
-                    ]
-                ],
-                p![format!("Status: {}", info.status)],
+                p![format!("Drv: {}", info.build_drv)],
+                p![format!("Status (begin): {}", info.begin_status)],
+                p![format!("Status (build): {}", info.build_status)],
+                p![format!("Status (end): {}", info.end_status)],
                 if info.dist {
                     let api_url = SETTINGS.get().unwrap().api_server.url(false);
-                    let job = &model.handle.job;
-                    let evaluation = &model.handle.evaluation.evaluation;
-                    let jobset = &model.handle.evaluation.jobset.jobset;
-                    let project = &model.handle.evaluation.jobset.project.project;
+                    let job = &model.handle.name;
+                    let system = &model.handle.system;
+                    let evaluation = &model.handle.evaluation.num;
+                    let jobset = &model.handle.evaluation.jobset.name;
+                    let project = &model.handle.evaluation.jobset.project.name;
                     a![
                         "Dist",
                         attrs! {
-                            At::Href => format!("{}/projects/{}/jobsets/{}/evaluations/{}/jobs/{}/dist/index.html", api_url, project, jobset, evaluation, job),
+                            At::Href => format!("{}/projects/{}/jobsets/{}/evaluations/{}/jobs/{}/{}/dist/index.html",
+                                                api_url, project, jobset, evaluation, system, job),
                         },
                     ]
                 } else {

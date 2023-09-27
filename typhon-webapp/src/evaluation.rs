@@ -98,26 +98,26 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
             "Evaluation",
             " ",
             a![
-                &model.handle.jobset.project.project,
+                &model.handle.jobset.project.name,
                 attrs! {
                     At::Href => crate::Urls::project(&model.handle.jobset.project),
                 },
             ],
             ":",
             a![
-                &model.handle.jobset.jobset,
+                &model.handle.jobset.name,
                 attrs! {
                     At::Href => crate::Urls::jobset(&model.handle.jobset),
                 },
             ],
             ":",
-            model.handle.evaluation,
+            model.handle.num,
         ],
         match &model.info {
             None => div!["loading..."],
             Some(info) => div![
                 p![format!("Status: {}", info.status)],
-                p![format!("Flake locked: {}", info.flake_locked)],
+                p![format!("Flake locked: {}", info.url_locked)],
                 p![format!(
                     "Actions path: {}",
                     info.actions_path.clone().unwrap_or("".into())
@@ -126,14 +126,16 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
                     div![
                         h3!["Jobs"],
                         ul![info.jobs.iter().map(|job| li![a![
-                            job,
+                            job.system.clone(),
+                            " / ",
+                            job.name.clone(),
                             attrs! {
                                 At::Href => crate::Urls::job(
                                     &handles::Job {
                                         evaluation: model.handle.clone(),
-                                        job: job.clone(),
-                                    }
-                                    )
+                                        system: job.system.clone(),
+                                        name: job.name.clone(),
+                                    })
                             }
                         ]])]
                     ]

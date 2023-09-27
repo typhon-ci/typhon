@@ -129,7 +129,7 @@ pub mod webhooks {
     #[serde(tag = "command")]
     pub enum Command {
         UpdateJobsets,
-        EvaluateJobset { jobset: String },
+        EvaluateJobset { name: String },
     }
 
     impl Command {
@@ -138,8 +138,8 @@ pub mod webhooks {
                 Command::UpdateJobsets => {
                     requests::Request::Project(project, requests::Project::UpdateJobsets)
                 }
-                Command::EvaluateJobset { jobset } => requests::Request::Jobset(
-                    handles::Jobset { project, jobset },
+                Command::EvaluateJobset { name } => requests::Request::Jobset(
+                    handles::Jobset { project, name },
                     requests::Jobset::Evaluate(true),
                 ),
             }

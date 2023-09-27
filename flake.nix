@@ -24,6 +24,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
+
+    nix.url = "github:nixos/nix";
   };
 
   outputs = inputs: import ./nix/outputs.nix {sources = inputs;};

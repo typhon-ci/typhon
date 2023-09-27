@@ -6,7 +6,6 @@ use crate::nix;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobsets::dsl::*;
 use crate::schema::projects::dsl::*;
-use crate::time;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 
@@ -15,14 +14,15 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct JobsetDecl {
-    pub flake: String,
+    pub legacy: bool,
+    pub url: String,
 }
 
 impl Jobset {
     pub async fn evaluate(&self, force: bool) -> Result<handles::Evaluation, Error> {
         let project = self.project().await?;
 
-        let flake_locked = nix::lock(&self.jobset_flake).await?;
+        let url_locked = nix::lock(&self.jobset_url).await?;
 
         let mut conn = connection().await;
         let evaluation = conn.transaction::<Evaluation, Error, _>(|conn| {
@@ -32,7 +32,7 @@ impl Jobset {
             if !force {
                 match old_evaluations.last() {
                     Some(eval) => {
-                        if eval.evaluation_flake_locked == flake_locked {
+                        if eval.evaluation_url_locked == url_locked {
                             return Ok(eval.clone());
                         }
                     }
@@ -41,10 +41,10 @@ impl Jobset {
             }
             let n = old_evaluations.len() as i32 + 1;
             let status = "pending".to_string();
-            let time = time::timestamp();
+            let time = crate::time::now();
             let new_evaluation = NewEvaluation {
                 evaluation_actions_path: project.project_actions_path.as_ref().map(|s| s.as_str()),
-                evaluation_flake_locked: &flake_locked,
+                evaluation_url_locked: &url_locked,
                 evaluation_jobset: self.jobset_id,
                 evaluation_num: n,
                 evaluation_status: &status,
@@ -83,7 +83,7 @@ impl Jobset {
     pub async fn handle(&self) -> Result<handles::Jobset, Error> {
         Ok(handles::Jobset {
             project: self.project().await?.handle(),
-            jobset: self.jobset_name.clone(),
+            name: self.jobset_name.clone(),
         })
     }
 
@@ -103,8 +103,9 @@ impl Jobset {
             .collect();
         drop(conn);
         Ok(responses::JobsetInfo {
-            flake: self.jobset_flake.clone(),
             evaluations: evals,
+            legacy: self.jobset_legacy,
+            url: self.jobset_url.clone(),
         })
     }
 

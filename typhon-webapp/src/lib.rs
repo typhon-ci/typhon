@@ -1,5 +1,4 @@
 mod appurl;
-mod build;
 mod editable_text;
 mod evaluation;
 mod home;
@@ -146,21 +145,18 @@ impl<'a> Urls<'a> {
     pub fn project(handle: &handles::Project) -> Url {
         Urls::webroot()
             .add_path_part("projects")
-            .add_path_part(&handle.project)
+            .add_path_part(&handle.name)
     }
     pub fn jobset(handle: &handles::Jobset) -> Url {
-        Urls::project(&handle.project).add_path_part(&handle.jobset)
+        Urls::project(&handle.project).add_path_part(&handle.name)
     }
     pub fn evaluation(handle: &handles::Evaluation) -> Url {
-        Urls::jobset(&handle.jobset).add_path_part(format!("{}", handle.evaluation))
+        Urls::jobset(&handle.jobset).add_path_part(format!("{}", handle.num))
     }
     pub fn job(handle: &handles::Job) -> Url {
-        Urls::evaluation(&handle.evaluation).add_path_part(&handle.job)
-    }
-    pub fn build(handle: &handles::Build) -> Url {
-        Urls::webroot()
-            .add_path_part("builds")
-            .add_path_part(&handle.build_hash)
+        Urls::evaluation(&handle.evaluation)
+            .add_path_part(&handle.system)
+            .add_path_part(&handle.name)
     }
 }
 
@@ -171,7 +167,6 @@ pub enum Page {
     Jobset(jobset::Model),
     Evaluation(evaluation::Model),
     Job(job::Model),
-    Build(build::Model),
     NotFound,
 }
 
@@ -184,7 +179,6 @@ impl Page {
             Page::Jobset(m) => AppUrl::from("projects") + m.app_url(),
             Page::Evaluation(m) => AppUrl::from("projects") + m.app_url(),
             Page::Job(m) => AppUrl::from("projects") + m.app_url(),
-            Page::Build(m) => AppUrl::from("builds") + m.app_url(),
             Page::NotFound => AppUrl::from("404"),
         }
     }
@@ -210,7 +204,7 @@ impl Page {
                     ))
                 })
                 .unwrap_or(Page::NotFound),
-            ["projects", project, jobset, evaluation, job] => evaluation
+            ["projects", project, jobset, evaluation, system, job] => evaluation
                 .parse::<i32>()
                 .map(|evaluation| {
                     Page::Job(job::init(
@@ -219,15 +213,12 @@ impl Page {
                             (*project).into(),
                             (*jobset).into(),
                             evaluation,
+                            (*system).into(),
                             (*job).into(),
                         )),
                     ))
                 })
                 .unwrap_or(Page::NotFound),
-            ["builds", build_hash] => Page::Build(build::init(
-                &mut orders.proxy(Msg::BuildMsg),
-                handles::build((*build_hash).into()),
-            )),
             _ => Page::NotFound,
         }
     }
@@ -261,7 +252,6 @@ enum Msg {
     JobsetMsg(jobset::Msg),
     EvaluationMsg(evaluation::Msg),
     JobMsg(job::Msg),
-    BuildMsg(build::Msg),
     UrlChanged(subs::UrlChanged),
     WsMessageReceived(WebSocketMessage),
 }
@@ -358,13 +348,6 @@ fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => job::update(msg, job_model, &mut orders.proxy(Msg::JobMsg)),
-        (
-            Msg::BuildMsg(msg),
-            Model {
-                page: Page::Build(build_model),
-                ..
-            },
-        ) => build::update(msg, build_model, &mut orders.proxy(Msg::BuildMsg)),
         (Msg::WsMessageReceived(msg), _) => {
             let event: Event = msg.json().expect("failed to deserialize event");
             log!(event);
@@ -393,11 +376,6 @@ fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                     job::Msg::Event(event),
                     model,
                     &mut orders.proxy(Msg::JobMsg),
-                ),
-                Page::Build(model) => build::update(
-                    build::Msg::Event(event),
-                    model,
-                    &mut orders.proxy(Msg::BuildMsg),
                 ),
                 _ => (),
             }
@@ -474,9 +452,6 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
                     evaluation::view(&evaluation_model, model.admin).map_msg(Msg::EvaluationMsg)
                 }
                 Page::Job(job_model) => job::view(&job_model, model.admin).map_msg(Msg::JobMsg),
-                Page::Build(build_model) => {
-                    build::view(&build_model, model.admin).map_msg(Msg::BuildMsg)
-                }
             }, C![
                 match &model.page {
                     Page::NotFound => "not-found",
@@ -486,7 +461,6 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
                     Page::Jobset(_) => "jobset",
                     Page::Evaluation(_) => "evaluation",
                     Page::Job(_) => "job",
-                    Page::Build(_) => "build"
                 }
             ]],
     ]

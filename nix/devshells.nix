@@ -25,6 +25,7 @@ in rec {
           ;
       };
     DATABASE_URL = "sqlite:typhon.sqlite";
+    TYPHON_FLAKE = ../typhon-flake;
   };
 
   webapp = pkgs.mkShell {

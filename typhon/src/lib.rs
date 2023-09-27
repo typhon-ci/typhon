@@ -1,5 +1,4 @@
 mod actions;
-mod builds;
 mod error;
 mod evaluations;
 mod gcroots;
@@ -99,8 +98,9 @@ pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
     }
 });
 pub static EVALUATIONS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static BUILDS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static JOBS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static JOBS_BEGIN: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static JOBS_BUILD: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static JOBS_END: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
 pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
     use diesel::Connection as _;
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -162,8 +162,6 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
         | requests::Request::Job(_, requests::Job::Info)
         | requests::Request::Job(_, requests::Job::LogBegin)
         | requests::Request::Job(_, requests::Job::LogEnd)
-        | requests::Request::Build(_, requests::Build::Info)
-        | requests::Request::Build(_, requests::Build::NixLog)
         | requests::Request::Login(_) => true,
         _ => user.is_admin(),
     }
@@ -173,8 +171,8 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
     if authorize_request(user, req) {
         Ok(match req {
             requests::Request::ListProjects => Response::ListProjects(Project::list().await?),
-            requests::Request::CreateProject { handle, decl } => {
-                Project::create(&handle, &decl).await?;
+            requests::Request::CreateProject { name, decl } => {
+                Project::create(name, decl).await?;
                 Response::Ok
             }
             requests::Request::Project(project_handle, req) => {
@@ -189,8 +187,8 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         project.refresh().await?;
                         Response::Ok
                     }
-                    requests::Project::SetDecl(flake) => {
-                        project.set_decl(&flake).await?;
+                    requests::Project::SetDecl(decl) => {
+                        project.set_decl(decl).await?;
                         Response::Ok
                     }
                     requests::Project::SetPrivateKey(key) => {
@@ -224,8 +222,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         Response::EvaluationInfo(evaluation.info().await?)
                     }
                     requests::Evaluation::Log => {
-                        let log =
-                            Log::get(handles::Log::Evaluation(evaluation_handle.clone())).await?;
+                        let log = Log::get(handles::Log::Eval(evaluation_handle.clone())).await?;
                         Response::Log(log.log_stderr)
                     }
                 }
@@ -237,26 +234,15 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         job.cancel().await?;
                         Response::Ok
                     }
-                    requests::Job::Info => Response::JobInfo(job.info().await?),
+                    requests::Job::Info => Response::JobInfo(job.info()),
                     requests::Job::LogBegin => {
-                        let log = Log::get(handles::Log::JobBegin(job_handle.clone())).await?;
+                        let log = Log::get(handles::Log::Begin(job_handle.clone())).await?;
                         Response::Log(log.log_stderr)
                     }
                     requests::Job::LogEnd => {
-                        let log = Log::get(handles::Log::JobEnd(job_handle.clone())).await?;
+                        let log = Log::get(handles::Log::End(job_handle.clone())).await?;
                         Response::Log(log.log_stderr)
                     }
-                }
-            }
-            requests::Request::Build(build_handle, req) => {
-                let build = Build::get(&build_handle).await?;
-                match req {
-                    requests::Build::Cancel => {
-                        build.cancel().await?;
-                        Response::Ok
-                    }
-                    requests::Build::Info => Response::BuildInfo(build.info()?),
-                    requests::Build::NixLog => Response::Log(build.nixlog().await?),
                 }
             }
             requests::Request::Login(password) => {

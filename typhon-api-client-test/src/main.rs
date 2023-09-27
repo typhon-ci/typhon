@@ -57,10 +57,10 @@ macro_rules! s {
     };
 }
 
-async fn create_project(name: &String, decl: String) {
+async fn create_project(name: &String, url: String) {
     s!(Res::Ok = Req::CreateProject {
-        handle: handles::project(name.clone()),
-        decl
+        name: name.clone(),
+        decl: requests::ProjectDecl { url, legacy: false },
     });
 }
 
@@ -70,16 +70,22 @@ trait Explain {
 impl Explain for Req {
     fn explain(&self) -> String {
         match self {
-            Req::CreateProject { handle, decl } => format!(
-                "Create the project {} with declaration {}",
-                handle.project.bold(),
-                decl.bold()
-            ),
+            Req::CreateProject {
+                name,
+                decl: requests::ProjectDecl { url, legacy },
+            } => {
+                format!(
+                    "Create {} project {} with url {}",
+                    if *legacy { "legacy" } else { "" },
+                    name.bold(),
+                    url.bold()
+                )
+            }
             Req::Project(proj, requests::Project::Refresh) => {
-                format!("Refresh project {}", proj.project.bold())
+                format!("Refresh project {}", proj.name.bold())
             }
             Req::Project(proj, requests::Project::UpdateJobsets) => {
-                format!("Update the jobsets from project {}", proj.project.bold())
+                format!("Update the jobsets from project {}", proj.name.bold())
             }
             Req::Jobset(jobset, requests::Jobset::Evaluate(force)) => {
                 format!(
@@ -89,8 +95,8 @@ impl Explain for Req {
                     } else {
                         "Evaluate"
                     },
-                    jobset.jobset.bold(),
-                    jobset.project.project.bold()
+                    jobset.name.bold(),
+                    jobset.project.name.bold()
                 )
             }
             Req::Evaluation(evaluation, requests::Evaluation::Info) => {

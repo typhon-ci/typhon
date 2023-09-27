@@ -34,7 +34,6 @@ impl Responder for ResponseWrapper {
             JobsetEvaluate(payload) => web::Json(payload).respond_to(req),
             EvaluationInfo(payload) => web::Json(payload).respond_to(req),
             JobInfo(payload) => web::Json(payload).respond_to(req),
-            BuildInfo(payload) => web::Json(payload).respond_to(req),
             Log(payload) => web::Json(payload).respond_to(req),
             Login { token } => web::Json(token).respond_to(req),
         }
@@ -64,10 +63,10 @@ macro_rules! r {
 }
 
 r!(
-    create_project(path: web::Path<String>, body: web::Json<String>) => {
-        let handle = handles::project(path.into_inner());
+    create_project(path: web::Path<String>, body: web::Json<typhon_types::requests::ProjectDecl>) => {
+        let name = path.into_inner();
         let decl = body.into_inner();
-        Request::CreateProject { handle, decl }
+        Request::CreateProject { name, decl }
     };
 
     list_projects() => Request::ListProjects;
@@ -90,7 +89,7 @@ r!(
             Project::Refresh,
         );
 
-    project_set_decl(path: web::Path<String>, body: web::Json<String>) =>
+    project_set_decl(path: web::Path<String>, body: web::Json<ProjectDecl>) =>
         Request::Project(
             handles::project(path.into_inner()),
             Project::SetDecl(body.into_inner()),
@@ -138,46 +137,28 @@ r!(
             Evaluation::Log,
         );
 
-    job_cancel(path: web::Path<(String,String,i32,String)>) =>
+    job_cancel(path: web::Path<(String,String,i32,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Cancel,
         );
 
-    job_info(path: web::Path<(String,String,i32,String)>) =>
+    job_info(path: web::Path<(String,String,i32,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Info,
         );
 
-    job_log_begin(path: web::Path<(String,String,i32,String)>) =>
+    job_log_begin(path: web::Path<(String,String,i32,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::LogBegin,
         );
 
-    job_log_end(path: web::Path<(String,String,i32,String)>) =>
+    job_log_end(path: web::Path<(String,String,i32,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::LogEnd,
-        );
-
-    build_cancel(path: web::Path<String>) =>
-        Request::Build(
-            handles::build(path.into_inner()),
-            Build::Cancel,
-        );
-
-    build_info(path: web::Path<String>) =>
-        Request::Build(
-            handles::build(path.into_inner()),
-            Build::Info,
-        );
-
-    build_nix_log(path: web::Path<String>) =>
-        Request::Build(
-            handles::build(path.into_inner()),
-            Build::NixLog,
         );
 
     login(body: web::Json<String>) =>
@@ -186,10 +167,10 @@ r!(
 
 async fn dist(
     user: User,
-    path: web::Path<(String, String, i32, String, String)>,
+    path: web::Path<(String, String, i32, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
-    let (project, jobset, evaluation, job, path) = path.into_inner();
-    let handle = handles::job((project, jobset, evaluation, job));
+    let (project, jobset, evaluation, system, job, path) = path.into_inner();
+    let handle = handles::job((project, jobset, evaluation, system, job));
     let req = Request::Job(handle, Job::Info);
     let rsp = handle_request(user, req)
         .await
@@ -199,7 +180,7 @@ async fn dist(
         _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
     }?;
     if info.dist {
-        Ok(NamedFile::open_async(format!("{}/{}", info.build_infos.out, path)).await)
+        Ok(NamedFile::open_async(format!("{}/{}", info.build_out, path)).await)
     } else {
         Err(ResponseErrorWrapper(ResponseError::BadRequest(
             "typhonDist is not set".into(),
@@ -318,7 +299,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                                     .route("/cancel", web::post().to(evaluation_cancel))
                                     .route("/log", web::get().to(evaluation_log))
                                     .service(
-                                        web::scope("/jobs/{job}")
+                                        web::scope("/jobs/{system}/{job}")
                                             .route("", web::get().to(job_info))
                                             .route("/cancel", web::post().to(job_cancel))
                                             .route("/logs/begin", web::get().to(job_log_begin))
@@ -327,12 +308,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                                     ),
                             ),
                     ),
-            )
-            .service(
-                web::scope("/builds/{build}")
-                    .route("", web::get().to(build_info))
-                    .route("/cancel", web::post().to(build_cancel))
-                    .route("/nixlog", web::get().to(build_nix_log)),
             )
             .route("/login", web::post().to(login))
             .route(

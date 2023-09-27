@@ -3,26 +3,22 @@ use crate::connection;
 use crate::error::Error;
 use crate::handles;
 use crate::models::*;
+use crate::nix;
 use crate::responses;
-use crate::schema::builds::dsl::*;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
-use crate::CURRENT_SYSTEM;
 use crate::{log_event, Event};
-use crate::{BUILDS, JOBS, SETTINGS};
+use crate::{JOBS_BEGIN, JOBS_BUILD, JOBS_END, SETTINGS};
 use diesel::prelude::*;
 use serde_json::{json, Value};
 use std::path::Path;
 
 impl Job {
-    pub async fn build(&self) -> Result<Build, Error> {
-        let mut conn = connection().await;
-        Ok(builds.find(self.job_build).first::<Build>(&mut *conn)?)
-    }
-
     pub async fn cancel(&self) -> Result<(), Error> {
-        let r = JOBS.cancel(self.job_id).await;
-        if r {
+        let a = JOBS_BEGIN.cancel(self.job_id).await;
+        let b = JOBS_BUILD.cancel(self.job_id).await;
+        let c = JOBS_END.cancel(self.job_id).await;
+        if a || b || c {
             Ok(())
         } else {
             Err(Error::JobNotRunning(self.handle().await?))
@@ -37,19 +33,26 @@ impl Job {
     }
 
     pub async fn get(job_handle: &handles::Job) -> Result<Self, Error> {
-        let handles::pattern!(project_name_, jobset_name_, evaluation_num_, job_name_) = job_handle;
+        let handles::pattern!(
+            project_name_,
+            jobset_name_,
+            evaluation_num_,
+            job_system_,
+            job_name_
+        ) = job_handle;
         let evaluation = Evaluation::get(&job_handle.evaluation).await?;
         let mut conn = connection().await;
         Ok(jobs
             .filter(job_evaluation.eq(evaluation.evaluation_id))
+            .filter(job_system.eq(job_system_))
             .filter(job_name.eq(job_name_))
-            .filter(job_system.eq(&*CURRENT_SYSTEM))
             .first::<Job>(&mut *conn)
             .map_err(|_| {
                 Error::JobNotFound(handles::job((
                     project_name_.clone(),
                     jobset_name_.clone(),
                     *evaluation_num_,
+                    job_system_.clone(),
                     job_name_.clone(),
                 )))
             })?)
@@ -58,72 +61,80 @@ impl Job {
     pub async fn handle(&self) -> Result<handles::Job, Error> {
         Ok(handles::Job {
             evaluation: self.evaluation().await?.handle().await?,
-            job: self.job_name.clone(),
-        })
-    }
-
-    pub async fn info(&self) -> Result<responses::JobInfo, Error> {
-        let mut conn = connection().await;
-        let build = builds.find(self.job_build).first::<Build>(&mut *conn)?;
-        Ok(responses::JobInfo {
-            build_handle: handles::build(build.build_hash.clone()),
-            build_infos: build.into(),
-            dist: self.job_dist,
-            status: self.job_status.clone(),
             system: self.job_system.clone(),
+            name: self.job_name.clone(),
         })
     }
 
-    async fn mk_input(&self) -> Result<Value, Error> {
+    pub fn info(&self) -> responses::JobInfo {
+        responses::JobInfo {
+            begin_status: self.job_begin_status.clone(),
+            begin_time_finished: self.job_begin_time_finished,
+            begin_time_started: self.job_begin_time_started,
+            build_drv: self.job_build_drv.clone(),
+            build_out: self.job_build_out.clone(),
+            build_status: self.job_build_status.clone(),
+            build_time_finished: self.job_build_time_finished,
+            build_time_started: self.job_build_time_started,
+            dist: self.job_dist,
+            end_status: self.job_end_status.clone(),
+            end_time_finished: self.job_end_time_finished,
+            end_time_started: self.job_end_time_started,
+            system: self.job_system.clone(),
+            time_created: self.job_time_created,
+        }
+    }
+
+    async fn mk_input(&self, build_status: &str) -> Result<Value, Error> {
         let evaluation = self.evaluation().await?;
         let jobset = evaluation.jobset().await?;
         let project = jobset.project().await?;
-        let build = self.build().await?;
         Ok(json!({
-            "build": build.build_hash,
             "data": SETTINGS.json,
+            "drv": self.job_build_drv,
             "evaluation": evaluation.evaluation_num,
-            "flake": jobset.jobset_flake,
-            "flake_locked": evaluation.evaluation_flake_locked,
+            "url": jobset.jobset_url,
+            "url_locked": evaluation.evaluation_url_locked,
             "job": self.job_name,
             "jobset": jobset.jobset_name,
-            "out": build.build_out,
+            "legacy": jobset.jobset_legacy,
+            "out": self.job_build_out,
             "project": project.project_name,
-            "status": build.build_status,
+            "status": build_status,
             "system": self.job_system,
         }))
     }
 
     pub async fn run(self) -> () {
+        use crate::time::now;
         let id = self.job_id;
+        let drv = nix::DrvPath::new(&self.job_build_drv);
 
-        let handle = self.handle().await.unwrap(); // TODO
-        let handle_bis = handle.clone();
+        // FIXME?
+        let handle_1 = self.handle().await.unwrap();
+        let handle_2 = handle_1.clone();
+        let handle_3 = handle_1.clone();
+        let handle_4 = handle_1.clone();
+        let handle_5 = handle_1.clone();
+        let job_1 = self;
+        let job_2 = job_1.clone();
 
-        let task = async move {
-            // abort if actions are not defined
-            let evaluation = self.evaluation().await?;
-            let path = match &evaluation.evaluation_actions_path {
-                None => return Ok(()),
-                Some(path) => path,
-            };
+        // TODO: factor out common code between `begin` and `end`
+        let task_begin = async move {
+            let mut conn = connection().await;
+            let _ = diesel::update(jobs.find(id))
+                .set(job_begin_time_started.eq(now()))
+                .execute(&mut *conn);
+            drop(conn);
 
+            let evaluation = job_1.evaluation().await?;
             let jobset = evaluation.jobset().await?;
             let project = jobset.project().await?;
 
-            {
-                // run action `begin`
-                let mut conn = connection().await;
-                let _ = diesel::update(jobs.find(id))
-                    .set(job_status.eq("begin"))
-                    .execute(&mut *conn);
-                drop(conn);
-
-                log_event(Event::JobUpdated(handle_bis.clone()));
-
-                let input = self.mk_input().await?;
-
-                let log = if Path::new(&format!("{}/begin", path)).exists() {
+            let input = job_1.mk_input(&"pending".to_string()).await?;
+            let default_log = serde_json::to_string_pretty(&input).unwrap();
+            let log = if let Some(path) = evaluation.evaluation_actions_path {
+                if Path::new(&format!("{}/begin", path)).exists() {
                     let (_, log) = actions::run(
                         &project.project_key,
                         &format!("{}/begin", path),
@@ -133,37 +144,90 @@ impl Job {
                     .await?;
                     log
                 } else {
-                    serde_json::to_string_pretty(&input).unwrap() // TODO
-                };
+                    default_log
+                }
+            } else {
+                default_log
+            };
 
-                // save the log
-                let _ = Log::new(handles::Log::JobBegin(handle_bis.clone()), log).await?;
-            }
-
-            // wait for build
+            Ok::<_, Error>(log)
+        };
+        let finish_begin = move |r| async move {
+            use handles::Log::*;
+            let status = match r {
+                Some(Ok(log)) => {
+                    let _ = Log::new(Begin(handle_1.clone()), log).await;
+                    "success"
+                }
+                Some(Err(_)) => {
+                    let _ = Log::new(Begin(handle_1.clone()), "TODO".to_string()).await;
+                    "error"
+                }
+                None => "canceled",
+            };
             let mut conn = connection().await;
             let _ = diesel::update(jobs.find(id))
-                .set(job_status.eq("waiting"))
+                .set((
+                    job_begin_status.eq(status),
+                    job_begin_time_finished.eq(now()),
+                ))
+                .execute(&mut *conn);
+            drop(conn);
+            log_event(Event::JobUpdated(handle_2));
+        };
+        JOBS_BEGIN.run(id, task_begin, finish_begin).await;
+
+        // FIXME: write a more intelligent build manager
+        let (sender, receiver) = tokio::sync::oneshot::channel::<String>();
+        let task_build = async move {
+            let mut conn = connection().await;
+            let _ = diesel::update(jobs.find(id))
+                .set(job_build_time_started.eq(now()))
+                .execute(&mut *conn);
+            drop(conn);
+            nix::build(&drv).await?;
+            Ok::<(), Error>(())
+        };
+        let finish_build = move |r| async move {
+            let status = match r {
+                Some(Ok(())) => "success",
+                Some(Err(_)) => "error", // TODO: log error
+                None => "canceled",
+            };
+            sender.send(status.to_string()).unwrap_or_else(|_| panic!());
+            let mut conn = connection().await;
+            let _ = diesel::update(jobs.find(id))
+                .set((
+                    job_build_status.eq(status),
+                    job_build_time_finished.eq(now()),
+                ))
+                .execute(&mut *conn);
+            drop(conn);
+            log_event(Event::JobUpdated(handle_3));
+        };
+        JOBS_BUILD.run(id, task_build, finish_build).await;
+
+        let task_end = async move {
+            // wait for `begin` to finish
+            JOBS_BEGIN.wait(&id).await;
+            // wait for the build to finish
+            JOBS_BUILD.wait(&id).await;
+            let build_status = receiver.await.unwrap_or_else(|_| panic!());
+
+            let mut conn = connection().await;
+            let _ = diesel::update(jobs.find(id))
+                .set(job_end_time_started.eq(now()))
                 .execute(&mut *conn);
             drop(conn);
 
-            log_event(Event::JobUpdated(handle_bis.clone()));
+            let evaluation = job_2.evaluation().await?;
+            let jobset = evaluation.jobset().await?;
+            let project = jobset.project().await?;
 
-            BUILDS.wait(&self.job_build).await;
-
-            {
-                // run action `end`
-                let mut conn = connection().await;
-                let _ = diesel::update(jobs.find(id))
-                    .set(job_status.eq("end"))
-                    .execute(&mut *conn);
-                drop(conn);
-
-                log_event(Event::JobUpdated(handle_bis.clone()));
-
-                let input = self.mk_input().await?;
-
-                let log = if Path::new(&format!("{}/end", path)).exists() {
+            let input = job_2.mk_input(&build_status).await?;
+            let default_log = serde_json::to_string_pretty(&input).unwrap();
+            let log = if let Some(path) = evaluation.evaluation_actions_path {
+                if Path::new(&format!("{}/end", path)).exists() {
                     let (_, log) = actions::run(
                         &project.project_key,
                         &format!("{}/end", path),
@@ -173,28 +237,36 @@ impl Job {
                     .await?;
                     log
                 } else {
-                    serde_json::to_string_pretty(&input).unwrap() // TODO
-                };
+                    default_log
+                }
+            } else {
+                default_log
+            };
 
-                // save the log
-                let _ = Log::new(handles::Log::JobEnd(handle_bis), log).await?;
-            }
-
-            Ok::<(), Error>(())
+            Ok::<_, Error>(log)
         };
-        let f = move |r| async move {
+        let finish_end = move |r| async move {
+            use handles::Log::*;
             let status = match r {
-                Some(Ok(())) => "success",
-                Some(Err(_)) => "error", // TODO: log error
+                Some(Ok(log)) => {
+                    // TODO: handle errors
+                    let _ = Log::new(End(handle_4), log).await;
+                    "success"
+                }
+                Some(Err(_)) => {
+                    // TODO: handle errors
+                    let _ = Log::new(End(handle_4), "TODO".to_string()).await;
+                    "error"
+                }
                 None => "canceled",
             };
             let mut conn = connection().await;
             let _ = diesel::update(jobs.find(id))
-                .set(job_status.eq(status))
+                .set((job_end_status.eq(status), job_end_time_finished.eq(now())))
                 .execute(&mut *conn);
             drop(conn);
-            log_event(Event::JobUpdated(handle));
+            log_event(Event::JobUpdated(handle_5));
         };
-        JOBS.run(id, task, f).await;
+        JOBS_END.run(id, task_end, finish_end).await;
     }
 }

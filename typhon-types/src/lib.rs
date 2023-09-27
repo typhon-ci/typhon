@@ -2,7 +2,7 @@ pub mod handles {
     use serde::{Deserialize, Serialize};
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Project {
-        pub project: String,
+        pub name: String,
     }
     impl Project {
         pub fn legal(&self) -> bool {
@@ -11,34 +11,31 @@ pub mod handles {
             lazy_static! {
                 static ref RE: Regex = Regex::new("^[A-z0-9-_]+$").unwrap();
             }
-            RE.is_match(&self.project)
+            RE.is_match(&self.name)
         }
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Jobset {
         pub project: Project,
-        pub jobset: String,
+        pub name: String,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Evaluation {
         pub jobset: Jobset,
-        pub evaluation: i32,
+        pub num: i32,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Job {
         pub evaluation: Evaluation,
-        pub job: String,
-    }
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct Build {
-        pub build_hash: String,
+        pub system: String,
+        pub name: String,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Log {
-        Evaluation(Evaluation),
-        JobBegin(Job),
-        JobEnd(Job),
+        Begin(Job),
+        End(Job),
+        Eval(Evaluation),
     }
 
     macro_rules! impl_display {
@@ -54,31 +51,25 @@ pub mod handles {
     impl_display!(Project);
     impl From<Project> for Vec<String> {
         fn from(x: Project) -> Self {
-            vec![x.project]
+            vec![x.name]
         }
     }
     impl_display!(Jobset);
     impl From<Jobset> for Vec<String> {
         fn from(x: Jobset) -> Self {
-            [x.project.into(), vec![x.jobset]].concat()
+            [x.project.into(), vec![x.name]].concat()
         }
     }
     impl_display!(Evaluation);
     impl From<Evaluation> for Vec<String> {
         fn from(x: Evaluation) -> Self {
-            [x.jobset.into(), vec![format!("{}", x.evaluation)]].concat()
+            [x.jobset.into(), vec![format!("{}", x.num)]].concat()
         }
     }
     impl_display!(Job);
     impl From<Job> for Vec<String> {
         fn from(x: Job) -> Self {
-            [x.evaluation.into(), vec![x.job]].concat()
-        }
-    }
-    impl_display!(Build);
-    impl From<Build> for Vec<String> {
-        fn from(x: Build) -> Self {
-            vec![x.build_hash]
+            [x.evaluation.into(), vec![x.system, x.name]].concat()
         }
     }
     impl_display!(Log);
@@ -87,68 +78,69 @@ pub mod handles {
             use Log::*;
             vec![
                 match x {
-                    Evaluation(_) => "evaluation",
-                    JobBegin(_) => "job_begin",
-                    JobEnd(_) => "job_end",
+                    Begin(_) => "begin",
+                    End(_) => "end",
+                    Eval(_) => "eval",
                 }
                 .into(),
                 match x {
-                    Evaluation(h) => h.to_string(),
-                    JobBegin(h) => h.to_string(),
-                    JobEnd(h) => h.to_string(),
+                    Begin(h) => h.to_string(),
+                    End(h) => h.to_string(),
+                    Eval(h) => h.to_string(),
                 },
             ]
         }
     }
 
     use crate::handles as selfmod;
-    pub fn project(project: String) -> Project {
-        Project { project }
+    pub fn project(name: String) -> Project {
+        Project { name }
     }
-    pub fn jobset((project, jobset): (String, String)) -> Jobset {
+    pub fn jobset((project, name): (String, String)) -> Jobset {
         Jobset {
             project: selfmod::project(project),
-            jobset,
+            name,
         }
     }
-    pub fn evaluation((project, jobset, evaluation): (String, String, i32)) -> Evaluation {
+    pub fn evaluation((project, jobset, num): (String, String, i32)) -> Evaluation {
         Evaluation {
             jobset: selfmod::jobset((project, jobset)),
-            evaluation,
+            num,
         }
     }
-    pub fn job((project, jobset, evaluation, job): (String, String, i32, String)) -> Job {
+    pub fn job(
+        (project, jobset, evaluation, system, name): (String, String, i32, String, String),
+    ) -> Job {
         Job {
             evaluation: selfmod::evaluation((project, jobset, evaluation)),
-            job,
+            system,
+            name,
         }
-    }
-    pub fn build(build_hash: String) -> Build {
-        Build { build_hash }
     }
 
     #[macro_export]
     macro_rules! pattern {
-        ($p:pat, $js:pat, $e:pat, $j:pat) => {
+        ($p:pat, $js:pat, $e:pat, $s:pat, $j:pat) => {
             crate::handles::Job {
                 evaluation: crate::handles::pattern!($p, $js, $e),
-                job: $j,
+                system: $s,
+                name: $j,
             }
         };
         ($p:pat, $js:pat, $e:pat) => {
             crate::handles::Evaluation {
                 jobset: crate::handles::pattern!($p, $js),
-                evaluation: $e,
+                num: $e,
             }
         };
         ($p:pat, $js:pat) => {
             crate::handles::Jobset {
                 project: crate::handles::pattern!($p),
-                jobset: $js,
+                name: $js,
             }
         };
         ($p:pat) => {
-            crate::handles::Project { project: $p }
+            crate::handles::Project { name: $p }
         };
     }
 
@@ -160,11 +152,17 @@ pub mod requests {
     use serde::{Deserialize, Serialize};
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct ProjectDecl {
+        pub url: String,
+        pub legacy: bool,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Project {
         Delete,
         Info,
         Refresh,
-        SetDecl(String),
+        SetDecl(ProjectDecl),
         SetPrivateKey(String),
         UpdateJobsets,
     }
@@ -191,24 +189,13 @@ pub mod requests {
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum Build {
-        Cancel,
-        Info,
-        NixLog,
-    }
-
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Request {
         ListProjects,
-        CreateProject {
-            handle: handles::Project,
-            decl: String,
-        },
+        CreateProject { name: String, decl: ProjectDecl },
         Project(handles::Project, Project),
         Jobset(handles::Jobset, Jobset),
         Evaluation(handles::Evaluation, Evaluation),
         Job(handles::Job, Job),
-        Build(handles::Build, Build),
         Login(String),
     }
 
@@ -216,14 +203,19 @@ pub mod requests {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
                 Request::ListProjects => write!(f, "List projects"),
-                Request::CreateProject { handle, decl } => {
-                    write!(f, "Create project {handle} with declaration {decl}")
+                Request::CreateProject { name, decl } => {
+                    write!(
+                        f,
+                        "Create{} project {} with url {}",
+                        if decl.legacy { " legacy" } else { "" },
+                        name,
+                        decl.url
+                    )
                 }
                 Request::Project(h, req) => write!(f, "{:?} for project {}", req, h),
                 Request::Jobset(h, req) => write!(f, "{:?} for jobset {}", req, h),
                 Request::Evaluation(h, req) => write!(f, "{:?} for evaluation {}", req, h),
                 Request::Job(h, req) => write!(f, "{:?} for job {}", req, h),
-                Request::Build(h, req) => write!(f, "{:?} for build {}", req, h),
                 Request::Login(_) => write!(f, "Log in"),
             }
         }
@@ -246,42 +238,53 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectInfo {
         pub actions_path: Option<String>,
-        pub decl: String,
-        pub decl_locked: String,
         pub jobsets: Vec<String>,
+        pub legacy: bool,
         pub metadata: ProjectMetadata,
         pub public_key: String,
+        pub url: String,
+        pub url_locked: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobsetInfo {
         pub evaluations: Vec<(i32, i64)>,
-        pub flake: String,
+        pub legacy: bool,
+        pub url: String,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct JobSystemName {
+        pub system: String,
+        pub name: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
         pub actions_path: Option<String>,
-        pub flake_locked: String,
-        pub jobs: Vec<String>,
+        pub jobs: Vec<JobSystemName>,
         pub status: String,
         pub time_created: i64,
+        pub time_finished: Option<i64>,
+        pub url_locked: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobInfo {
-        pub build_handle: super::handles::Build,
-        pub build_infos: BuildInfo,
+        pub begin_status: String,
+        pub begin_time_finished: Option<i64>,
+        pub begin_time_started: Option<i64>,
+        pub build_drv: String,
+        pub build_out: String,
+        pub build_status: String,
+        pub build_time_finished: Option<i64>,
+        pub build_time_started: Option<i64>,
         pub dist: bool,
-        pub status: String,
+        pub end_status: String,
+        pub end_time_finished: Option<i64>,
+        pub end_time_started: Option<i64>,
         pub system: String,
-    }
-
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct BuildInfo {
-        pub drv: String,
-        pub out: String,
-        pub status: String,
+        pub time_created: i64,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -294,7 +297,6 @@ pub mod responses {
         JobsetInfo(JobsetInfo),
         EvaluationInfo(EvaluationInfo),
         JobInfo(JobInfo),
-        BuildInfo(BuildInfo),
         Log(String),
         Login { token: String },
     }
@@ -326,6 +328,4 @@ pub enum Event {
     EvaluationNew(handles::Evaluation),
     EvaluationFinished(handles::Evaluation),
     JobUpdated(handles::Job),
-    BuildNew(handles::Build),
-    BuildFinished(handles::Build),
 }

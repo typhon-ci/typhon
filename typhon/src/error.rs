@@ -7,8 +7,6 @@ pub enum Error {
     AccessDenied,
     ActionError(actions::Error),
     BadJobsetDecl(String),
-    BuildNotFound(handles::Build),
-    BuildNotRunning(handles::Build),
     EvaluationNotFound(handles::Evaluation),
     EvaluationNotRunning(handles::Evaluation),
     IllegalProjectHandle(handles::Project),
@@ -41,10 +39,8 @@ impl std::fmt::Display for Error {
             AccessDenied => write!(f, "Access denied"),
             ActionError(e) => write!(f, "Action error: {}", e),
             BadJobsetDecl(s) => write!(f, "Bad jobset declaration: {}", s),
-            BuildNotFound(build_handle) => write!(f, "Build {} not found", build_handle),
-            BuildNotRunning(build_handle) => write!(f, "Build {} is not running", build_handle),
             IllegalProjectHandle(handle) => {
-                write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contains dashes [-] or underscores [_].", handle.project)
+                write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contains dashes [-] or underscores [_].", handle.name)
             }
             JobNotFound(job_handle) => {
                 write!(f, "Job {} not found", job_handle)
@@ -101,15 +97,12 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             ActionError(actions::Error::Unexpected) | UnexpectedDatabaseError(_) | Todo => {
                 InternalError
             }
-            BuildNotFound(_)
-            | EvaluationNotFound(_)
-            | JobNotFound(_)
-            | JobsetNotFound(_)
-            | ProjectNotFound(_) => ResourceNotFound(format!("{}", self)),
+            EvaluationNotFound(_) | JobNotFound(_) | JobsetNotFound(_) | ProjectNotFound(_) => {
+                ResourceNotFound(format!("{}", self))
+            }
             AccessDenied
             | ActionError(_)
             | BadJobsetDecl(_)
-            | BuildNotRunning(_)
             | EvaluationNotRunning(_)
             | JobNotRunning(_)
             | IllegalProjectHandle(_)

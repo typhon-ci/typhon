@@ -1,5 +1,4 @@
 use crate::models::*;
-use crate::schema::builds::dsl::*;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
 use crate::schema::jobsets::dsl::*;
@@ -51,11 +50,8 @@ fn update_aux(conn: &mut SqliteConnection) -> Result<(), Error> {
                 .filter(job_evaluation.eq(evaluation.evaluation_id))
                 .load::<Job>(conn)?
             {
-                let build = builds
-                    .filter(build_id.eq(job.job_build))
-                    .first::<Build>(conn)?;
-                gcroots.insert(build.build_drv.clone());
-                gcroots.insert(build.build_out.clone());
+                gcroots.insert(job.job_build_drv.clone());
+                gcroots.insert(job.job_build_out.clone());
             }
         }
     }

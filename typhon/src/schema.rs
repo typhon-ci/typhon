@@ -1,45 +1,47 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    builds (build_id) {
-        build_id -> Integer,
-        build_drv -> Text,
-        build_hash -> Text,
-        build_out -> Text,
-        build_status -> Text,
-    }
-}
-
-diesel::table! {
     evaluations (evaluation_id) {
         evaluation_id -> Integer,
         evaluation_actions_path -> Nullable<Text>,
-        evaluation_flake_locked -> Text,
         evaluation_jobset -> Integer,
         evaluation_num -> Integer,
         evaluation_status -> Text,
         evaluation_time_created -> BigInt,
+        evaluation_time_finished -> Nullable<BigInt>,
+        evaluation_url_locked -> Text,
     }
 }
 
 diesel::table! {
     jobs (job_id) {
         job_id -> Integer,
-        job_build -> Integer,
+        job_begin_status -> Text,
+        job_begin_time_finished -> Nullable<BigInt>,
+        job_begin_time_started -> Nullable<BigInt>,
+        job_build_drv -> Text,
+        job_build_out -> Text,
+        job_build_status -> Text,
+        job_build_time_finished -> Nullable<BigInt>,
+        job_build_time_started -> Nullable<BigInt>,
         job_dist -> Bool,
+        job_end_status -> Text,
+        job_end_time_finished -> Nullable<BigInt>,
+        job_end_time_started -> Nullable<BigInt>,
         job_evaluation -> Integer,
         job_name -> Text,
-        job_status -> Text,
         job_system -> Text,
+        job_time_created -> BigInt,
     }
 }
 
 diesel::table! {
     jobsets (jobset_id) {
         jobset_id -> Integer,
-        jobset_flake -> Text,
+        jobset_legacy -> Bool,
         jobset_name -> Text,
         jobset_project -> Integer,
+        jobset_url -> Text,
     }
 }
 
@@ -57,21 +59,21 @@ diesel::table! {
     projects (project_id) {
         project_id -> Integer,
         project_actions_path -> Nullable<Text>,
-        project_decl -> Text,
-        project_decl_locked -> Text,
         project_description -> Text,
         project_homepage -> Text,
         project_key -> Text,
+        project_legacy -> Bool,
         project_name -> Text,
         project_title -> Text,
+        project_url -> Text,
+        project_url_locked -> Text,
     }
 }
 
 diesel::joinable!(evaluations -> jobsets (evaluation_jobset));
-diesel::joinable!(jobs -> builds (job_build));
 diesel::joinable!(jobs -> evaluations (job_evaluation));
 diesel::joinable!(jobsets -> projects (jobset_project));
 diesel::joinable!(logs -> evaluations (log_evaluation));
 diesel::joinable!(logs -> jobs (log_job));
 
-diesel::allow_tables_to_appear_in_same_query!(builds, evaluations, jobs, jobsets, logs, projects,);
+diesel::allow_tables_to_appear_in_same_query!(evaluations, jobs, jobsets, logs, projects,);

@@ -8,6 +8,16 @@ use tokio::io::BufReader;
 use tokio::process::Command;
 
 #[derive(Debug)]
+pub enum Expr {
+    Flake {
+        url: String,
+        path: String,
+        legacy: bool,
+    },
+    Path(String),
+}
+
+#[derive(Debug)]
 pub enum Error {
     SerdeJson(serde_json::Error),
     UnexpectedOutput {
@@ -19,9 +29,7 @@ pub enum Error {
         stdout: String,
         stderr: String,
     },
-    ExpectedDrvGotAttrset {
-        expr: String,
-    },
+    ExpectedDrvGotAttrset(Expr),
     BuildFailed,
 }
 
@@ -174,21 +182,31 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
     }
 }
 
-const JSON_PARSE_ERROR: &str = "nix: failed to parse JSON";
-
 /// Runs `nix show-derivation [expr]` and parse its stdout as JSON.
 /// Note that [expr] can evaluates to one unique derivation or to an
 /// attrset of [n] derivations. The resulting JSON will be an object
 /// with one or [n] keys. The keys are `.drv` paths, the values are
 /// the derivation themselves.
-pub async fn derivation_json(expr: &str) -> Result<serde_json::Value, Error> {
-    Ok(serde_json::from_str(
-        &Command::nix(["show-derivation"])
-            .arg(expr)
-            .sync_stdout()
-            .await?,
-    )
-    .expect(JSON_PARSE_ERROR))
+pub async fn derivation_json(expr: &Expr) -> Result<serde_json::Value, Error> {
+    let mut cmd = match expr {
+        Expr::Flake { url, path, legacy } => {
+            if *legacy {
+                Command::nix([
+                    "derivation",
+                    "show",
+                    "--no-write-lock-file",
+                    "--override-input",
+                    "x",
+                    url,
+                    &format!("{}#{}", env!("TYPHON_FLAKE"), path),
+                ])
+            } else {
+                Command::nix(["derivation", "show", &format!("{}#{}", url, path)])
+            }
+        }
+        Expr::Path(path) => Command::nix(["derivation", "show", path]),
+    };
+    Ok(serde_json::from_str(&cmd.sync_stdout().await?).unwrap())
 }
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
@@ -257,12 +275,7 @@ impl Derivation {
                         ),
                     })?
                     .iter()
-                    .map(|(name, path)| {
-                        (
-                            name.clone(),
-                            path["path"].as_str().expect(JSON_PARSE_ERROR).into(),
-                        )
-                    }),
+                    .map(|(name, path)| (name.clone(), path["path"].as_str().unwrap().into())),
             ),
         })
     }
@@ -270,29 +283,71 @@ impl Derivation {
 
 /// Here, we assume [expr] evaluates to a derivation, not an attrset
 /// of derivations.
-pub async fn derivation(expr: &str) -> Result<Derivation, Error> {
-    let json = derivation_json(expr).await?;
+pub async fn derivation(expr: Expr) -> Result<Derivation, Error> {
+    let json = derivation_json(&expr).await?;
     if let [(path, derivation)] = *json
         .as_object()
-        .expect(JSON_PARSE_ERROR)
+        .unwrap()
         .iter()
         .collect::<Vec<_>>()
         .as_slice()
     {
         Derivation::parse(path, derivation)
     } else {
-        Err(Error::ExpectedDrvGotAttrset { expr: expr.into() })
+        Err(Error::ExpectedDrvGotAttrset(expr))
     }
 }
 
-pub async fn eval(expr: String) -> Result<serde_json::Value, Error> {
+pub async fn eval(url: &str, path: &str, legacy: bool) -> Result<serde_json::Value, Error> {
     Ok(serde_json::from_str(
-        &Command::nix(["eval", "--json"])
-            .arg(expr)
-            .sync_stdout()
-            .await?
-            .to_string(),
+        &(if legacy {
+            Command::nix([
+                "eval",
+                "--json",
+                "--no-write-lock-file",
+                "--override-input",
+                "x",
+                url,
+                &format!("{}#{}", env!("TYPHON_FLAKE"), path),
+            ])
+        } else {
+            Command::nix(["eval", "--json", &format!("{}#{}", url, path)])
+        })
+        .sync_stdout()
+        .await?
+        .to_string(),
     )?)
+}
+
+pub type NewJobs = HashMap<(String, String), (Derivation, bool)>;
+
+pub async fn eval_jobs(url: &str, legacy: bool) -> Result<NewJobs, Error> {
+    let json = eval(url, "typhonJobs", legacy).await?;
+    let mut jobs: HashMap<(String, String), (Derivation, bool)> = HashMap::new();
+    for system in json.as_object().unwrap().keys() {
+        for name in json[system].as_object().unwrap().keys() {
+            jobs.insert(
+                (system.clone(), name.clone()),
+                (
+                    derivation(Expr::Flake {
+                        url: url.to_string(),
+                        legacy,
+                        path: format!("typhonJobs.{system}.{name}"),
+                    })
+                    .await?,
+                    eval(
+                        url,
+                        &format!("typhonJobs.{system}.{name}.passthru.typhonDist"),
+                        legacy,
+                    )
+                    .await
+                    .map(|json| json.as_bool().unwrap_or(false))
+                    .unwrap_or(false),
+                ),
+            );
+        }
+    }
+    Ok(jobs)
 }
 
 pub fn current_system() -> String {
@@ -312,17 +367,32 @@ pub fn current_system() -> String {
     .unwrap()
 }
 
-pub async fn lock(flake_url: &String) -> Result<String, Error> {
-    let output = Command::nix(["flake", "metadata", "--refresh", "--json"])
-        .arg(flake_url.clone())
-        .sync_stdout()
-        .await?;
-    Ok(
-        serde_json::from_str::<Value>(&output).expect(JSON_PARSE_ERROR)["url"]
-            .as_str()
-            .expect(JSON_PARSE_ERROR)
-            .into(),
-    )
+pub async fn lock(url: &String) -> Result<String, Error> {
+    let output = Command::nix([
+        "flake",
+        "lock",
+        "--output-lock-file",
+        "/dev/stdout",
+        "--override-input",
+        "x",
+        url,
+        env!("TYPHON_FLAKE"),
+    ])
+    .sync_stdout()
+    .await?;
+    let locked_info = &serde_json::from_str::<Value>(&output).unwrap()["nodes"]["x"]["locked"];
+    let output = Command::nix([
+        "eval",
+        "--raw",
+        "--expr",
+        &format!(
+            "builtins.flakeRefToString (builtins.fromJSON ''{}'')",
+            locked_info
+        ),
+    ])
+    .sync_stdout()
+    .await?;
+    Ok(output)
 }
 
 pub async fn log(drv: String) -> Result<String, Error> {

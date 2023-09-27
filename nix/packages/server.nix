@@ -25,4 +25,5 @@ in
       cargoArtifacts
       ;
     buildInputs = [pkgs.sqlite.dev];
+    TYPHON_FLAKE = ../../typhon-flake;
   }

@@ -111,28 +111,28 @@ fn view_jobset(model: &Model) -> Node<Msg> {
             "Jobset",
             " ",
             a![
-                &model.handle.project.project,
+                &model.handle.project.name,
                 attrs! {
                     At::Href => crate::Urls::project(&model.handle.project),
                 },
             ],
             ":",
-            model.handle.jobset.clone(),
+            model.handle.name.clone(),
         ],
         match &model.info {
             None => div!["loading..."],
             Some(info) => div![div![
-                format!("Flake: {}", info.flake),
+                format!("Flake: {}", info.url),
                 h3!["Evaluations"],
-                ul![model.evaluations.iter().map(|(id, time)| li![a![
+                ul![model.evaluations.iter().map(|(num, time)| li![a![
                     timestamp::view(time).map_msg({
-                        let id = id.clone();
-                        move |msg| Msg::TimestampMsg(id, msg)
+                        let num = num.clone();
+                        move |msg| Msg::TimestampMsg(num, msg)
                     }),
                     attrs! { At::Href => crate::Urls::evaluation(
                         &handles::Evaluation{
                             jobset: model.handle.clone(),
-                            evaluation: *id,
+                            num: *num,
                         }
                     ) },
                 ]]),]

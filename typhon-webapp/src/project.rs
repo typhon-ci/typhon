@@ -9,7 +9,8 @@ pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Project,
     info: Option<responses::ProjectInfo>,
-    declaration: editable_text::Model,
+    declaration_url: editable_text::Model,
+    declaration_legacy: bool,
 }
 
 impl Model {
@@ -30,7 +31,7 @@ pub enum Msg {
     Noop,
     Refresh,
     UpdateJobsets,
-    MsgDeclaration(editable_text::Msg),
+    MsgDeclarationUrl(editable_text::Msg),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
@@ -40,7 +41,8 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
         error: None,
         handle: handle.clone(),
         info: None,
-        declaration: editable_text::init("".to_string()),
+        declaration_url: editable_text::init("".to_string()),
+        declaration_legacy: false,
     }
 }
 
@@ -65,10 +67,18 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
     }
     match msg {
-        Msg::MsgDeclaration(m) => {
-            update_text_comp!(m, &mut model.declaration, Msg::MsgDeclaration, |decl| {
-                requests::Project::SetDecl(decl)
-            })
+        Msg::MsgDeclarationUrl(m) => {
+            update_text_comp!(
+                m,
+                &mut model.declaration_url,
+                Msg::MsgDeclarationUrl,
+                |url| {
+                    requests::Project::SetDecl(requests::ProjectDecl {
+                        url,
+                        legacy: model.declaration_legacy,
+                    })
+                }
+            )
         }
         //Msg::Delete => {
         //    let handle = model.handle.clone();
@@ -104,7 +114,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::GetInfo(info) => {
             model.info = Some(info.clone());
-            model.declaration = editable_text::init(info.decl.clone());
+            model.declaration_url = editable_text::init(info.url.clone());
         }
         Msg::Noop => (),
         Msg::Refresh => {
@@ -191,7 +201,7 @@ fn view_project(model: &Model, is_admin: bool) -> Node<Msg> {
             " ",
             div![
                 "(id: ",
-                code![&model.handle.project, attrs! { At::Class => "id" }],
+                code![&model.handle.name, attrs! { At::Class => "id" }],
                 ")",
                 C!["id"]
             ]
@@ -223,17 +233,17 @@ fn view_project(model: &Model, is_admin: bool) -> Node<Msg> {
                     show_info_block(
                         "Flake URI",
                         "desclaration",
-                        editable_text_view(&model.declaration, Box::new(|s| code![s.clone()]))
-                            .map_msg(Msg::MsgDeclaration),
+                        editable_text_view(&model.declaration_url, Box::new(|s| code![s.clone()]))
+                            .map_msg(Msg::MsgDeclarationUrl),
                         Some(div![])
                     ),
                     show_info_block(
                         "Locked flake URI",
                         "locked-declaration",
-                        code![if info.decl_locked.clone() == "" {
+                        code![if info.url_locked.clone() == "" {
                             "-".into()
                         } else {
-                            info.decl_locked.clone()
+                            info.url_locked.clone()
                         }],
                         Some(i![C!["ri-refresh-line"], ev(Ev::Click, |_| Msg::Refresh)])
                     ),
@@ -279,7 +289,7 @@ fn view_project(model: &Model, is_admin: bool) -> Node<Msg> {
                         attrs! { At::Href => Urls::jobset(
                             &handles::Jobset {
                                 project: model.handle.clone(),
-                                jobset: name.into(),
+                                name: name.into(),
                             }
                         ) },
                     ]])],

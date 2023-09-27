@@ -6,7 +6,7 @@ use typhon_types::*;
 pub struct Model {
     error: Option<responses::ResponseError>,
     projects: Vec<(String, responses::ProjectMetadata)>,
-    new_project: (String, String),
+    new_project: (String, String, bool),
 }
 impl From<Model> for AppUrl {
     fn from(_: Model) -> AppUrl {
@@ -24,7 +24,8 @@ pub enum Msg {
     Noop,
     SetProjects(Vec<(String, responses::ProjectMetadata)>),
     UpdateNewProjectName(String),
-    UpdateNewProjectExpr(String),
+    UpdateNewProjectUrl(String),
+    UpdateNewProjectLegacy,
 }
 
 pub fn init(orders: &mut impl Orders<Msg>) -> Model {
@@ -36,8 +37,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::CreateProject => {
             let req = requests::Request::CreateProject {
-                handle: handles::project(model.new_project.0.clone()),
-                decl: model.new_project.1.clone(),
+                name: model.new_project.0.clone(),
+                decl: requests::ProjectDecl {
+                    url: model.new_project.1.clone(),
+                    legacy: model.new_project.2.clone(),
+                },
             };
             model.new_project = <_>::default();
             perform_request!(
@@ -72,8 +76,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::UpdateNewProjectName(name) => {
             model.new_project.0 = name;
         }
-        Msg::UpdateNewProjectExpr(expr) => {
-            model.new_project.1 = expr;
+        Msg::UpdateNewProjectUrl(url) => {
+            model.new_project.1 = url;
+        }
+        Msg::UpdateNewProjectLegacy => {
+            model.new_project.2 = !model.new_project.2;
         }
     }
 }
@@ -115,14 +122,22 @@ fn view_home(model: &Model, admin: bool) -> Node<Msg> {
                         input_ev(Ev::Input, Msg::UpdateNewProjectName),
                         enter.clone()
                     ],
-                    label!["Flake URI:"],
+                    label!["Flake URL:"],
                     input![
                         attrs! {
                             At::Value => model.new_project.1,
                             At::Placeholder => "github:org/repo",
                         },
-                        input_ev(Ev::Input, Msg::UpdateNewProjectExpr),
+                        input_ev(Ev::Input, Msg::UpdateNewProjectUrl),
                         enter
+                    ],
+                    label!["Legacy:"],
+                    input![
+                        attrs! {
+                            At::Value => model.new_project.2,
+                            At::Type => "checkbox",
+                        },
+                        input_ev(Ev::Change, |_| Msg::UpdateNewProjectLegacy),
                     ],
                     div![],
                     button![
