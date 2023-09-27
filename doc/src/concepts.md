@@ -17,7 +17,7 @@ below.
 ## Actions
 
 Actions are scripts called by Typhon for different purposes. At the moment there
-are three actions a project can define.
+are four actions a project can define.
 
 - The `jobsets` action is responsible for declaring jobsets for your project.
   Jobsets, like projects, are flake URIs. Typically they correspond to a branch
@@ -27,6 +27,10 @@ are three actions a project can define.
 - The `begin` and `end` actions are run at the beginning and end of all jobs of
   your project. They are typically used to set statuses on your repository, but
   can also be used for deployment.
+
+- The `webhook` action is triggered by calls to a specific endpoint of the API.
+  It outputs commands for Typhon to update jobsets or evaluate a jobset. It is
+  meant to trigger jobs automatically if your forge supports webhooks.
 
 Actions can also expose a `secrets` file. This is an age encrypted JSON file
 that typically contains tokens for the actions. It must be encrypted with the
