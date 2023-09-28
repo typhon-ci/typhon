@@ -1,17 +1,31 @@
-typhon: {
+{sources ? import ../sources.nix}: {
   config,
   lib,
   pkgs,
   ...
 }: let
-  typhonPackages = typhon.packages.${config.nixpkgs.system};
-  inherit (lib) mkEnableOption mkIf mkOption types;
+  typhonPackages = import ../packages {
+    inherit sources;
+    inherit (config.nixpkgs) system;
+  };
+
+  inherit
+    (lib)
+    mkEnableOption
+    mkIf
+    mkOption
+    types
+    ;
+
   cfg = config.services.typhon;
+
   gcrootsDir = "/nix/var/nix/gcroots/typhon";
+
   init-execstart = pkgs.writeShellScript "typhon-init" ''
     [ -e ${gcrootsDir} ] || mkdir ${gcrootsDir}
     chown typhon:typhon ${gcrootsDir}
   '';
+
   typhon-execstart = let
     protocol =
       if cfg.https
@@ -35,7 +49,7 @@ in {
     webapp = mkOption {
       type = types.package;
       description = "Which webapp to use for the Typhon instance";
-      default = typhonPackages.typhon-webapp;
+      default = typhonPackages.typhon-webroot;
     };
     home = mkOption {
       type = types.str;

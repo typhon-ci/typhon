@@ -1,10 +1,13 @@
-inputs @ {nixpkgs, ...}: let
+{
+  sources ? import ../sources.nix,
+  systems ? import ../systems.nix,
+}: let
   self = rec {
-    inherit inputs;
+    inherit systems;
 
-    lib = nixpkgs.lib;
+    lib = sources.nixpkgs.lib;
 
-    pkgs = nixpkgs.legacyPackages;
+    pkgs = lib.genAttrs systems (system: import ../nixpkgs.nix {inherit sources system;});
 
     unionOfDisjoint = x: y:
       if builtins.intersectAttrs x y == {}
@@ -18,7 +21,7 @@ inputs @ {nixpkgs, ...}: let
 
     importer = scope: files:
       mkScope scope (
-        nixpkgs.lib.foldr
+        lib.foldr
         (file: fn: lib:
           unionOfDisjoint
           (import file self lib)

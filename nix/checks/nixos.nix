@@ -1,18 +1,16 @@
 {
-  typhon,
-  testers,
+  sources ? import ../sources.nix,
+  system ? builtins.currentSystem or "unknown-system",
+  pkgs ? import ../nixpkgs.nix {inherit sources system;},
+  typhon ? import ../nixos/typhon.nix {inherit sources;},
 }:
-testers.nixosTest ({
-  pkgs,
-  lib,
-  ...
-}: {
+pkgs.testers.nixosTest ({pkgs, ...}: {
   name = "typhon-test";
 
   nodes = {
     typhon = {...}: {
       nix.settings.experimental-features = ["nix-command" "flakes"];
-      imports = [typhon.nixosModules.default];
+      imports = [typhon];
       services.typhon = {
         enable = true;
         hashedPassword = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";

@@ -1,5 +1,8 @@
-inputs: let
-  utils = import ./utils.nix inputs;
+{
+  sources ? import ../sources.nix,
+  systems ? import ../systems.nix,
+}: let
+  utils = import ./utils.nix {inherit sources systems;};
   self =
     utils.importer null [
       ./dummyWebhook.nix
