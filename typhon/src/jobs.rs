@@ -15,9 +15,9 @@ use std::path::Path;
 
 impl Job {
     pub async fn cancel(&self) -> Result<(), Error> {
-        let a = JOBS_BEGIN.cancel(self.job_id).await;
-        let b = JOBS_BUILD.cancel(self.job_id).await;
-        let c = JOBS_END.cancel(self.job_id).await;
+        let a = JOBS_BEGIN.cancel(&self.job_id).await;
+        let b = JOBS_BUILD.cancel(&self.job_id).await;
+        let c = JOBS_END.cancel(&self.job_id).await;
         if a || b || c {
             Ok(())
         } else {

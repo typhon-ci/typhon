@@ -54,7 +54,7 @@ async fn evaluate_aux(id: i32, new_jobs: nix::NewJobs) -> Result<(), Error> {
 
 impl Evaluation {
     pub async fn cancel(&self) -> Result<(), Error> {
-        let r = EVALUATIONS.cancel(self.evaluation_id).await;
+        let r = EVALUATIONS.cancel(&self.evaluation_id).await;
         if r {
             Ok(())
         } else {
