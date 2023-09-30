@@ -5,6 +5,11 @@ use std::collections::HashMap;
 use std::future::Future;
 
 #[derive(Debug)]
+pub enum Error {
+    ShuttingDown,
+}
+
+#[derive(Debug)]
 struct TaskHandle {
     canceler: Option<Sender<()>>,
     waiters: Vec<Sender<()>>,
@@ -13,6 +18,7 @@ struct TaskHandle {
 #[derive(Debug)]
 struct TasksUnwrapped<Id> {
     handles: HashMap<Id, TaskHandle>,
+    shutdown: bool,
 }
 
 #[derive(Debug)]
@@ -20,11 +26,12 @@ pub struct Tasks<Id> {
     tasks: Mutex<TasksUnwrapped<Id>>,
 }
 
-impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send> Tasks<Id> {
+impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync> Tasks<Id> {
     pub fn new() -> Self {
         Tasks {
             tasks: Mutex::new(TasksUnwrapped {
                 handles: HashMap::new(),
+                shutdown: false,
             }),
         }
     }
@@ -59,8 +66,11 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send> Tasks<Id> {
         id: Id,
         task: T,
         f: F,
-    ) -> () {
+    ) -> Result<(), Error> {
         let mut tasks = self.tasks.lock().await;
+        if tasks.shutdown {
+            return Err(Error::ShuttingDown);
+        }
         let (send, recv) = channel::<()>();
         let handle = TaskHandle {
             canceler: Some(send),
@@ -80,6 +90,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send> Tasks<Id> {
                 }
             });
         });
+        Ok(())
     }
 
     pub async fn cancel(&self, id: &Id) -> bool {
@@ -91,5 +102,20 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send> Tasks<Id> {
             .map(|task| task.canceler.take().map(|send| send.send(())))
             .flatten()
             .is_some()
+    }
+
+    pub async fn shutdown(&'static self) {
+        let mut tasks = self.tasks.lock().await;
+        tasks.shutdown = true;
+        let mut set = tokio::task::JoinSet::new();
+        for id in tasks.handles.keys() {
+            set.spawn({
+                let id = id.clone();
+                async move { self.wait(&id).await }
+            });
+            self.cancel(id).await;
+        }
+        drop(tasks);
+        while let Some(_) = set.join_next().await {}
     }
 }
