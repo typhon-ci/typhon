@@ -4,7 +4,10 @@ utils: lib: let
     eachSystem
     ;
 in {
-  mkGitJobsets = url:
+  mkGitJobsets = {
+    url,
+    legacy ? false,
+  }:
     eachSystem (system: let
       pkgs = utils.pkgs.${system};
     in
@@ -17,13 +20,13 @@ in {
         ];
         text = ''
           heads=$(git ls-remote --heads ${url} | sed 's/.*refs\/heads\/\(.*\)/\1/')
-          cmd=""
-          for head in $heads
-          do
-            cmd="$cmd . += {\"$head\": { \"flake\": \"git+${url}?ref=$head\" } } |"
-          done
-          array=$(echo "{}" | jq "$cmd .")
-          echo "$array"
+          echo null | jq --arg heads "$heads" '$heads
+            | split("\n")
+            | map({(.): {
+                "url": ("git+${url}?ref=" + .),
+                "legacy": ${utils.lib.boolToString legacy}
+              }})
+            | add'
         '';
       });
 }
