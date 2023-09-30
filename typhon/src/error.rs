@@ -1,6 +1,7 @@
 use crate::actions;
 use crate::handles;
 use crate::nix;
+use crate::tasks;
 
 #[derive(Debug)]
 pub enum Error {
@@ -20,13 +21,17 @@ pub enum Error {
     Todo,
     UnexpectedDatabaseError(diesel::result::Error),
     LoginError,
+    TaskError(tasks::Error),
 }
 
 impl Error {
     pub fn is_internal(&self) -> bool {
         use Error::*;
         match self {
-            ActionError(actions::Error::Unexpected) | UnexpectedDatabaseError(_) | Todo => true,
+            ActionError(actions::Error::Unexpected)
+            | UnexpectedDatabaseError(_)
+            | TaskError(_)
+            | Todo => true,
             _ => false,
         }
     }
@@ -68,6 +73,7 @@ impl std::fmt::Display for Error {
             LoginError => write!(f, "Login error"),
             Todo => write!(f, "Unspecified error"),
             UnexpectedDatabaseError(e) => write!(f, "Database error: {}", e),
+            TaskError(e) => write!(f, "Task error: {}", e),
         }
     }
 }
@@ -90,13 +96,20 @@ impl From<actions::Error> for Error {
     }
 }
 
+impl From<tasks::Error> for Error {
+    fn from(e: tasks::Error) -> Error {
+        Error::TaskError(e)
+    }
+}
+
 impl Into<typhon_types::responses::ResponseError> for Error {
     fn into(self) -> typhon_types::responses::ResponseError {
         use {typhon_types::responses::ResponseError::*, Error::*};
         match self {
-            ActionError(actions::Error::Unexpected) | UnexpectedDatabaseError(_) | Todo => {
-                InternalError
-            }
+            ActionError(actions::Error::Unexpected)
+            | UnexpectedDatabaseError(_)
+            | TaskError(_)
+            | Todo => InternalError,
             EvaluationNotFound(_) | JobNotFound(_) | JobsetNotFound(_) | ProjectNotFound(_) => {
                 ResourceNotFound(format!("{}", self))
             }

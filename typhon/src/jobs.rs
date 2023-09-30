@@ -105,13 +105,13 @@ impl Job {
         }))
     }
 
-    pub async fn run(self) -> () {
+    pub async fn run(self) -> Result<(), Error> {
         use crate::time::now;
         let id = self.job_id;
         let drv = nix::DrvPath::new(&self.job_build_drv);
 
         // FIXME?
-        let handle_1 = self.handle().await.unwrap();
+        let handle_1 = self.handle().await?;
         let handle_2 = handle_1.clone();
         let handle_3 = handle_1.clone();
         let handle_4 = handle_1.clone();
@@ -175,7 +175,7 @@ impl Job {
             drop(conn);
             log_event(Event::JobUpdated(handle_2));
         };
-        JOBS_BEGIN.run(id, task_begin, finish_begin).await;
+        JOBS_BEGIN.run(id, task_begin, finish_begin).await?;
 
         // FIXME: write a more intelligent build manager
         let (sender, receiver) = tokio::sync::oneshot::channel::<String>();
@@ -205,7 +205,7 @@ impl Job {
             drop(conn);
             log_event(Event::JobUpdated(handle_3));
         };
-        JOBS_BUILD.run(id, task_build, finish_build).await;
+        JOBS_BUILD.run(id, task_build, finish_build).await?;
 
         let task_end = async move {
             // wait for `begin` to finish
@@ -267,6 +267,8 @@ impl Job {
             drop(conn);
             log_event(Event::JobUpdated(handle_5));
         };
-        JOBS_END.run(id, task_end, finish_end).await;
+        JOBS_END.run(id, task_end, finish_end).await?;
+
+        Ok(())
     }
 }

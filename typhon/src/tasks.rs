@@ -9,6 +9,12 @@ pub enum Error {
     ShuttingDown,
 }
 
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Task manager is shutting down")
+    }
+}
+
 #[derive(Debug)]
 struct TaskHandle {
     canceler: Option<Sender<()>>,

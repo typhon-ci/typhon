@@ -59,7 +59,7 @@ impl Jobset {
 
         let handle = evaluation.handle().await?;
         log_event(Event::EvaluationNew(handle.clone()));
-        evaluation.run().await;
+        evaluation.run().await?;
 
         Ok(handle)
     }

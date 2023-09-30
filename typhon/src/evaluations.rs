@@ -46,7 +46,7 @@ async fn evaluate_aux(id: i32, new_jobs: nix::NewJobs) -> Result<(), Error> {
     drop(conn);
 
     for job in created_jobs.into_iter() {
-        job.run().await;
+        job.run().await?;
     }
 
     Ok(())
@@ -116,12 +116,11 @@ impl Evaluation {
             .first::<Jobset>(&mut *conn)?)
     }
 
-    pub async fn run(self) -> () {
+    pub async fn run(self) -> Result<(), Error> {
         use handles::Log::*;
 
-        // TODO: error management
-        let handle = self.handle().await.unwrap();
-        let jobset = self.jobset().await.unwrap();
+        let handle = self.handle().await?;
+        let jobset = self.jobset().await?;
         let id = self.evaluation_id;
         let task =
             async move { nix::eval_jobs(&self.evaluation_url_locked, jobset.jobset_legacy).await };
@@ -154,6 +153,8 @@ impl Evaluation {
 
             log_event(Event::EvaluationFinished(handle));
         };
-        EVALUATIONS.run(id, task, f).await;
+        EVALUATIONS.run(id, task, f).await?;
+
+        Ok(())
     }
 }
