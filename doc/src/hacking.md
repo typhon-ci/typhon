@@ -18,7 +18,7 @@ To run the server, first make sure that `/nix/var/nix/gcroots/typhon/` exists
 and that you have write access to the directory. Then go to `typhon/` and run:
 
 ```shell
-cargo run -- -p $(echo -n password | sha256sum | head -c 64) -j null -w ""
+cargo run -- -p $(echo -n password | sha256sum | head -c 64) -w ""
 ```
 
 The server will be available at `http://localhost:8000`.

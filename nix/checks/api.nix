@@ -55,7 +55,7 @@ in
     '';
     installPhase = ''
       # start Typhon server
-      typhon -p $(echo -n password | sha256sum | head -c 64) -j null -w "" &
+      typhon -p $(echo -n password | sha256sum | head -c 64) -w "" &
       sleep 1
 
       # run the test client

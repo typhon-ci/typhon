@@ -7,6 +7,7 @@ in {
   mkGithubStatus = {
     owner,
     repo,
+    typhon_url,
   }:
     eachSystem (system: let
       pkgs = utils.pkgs.${system};
@@ -21,7 +22,6 @@ in {
         text = ''
           input=$(cat)
 
-          data=$(echo "$input" | jq '.input.data' -r)
           url_locked=$(echo "$input" | jq '.input.url_locked' -r)
           job=$(echo "$input" | jq '.input.job' -r)
           status=$(echo "$input" | jq '.input.status' -r)
@@ -30,7 +30,7 @@ in {
           token=$(echo "$input" | jq '.secrets.github_token' -r)
 
           rev=$(nix eval --json --expr "builtins.parseFlakeRef \"$url_locked\"" | jq '.rev' -r)
-          target_url=$(echo "$data" | jq '.url' -r) # TODO
+          target_url="${typhon_url}" # TODO: more precise target url
           context="Typhon: $system / $job"
 
           case $status in

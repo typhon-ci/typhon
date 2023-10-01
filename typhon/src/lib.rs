@@ -26,7 +26,6 @@ use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use clap::Parser;
 use diesel::prelude::*;
 use once_cell::sync::Lazy;
-use serde_json::Value;
 use sha256::digest;
 use std::fmt;
 use std::future::Future;
@@ -46,10 +45,6 @@ pub struct Args {
     #[arg(long, short)]
     pub webroot: String,
 
-    /// Json data for the jobs
-    #[arg(long, short)]
-    pub json: String,
-
     /// Silence all output
     #[arg(long, short)]
     pub quiet: bool,
@@ -66,7 +61,6 @@ pub struct Args {
 #[derive(Debug)]
 pub struct Settings {
     pub hashed_password: String,
-    pub json: Value,
     pub webroot: String,
 }
 
@@ -93,7 +87,6 @@ pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
     let args = Args::parse();
     Settings {
         hashed_password: args.password.clone(),
-        json: serde_json::from_str(&args.json).expect("failed to parse json"),
         webroot: args.webroot.clone(),
     }
 });

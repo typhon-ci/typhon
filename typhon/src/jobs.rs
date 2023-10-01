@@ -8,7 +8,7 @@ use crate::responses;
 use crate::schema::evaluations::dsl::*;
 use crate::schema::jobs::dsl::*;
 use crate::{log_event, Event};
-use crate::{JOBS_BEGIN, JOBS_BUILD, JOBS_END, SETTINGS};
+use crate::{JOBS_BEGIN, JOBS_BUILD, JOBS_END};
 use diesel::prelude::*;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -90,7 +90,6 @@ impl Job {
         let jobset = evaluation.jobset().await?;
         let project = jobset.project().await?;
         Ok(json!({
-            "data": SETTINGS.json,
             "drv": self.job_build_drv,
             "evaluation": evaluation.evaluation_num,
             "url": jobset.jobset_url,

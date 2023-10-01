@@ -14,6 +14,7 @@ in {
     owner,
     repo,
     secrets,
+    typhon_url,
     title ? repo,
     description ? "",
     homepage ? "https://github.com/${owner}/${repo}",
@@ -23,8 +24,8 @@ in {
       meta = {inherit title description homepage;};
       actions = {
         jobsets = mkGithubJobsets {inherit owner repo legacy;};
-        begin = mkGithubStatus {inherit owner repo;};
-        end = mkGithubStatus {inherit owner repo;};
+        begin = mkGithubStatus {inherit owner repo typhon_url;};
+        end = mkGithubStatus {inherit owner repo typhon_url;};
         webhook = githubWebhook;
       };
       inherit secrets;
