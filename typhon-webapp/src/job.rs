@@ -55,10 +55,8 @@ pub fn fetch_logs_as_stream(drv: String) -> impl Stream<Item = String> {
     stream! {
         let settings = SETTINGS.get().unwrap();
         let token = get_token();
-        let req = Request::new(format!("{}/drv-log", settings.api_server.url(false)))
-            .method(Method::Post)
-            .json(&drv)
-            .expect("Failed to serialize request");
+        let req = Request::new(format!("{}/drv-log{}", settings.api_server.url(false), &drv))
+            .method(Method::Get);
         let req = match token {
             None => req,
             Some(token) => req.header(Header::custom("token", token)),

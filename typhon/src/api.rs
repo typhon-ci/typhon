@@ -189,7 +189,7 @@ async fn dist(
 }
 
 /// Serves the log in live for derivation [path].
-async fn drv_log(path: web::Json<String>) -> HttpResponse {
+async fn drv_log(path: web::Path<String>) -> Option<HttpResponse> {
     use crate::nix;
     use futures::stream::StreamExt;
     let path = path.into_inner().to_string();
@@ -199,9 +199,12 @@ async fn drv_log(path: web::Json<String>) -> HttpResponse {
             let stream = stream.map(|x: String| {
                 Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
             });
-            HttpResponse::Ok().streaming(stream)
+            Some(HttpResponse::Ok().streaming(stream))
         }
-        None => HttpResponse::Ok().body(web::Bytes::from(nix::log(path).await.unwrap())),
+        None => match nix::log(path).await {
+            Ok(log) => Some(HttpResponse::Ok().body(web::Bytes::from(log))),
+            Err(_) => None,
+        },
     }
 }
 
@@ -278,7 +281,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
             .route("/projects", web::get().to(list_projects))
-            .route("/drv-log", web::post().to(drv_log))
+            .route("/drv-log{path:.*}", web::get().to(drv_log))
             .service(
                 web::scope("/projects/{project}")
                     .route("", web::get().to(project_info))
