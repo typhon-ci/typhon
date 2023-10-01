@@ -30,15 +30,15 @@ async fn main() -> std::io::Result<()> {
         .expect("failed to run migrations");
 
     // Run actix server
-    let actix = HttpServer::new(|| App::new().configure(typhon::api::config))
+    HttpServer::new(|| App::new().configure(typhon::api::config))
         .bind(("127.0.0.1", 8000))?
-        .run();
+        .run()
+        .await
+        .map_err(|e| log::error!("Actix error: {}", e))
+        .unwrap_or(());
 
     // Graceful shutdown
-    tokio::select! {
-        _ = actix => panic!(),
-        _ = typhon::shutdown() => eprintln!("Good bye!"),
-    }
+    typhon::shutdown().await;
 
     Ok(())
 }

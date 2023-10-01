@@ -286,13 +286,12 @@ pub fn log_event(event: Event) {
 }
 
 pub async fn shutdown() {
-    let res = tokio::signal::ctrl_c().await;
     eprintln!("Typhon is shutting down...");
-    let _ = res.map_err(|e| log::error!("{}", e));
     tokio::join!(
         EVALUATIONS.shutdown(),
         JOBS_BUILD.shutdown(),
         JOBS_BEGIN.shutdown(),
         JOBS_END.shutdown(),
     );
+    eprintln!("Good bye!");
 }
