@@ -40,6 +40,7 @@ mod sandboxed_command {
             .args(["--proc", "/proc"])
             .args(["--dev", "/dev"])
             .args(["--ro-bind", "/nix/store", "/nix/store"])
+            .args(["--ro-bind", "/nix/var/nix", "/nix/var/nix"])
             .args(["--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf"])
             .args(["--ro-bind", "/etc", "/etc"]) // TODO: why do I need that
             .arg("--unshare-pid");
