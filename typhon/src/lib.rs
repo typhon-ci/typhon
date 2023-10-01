@@ -1,6 +1,7 @@
 mod actions;
 mod error;
 mod evaluations;
+mod events;
 mod gcroots;
 mod jobs;
 mod jobsets;
@@ -11,7 +12,6 @@ mod schema;
 mod time;
 
 pub mod api;
-pub mod listeners;
 pub mod logs;
 pub mod tasks;
 
@@ -101,8 +101,8 @@ pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
         .unwrap_or_else(|e| panic!("Error connecting to {}, with error {:#?}", database_url, e));
     Connection::new(conn)
 });
-pub static LISTENERS: Lazy<Mutex<listeners::Listeners>> =
-    Lazy::new(|| Mutex::new(listeners::Listeners::new()));
+pub static EVENT_LOGGER: Lazy<Mutex<events::EventLogger>> =
+    Lazy::new(|| Mutex::new(events::EventLogger::new()));
 pub static BUILD_LOGS: Lazy<logs::live::Cache<nix::DrvPath>> = Lazy::new(logs::live::Cache::new);
 pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);
 
@@ -271,16 +271,17 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
     })?)
 }
 
-pub fn log_event(event: Event) {
+pub async fn log_event(event: Event) {
     log::info!("event: {:?}", event);
-    let _ = tokio::spawn(async move {
-        LISTENERS.lock().await.log(event);
-    });
+    EVENT_LOGGER.lock().await.log(event).await;
 }
 
 pub async fn shutdown() {
     eprintln!("Typhon is shutting down...");
     tokio::join!(
+        async {
+            EVENT_LOGGER.lock().await.shutdown();
+        },
         EVALUATIONS.shutdown(),
         JOBS_BUILD.shutdown(),
         JOBS_BEGIN.shutdown(),

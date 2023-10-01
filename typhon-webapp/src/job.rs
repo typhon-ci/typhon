@@ -1,11 +1,11 @@
+use crate::get_token;
+use crate::streams;
 use crate::{appurl::AppUrl, perform_request, view_error, view_log, SETTINGS};
 
 use typhon_types::*;
 
-use seed::{
-    prelude::{js_sys::Promise, *},
-    *,
-};
+use gloo_net::http;
+use seed::{prelude::*, *};
 
 pub struct Model {
     error: Option<responses::ResponseError>,
@@ -35,58 +35,7 @@ pub enum Msg {
     GetLogBegin(String),
     GetLogEnd(String),
     Noop,
-    LogLine(String),
-}
-
-#[wasm_bindgen(inline_js = "export async function read_line_by_line(reader) {
-    let next = async () => {
-        let o = await reader.read();
-        return o.done ? null : {line: new TextDecoder().decode(o.value), next};
-    };
-    return next();
- }
-")]
-extern "C" {
-    fn read_line_by_line(reader: js_sys::Object) -> Promise;
-}
-
-use futures_core::stream::Stream;
-pub fn fetch_logs_as_stream(drv: String) -> impl Stream<Item = String> {
-    use crate::*;
-    use async_stream::stream;
-    stream! {
-        use gloo_net::http;
-        let settings = SETTINGS.get().unwrap();
-        let token = get_token();
-        let req = http::RequestBuilder::new(&format!("{}/drv-log{}", settings.api_server.url(), &drv))
-            .method(http::Method::GET);
-        let req = match token {
-            None => req,
-            Some(token) => req.header(&"token", &token),
-        };
-        let res = req.send().await.unwrap();
-        let readable_stream: web_sys::ReadableStream = res.body().unwrap();
-        let reader: js_sys::Object = readable_stream.get_reader();
-        let promise = read_line_by_line(reader);
-        let mut maybe_promise = Some(promise);
-        while let Some(promise) = maybe_promise {
-            let future = wasm_bindgen_futures::JsFuture::from(promise);
-            let it = future.await.unwrap();
-            if it.is_null() {
-                maybe_promise = None;
-            } else {
-                let o = js_sys::Object::from(it);
-                let line = js_sys::Reflect::get(&o, &"line".into()).unwrap();
-                let line: String = js_sys::JsString::from(line).into();
-                let next = js_sys::Function::from(js_sys::Reflect::get(&o, &"next".into()).unwrap());
-                let promise =
-                    js_sys::Reflect::apply(&next, &js_sys::Object::new(), &js_sys::Array::new())
-                    .unwrap();
-                yield line;
-                maybe_promise = Some(promise.into());
-            }
-        }
-    }
+    LogChunk(String),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
@@ -160,9 +109,21 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 orders.send_msg(Msg::FetchLogEnd);
             }
             let drv = info.build_drv.clone();
+            let settings = SETTINGS.get().unwrap();
+            let req = http::RequestBuilder::new(&format!(
+                "{}/drv-log{}",
+                settings.api_server.url(),
+                &drv
+            ))
+            .method(http::Method::GET);
+            let req = match get_token() {
+                None => req,
+                Some(token) => req.header(&"token", &token),
+            };
+            let req = req.build().unwrap();
             orders
-                .proxy(Msg::LogLine)
-                .stream(fetch_logs_as_stream(drv.into()));
+                .proxy(|chunk: String| Msg::LogChunk(chunk))
+                .stream(streams::fetch_as_stream(req));
             model.info = Some(info);
         }
         Msg::GetLogBegin(log) => {
@@ -172,7 +133,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.log_end = Some(log);
         }
         Msg::Noop => (),
-        Msg::LogLine(line) => model.log.push(line),
+        Msg::LogChunk(chunk) => model.log.push(chunk),
     }
 }
 

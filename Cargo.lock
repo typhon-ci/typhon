@@ -233,24 +233,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix-web-actors"
-version = "4.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf6e9ccc371cfddbed7aa842256a4abc7a6dcac9f3fce392fe1d0f68cfd136b2"
-dependencies = [
- "actix",
- "actix-codec",
- "actix-http",
- "actix-web",
- "bytes 1.5.0",
- "bytestring",
- "futures-core",
- "pin-project-lite",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
 name = "actix-web-codegen"
 version = "4.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3471,7 +3453,6 @@ dependencies = [
  "actix-cors",
  "actix-files",
  "actix-web",
- "actix-web-actors",
  "age",
  "async-stream",
  "async-trait",
@@ -3525,6 +3506,7 @@ dependencies = [
  "gloo-console",
  "gloo-net",
  "gloo-storage",
+ "gloo-utils 0.2.0",
  "once_cell",
  "seed",
  "serde",

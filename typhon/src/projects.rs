@@ -48,7 +48,7 @@ impl Project {
                     .values(&new_project)
                     .execute(&mut *conn)?;
                 drop(conn);
-                log_event(Event::ProjectNew(project_handle.clone()));
+                log_event(Event::ProjectNew(project_handle.clone())).await;
                 Ok(())
             }
         }
@@ -67,7 +67,7 @@ impl Project {
     pub async fn delete(&self) -> Result<(), Error> {
         let mut conn = connection().await;
         diesel::delete(projects.find(self.project_id)).execute(&mut *conn)?;
-        log_event(Event::ProjectDeleted(self.handle()));
+        log_event(Event::ProjectDeleted(self.handle())).await;
         Ok(())
     }
 
@@ -174,7 +174,7 @@ impl Project {
             .execute(&mut *conn)?;
         gcroots::update(&mut *conn);
         drop(conn);
-        log_event(Event::ProjectUpdated(self.handle()));
+        log_event(Event::ProjectUpdated(self.handle())).await;
 
         Ok(())
     }
@@ -185,7 +185,7 @@ impl Project {
             .set((project_url.eq(&decl.url), project_legacy.eq(decl.legacy)))
             .execute(&mut *conn)?;
         drop(conn);
-        log_event(Event::ProjectUpdated(self.handle()));
+        log_event(Event::ProjectUpdated(self.handle())).await;
         Ok(())
     }
 
@@ -196,7 +196,7 @@ impl Project {
             .set(project_key.eq(key))
             .execute(&mut *conn)?;
         drop(conn);
-        log_event(Event::ProjectUpdated(self.handle()));
+        log_event(Event::ProjectUpdated(self.handle())).await;
         Ok(())
     }
 
@@ -265,7 +265,7 @@ impl Project {
         gcroots::update(&mut *conn);
         drop(conn);
 
-        log_event(Event::ProjectJobsetsUpdated(self.handle()));
+        log_event(Event::ProjectJobsetsUpdated(self.handle())).await;
 
         Ok(decls.into_keys().collect())
     }

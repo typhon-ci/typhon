@@ -1,14 +1,12 @@
 use crate::actions::webhooks;
-use crate::listeners::Session;
 use crate::requests::*;
 use crate::{handle_request, handles, Response, ResponseError, User};
-use crate::{BUILD_LOGS, SETTINGS};
+use crate::{BUILD_LOGS, EVENT_LOGGER, SETTINGS};
 use actix_cors::Cors;
 use actix_files::NamedFile;
 use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, Error, HttpRequest, HttpResponse, Responder,
 };
-use actix_web_actors::ws;
 use std::collections::HashMap;
 
 struct ResponseWrapper(crate::Response);
@@ -215,8 +213,15 @@ async fn raw_request(
     web::Json(handle_request(user, body.into_inner()).await)
 }
 
-async fn events(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    ws::start(Session::new(), &req, stream)
+async fn events() -> Option<HttpResponse> {
+    use futures::StreamExt;
+    EVENT_LOGGER.lock().await.listen().map(|stream| {
+        HttpResponse::Ok().streaming(stream.map(|x: typhon_types::Event| {
+            Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(
+                serde_json::to_string(&x).unwrap(),
+            ))
+        }))
+    })
 }
 
 async fn webhook(

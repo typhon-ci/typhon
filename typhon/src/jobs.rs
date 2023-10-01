@@ -172,7 +172,7 @@ impl Job {
                 ))
                 .execute(&mut *conn);
             drop(conn);
-            log_event(Event::JobUpdated(handle_2));
+            log_event(Event::JobUpdated(handle_2)).await;
         };
         JOBS_BEGIN.run(id, task_begin, finish_begin).await?;
 
@@ -202,7 +202,7 @@ impl Job {
                 ))
                 .execute(&mut *conn);
             drop(conn);
-            log_event(Event::JobUpdated(handle_3));
+            log_event(Event::JobUpdated(handle_3)).await;
         };
         JOBS_BUILD.run(id, task_build, finish_build).await?;
 
@@ -264,7 +264,7 @@ impl Job {
                 .set((job_end_status.eq(status), job_end_time_finished.eq(now())))
                 .execute(&mut *conn);
             drop(conn);
-            log_event(Event::JobUpdated(handle_5));
+            log_event(Event::JobUpdated(handle_5)).await;
         };
         JOBS_END.run(id, task_end, finish_end).await?;
 

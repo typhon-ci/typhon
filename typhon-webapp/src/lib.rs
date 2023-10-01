@@ -6,6 +6,7 @@ mod job;
 mod jobset;
 mod login;
 mod project;
+mod streams;
 mod timestamp;
 
 use appurl::AppUrl;
@@ -241,6 +242,7 @@ impl Page {
 pub struct Model {
     page: Page,
     admin: bool,
+    events_handle: StreamHandle,
 }
 
 #[derive(Debug)]
@@ -254,16 +256,36 @@ enum Msg {
     EvaluationMsg(evaluation::Msg),
     JobMsg(job::Msg),
     UrlChanged(subs::UrlChanged),
-    EventReceived(Event), // FIXME: get events from the server
+    EventsReceived(Vec<Event>),
 }
 
 fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
+    use futures::stream::StreamExt;
     orders.subscribe(Msg::UrlChanged);
-    let msg_sender = orders.msg_sender();
     let settings = SETTINGS.get().unwrap();
+    let req = http::RequestBuilder::new(&format!("{}/events", settings.api_server.url()))
+        .method(http::Method::GET);
+    let req = match get_token() {
+        None => req,
+        Some(token) => req.header(&"token", &token),
+    };
+    let req = req.build().unwrap();
+    let events_handle =
+        orders.stream_with_handle(streams::fetch_as_stream(req).map(|chunk: String| {
+            let deserializer = serde_json::Deserializer::from_str(&chunk);
+            let mut res: Vec<Event> = Vec::new();
+            for maybe_event in deserializer.into_iter() {
+                match maybe_event {
+                    Ok(event) => res.push(event),
+                    Err(e) => log!(format!("failed to parse event: {:?}", e)),
+                }
+            }
+            Msg::EventsReceived(res)
+        }));
     Model {
         page: Page::init(url, orders),
         admin: get_token().is_some(), // TODO
+        events_handle,
     }
 }
 
@@ -341,35 +363,37 @@ fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => job::update(msg, job_model, &mut orders.proxy(Msg::JobMsg)),
-        (Msg::EventReceived(event), _) => {
-            log!(format!("event: {:?}", event));
-            match &mut model.page {
-                Page::Home(model) => home::update(
-                    home::Msg::Event(event),
-                    model,
-                    &mut orders.proxy(Msg::HomeMsg),
-                ),
-                Page::Project(model) => project::update(
-                    project::Msg::Event(event),
-                    model,
-                    &mut orders.proxy(Msg::ProjectMsg),
-                ),
-                Page::Jobset(model) => jobset::update(
-                    jobset::Msg::Event(event),
-                    model,
-                    &mut orders.proxy(Msg::JobsetMsg),
-                ),
-                Page::Evaluation(model) => evaluation::update(
-                    evaluation::Msg::Event(event),
-                    model,
-                    &mut orders.proxy(Msg::EvaluationMsg),
-                ),
-                Page::Job(model) => job::update(
-                    job::Msg::Event(event),
-                    model,
-                    &mut orders.proxy(Msg::JobMsg),
-                ),
-                _ => (),
+        (Msg::EventsReceived(mut events), _) => {
+            for event in events.drain(..) {
+                log!(format!("event: {:?}", event));
+                match &mut model.page {
+                    Page::Home(model) => home::update(
+                        home::Msg::Event(event),
+                        model,
+                        &mut orders.proxy(Msg::HomeMsg),
+                    ),
+                    Page::Project(model) => project::update(
+                        project::Msg::Event(event),
+                        model,
+                        &mut orders.proxy(Msg::ProjectMsg),
+                    ),
+                    Page::Jobset(model) => jobset::update(
+                        jobset::Msg::Event(event),
+                        model,
+                        &mut orders.proxy(Msg::JobsetMsg),
+                    ),
+                    Page::Evaluation(model) => evaluation::update(
+                        evaluation::Msg::Event(event),
+                        model,
+                        &mut orders.proxy(Msg::EvaluationMsg),
+                    ),
+                    Page::Job(model) => job::update(
+                        job::Msg::Event(event),
+                        model,
+                        &mut orders.proxy(Msg::JobMsg),
+                    ),
+                    _ => (),
+                }
             }
         }
         (_, _) => (),
@@ -419,6 +443,9 @@ fn header(model: &Model) -> Node<Msg> {
 }
 
 fn view(model: &Model) -> impl IntoNodes<Msg> {
+    // the stream is canceled on the handle drop
+    let _ = model.events_handle;
+
     nodes![
         raw!["
               <link href=\"https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css\" rel=\"stylesheet\">

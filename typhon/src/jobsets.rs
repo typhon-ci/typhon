@@ -58,7 +58,7 @@ impl Jobset {
         drop(conn);
 
         let handle = evaluation.handle().await?;
-        log_event(Event::EvaluationNew(handle.clone()));
+        log_event(Event::EvaluationNew(handle.clone())).await;
         evaluation.run().await?;
 
         Ok(handle)

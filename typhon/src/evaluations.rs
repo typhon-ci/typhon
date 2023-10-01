@@ -151,7 +151,7 @@ impl Evaluation {
             gcroots::update(&mut *conn);
             drop(conn);
 
-            log_event(Event::EvaluationFinished(handle));
+            log_event(Event::EvaluationFinished(handle)).await;
         };
         EVALUATIONS.run(id, task, f).await?;
 
