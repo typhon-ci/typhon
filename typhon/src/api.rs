@@ -1,12 +1,15 @@
 use crate::actions::webhooks;
+use crate::projects;
 use crate::requests::*;
 use crate::{handle_request, handles, Response, ResponseError, User};
 use crate::{BUILD_LOGS, EVENT_LOGGER, SETTINGS};
+
 use actix_cors::Cors;
 use actix_files::NamedFile;
 use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, Error, HttpRequest, HttpResponse, Responder,
 };
+
 use std::collections::HashMap;
 
 struct ResponseWrapper(crate::Response);
@@ -61,7 +64,7 @@ macro_rules! r {
 }
 
 r!(
-    create_project(path: web::Path<String>, body: web::Json<typhon_types::requests::ProjectDecl>) => {
+    create_project(path: web::Path<String>, body: web::Json<ProjectDecl>) => {
         let name = path.into_inner();
         let decl = body.into_inner();
         Request::CreateProject { name, decl }
@@ -117,43 +120,43 @@ r!(
             Jobset::Info,
         );
 
-    evaluation_cancel(path: web::Path<(String,String,i32)>) =>
+    evaluation_cancel(path: web::Path<(String,String,i64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Cancel,
         );
 
-    evaluation_info(path: web::Path<(String,String,i32)>) =>
+    evaluation_info(path: web::Path<(String,String,i64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Info,
         );
 
-    evaluation_log(path: web::Path<(String, String,i32)>) =>
+    evaluation_log(path: web::Path<(String,String,i64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Log,
         );
 
-    job_cancel(path: web::Path<(String,String,i32,String,String)>) =>
+    job_cancel(path: web::Path<(String,String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Cancel,
         );
 
-    job_info(path: web::Path<(String,String,i32,String,String)>) =>
+    job_info(path: web::Path<(String,String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Info,
         );
 
-    job_log_begin(path: web::Path<(String,String,i32,String,String)>) =>
+    job_log_begin(path: web::Path<(String,String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::LogBegin,
         );
 
-    job_log_end(path: web::Path<(String,String,i32,String,String)>) =>
+    job_log_end(path: web::Path<(String,String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::LogEnd,
@@ -165,7 +168,7 @@ r!(
 
 async fn dist(
     user: User,
-    path: web::Path<(String, String, i32, String, String, String)>,
+    path: web::Path<(String, String, i64, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
     let (project, jobset, evaluation, system, job, path) = path.into_inner();
     let handle = handles::job((project, jobset, evaluation, system, job));
@@ -252,14 +255,12 @@ async fn webhook(
     log::info!("handling webhook {:?}", input);
 
     let project_handle = handles::project(path.into_inner().to_string());
-    let project = crate::models::Project::get(&project_handle)
-        .await
-        .map_err(|e| {
-            if e.is_internal() {
-                log::error!("webhook raised error: {:?}", e);
-            }
-            ResponseErrorWrapper(e.into())
-        })?;
+    let project = projects::Project::get(&project_handle).await.map_err(|e| {
+        if e.is_internal() {
+            log::error!("webhook raised error: {:?}", e);
+        }
+        ResponseErrorWrapper(e.into())
+    })?;
 
     let requests = project
         .webhook(input)

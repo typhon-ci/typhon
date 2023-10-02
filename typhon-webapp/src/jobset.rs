@@ -6,7 +6,7 @@ use typhon_types::*;
 
 pub struct Model {
     error: Option<responses::ResponseError>,
-    evaluations: Vec<(i32, timestamp::Model)>,
+    evaluations: Vec<(i64, timestamp::Model)>,
     handle: handles::Jobset,
     info: Option<responses::JobsetInfo>,
 }
@@ -26,7 +26,7 @@ pub enum Msg {
     FetchInfo,
     GetInfo(responses::JobsetInfo),
     Noop,
-    TimestampMsg(i32, timestamp::Msg),
+    TimestampMsg(i64, timestamp::Msg),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {

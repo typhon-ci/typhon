@@ -1,5 +1,6 @@
 pub mod handles {
     use serde::{Deserialize, Serialize};
+
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Project {
         pub name: String,
@@ -23,7 +24,7 @@ pub mod handles {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Evaluation {
         pub jobset: Jobset,
-        pub num: i32,
+        pub num: i64,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Job {
@@ -47,7 +48,6 @@ pub mod handles {
             }
         };
     }
-
     impl_display!(Project);
     impl From<Project> for Vec<String> {
         fn from(x: Project) -> Self {
@@ -102,14 +102,14 @@ pub mod handles {
             name,
         }
     }
-    pub fn evaluation((project, jobset, num): (String, String, i32)) -> Evaluation {
+    pub fn evaluation((project, jobset, num): (String, String, i64)) -> Evaluation {
         Evaluation {
             jobset: selfmod::jobset((project, jobset)),
             num,
         }
     }
     pub fn job(
-        (project, jobset, evaluation, system, name): (String, String, i32, String, String),
+        (project, jobset, evaluation, system, name): (String, String, i64, String, String),
     ) -> Job {
         Job {
             evaluation: selfmod::evaluation((project, jobset, evaluation)),
@@ -117,34 +117,6 @@ pub mod handles {
             name,
         }
     }
-
-    #[macro_export]
-    macro_rules! pattern {
-        ($p:pat, $js:pat, $e:pat, $s:pat, $j:pat) => {
-            crate::handles::Job {
-                evaluation: crate::handles::pattern!($p, $js, $e),
-                system: $s,
-                name: $j,
-            }
-        };
-        ($p:pat, $js:pat, $e:pat) => {
-            crate::handles::Evaluation {
-                jobset: crate::handles::pattern!($p, $js),
-                num: $e,
-            }
-        };
-        ($p:pat, $js:pat) => {
-            crate::handles::Jobset {
-                project: crate::handles::pattern!($p),
-                name: $js,
-            }
-        };
-        ($p:pat) => {
-            crate::handles::Project { name: $p }
-        };
-    }
-
-    pub use pattern;
 }
 
 pub mod requests {
@@ -153,8 +125,8 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectDecl {
+        pub flake: bool,
         pub url: String,
-        pub legacy: bool,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -207,7 +179,7 @@ pub mod requests {
                     write!(
                         f,
                         "Create{} project {} with url {}",
-                        if decl.legacy { " legacy" } else { "" },
+                        if !decl.flake { " legacy" } else { "" },
                         name,
                         decl.url
                     )
@@ -238,8 +210,8 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectInfo {
         pub actions_path: Option<String>,
+        pub flake: bool,
         pub jobsets: Vec<String>,
-        pub legacy: bool,
         pub metadata: ProjectMetadata,
         pub public_key: String,
         pub url: String,
@@ -248,8 +220,8 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobsetInfo {
-        pub evaluations: Vec<(i32, i64)>,
-        pub legacy: bool,
+        pub evaluations: Vec<(i64, i64)>,
+        pub flake: bool,
         pub url: String,
     }
 
@@ -262,11 +234,12 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
         pub actions_path: Option<String>,
+        pub flake: bool,
         pub jobs: Vec<JobSystemName>,
         pub status: String,
         pub time_created: i64,
         pub time_finished: Option<i64>,
-        pub url_locked: String,
+        pub url: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -297,7 +270,7 @@ pub mod responses {
         JobsetInfo(JobsetInfo),
         EvaluationInfo(EvaluationInfo),
         JobInfo(JobInfo),
-        Log(String),
+        Log(Option<String>),
         Login { token: String },
     }
 

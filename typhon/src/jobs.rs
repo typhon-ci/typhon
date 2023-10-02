@@ -2,140 +2,150 @@ use crate::actions;
 use crate::connection;
 use crate::error::Error;
 use crate::handles;
-use crate::models::*;
+use crate::models;
 use crate::nix;
 use crate::responses;
-use crate::schema::evaluations::dsl::*;
-use crate::schema::jobs::dsl::*;
+use crate::schema;
 use crate::{log_event, Event};
 use crate::{JOBS_BEGIN, JOBS_BUILD, JOBS_END};
+
 use diesel::prelude::*;
 use serde_json::{json, Value};
+
 use std::path::Path;
+
+#[derive(Clone)]
+pub struct Job {
+    pub job: models::Job,
+    pub evaluation: models::Evaluation,
+    pub jobset: models::Jobset,
+    pub project: models::Project,
+}
 
 impl Job {
     pub async fn cancel(&self) -> Result<(), Error> {
-        let a = JOBS_BEGIN.cancel(&self.job_id).await;
-        let b = JOBS_BUILD.cancel(&self.job_id).await;
-        let c = JOBS_END.cancel(&self.job_id).await;
+        let a = JOBS_BEGIN.cancel(&self.job.id).await;
+        let b = JOBS_BUILD.cancel(&self.job.id).await;
+        let c = JOBS_END.cancel(&self.job.id).await;
         if a || b || c {
             Ok(())
         } else {
-            Err(Error::JobNotRunning(self.handle().await?))
+            Err(Error::JobNotRunning(self.handle()))
         }
     }
 
-    pub async fn evaluation(&self) -> Result<Evaluation, Error> {
+    pub async fn get(handle: &handles::Job) -> Result<Self, Error> {
         let mut conn = connection().await;
-        Ok(evaluations
-            .find(self.job_evaluation)
-            .first::<Evaluation>(&mut *conn)?)
-    }
-
-    pub async fn get(job_handle: &handles::Job) -> Result<Self, Error> {
-        let handles::pattern!(
-            project_name_,
-            jobset_name_,
-            evaluation_num_,
-            job_system_,
-            job_name_
-        ) = job_handle;
-        let evaluation = Evaluation::get(&job_handle.evaluation).await?;
-        let mut conn = connection().await;
-        Ok(jobs
-            .filter(job_evaluation.eq(evaluation.evaluation_id))
-            .filter(job_system.eq(job_system_))
-            .filter(job_name.eq(job_name_))
-            .first::<Job>(&mut *conn)
-            .map_err(|_| {
-                Error::JobNotFound(handles::job((
-                    project_name_.clone(),
-                    jobset_name_.clone(),
-                    *evaluation_num_,
-                    job_system_.clone(),
-                    job_name_.clone(),
-                )))
-            })?)
-    }
-
-    pub async fn handle(&self) -> Result<handles::Job, Error> {
-        Ok(handles::Job {
-            evaluation: self.evaluation().await?.handle().await?,
-            system: self.job_system.clone(),
-            name: self.job_name.clone(),
+        let (job, (evaluation, (jobset, project))) = schema::jobs::table
+            .inner_join(
+                schema::evaluations::table
+                    .inner_join(schema::jobsets::table.inner_join(schema::projects::table)),
+            )
+            .filter(schema::projects::name.eq(&handle.evaluation.jobset.project.name))
+            .filter(schema::jobsets::name.eq(&handle.evaluation.jobset.name))
+            .filter(schema::evaluations::num.eq(&handle.evaluation.num))
+            .filter(schema::jobs::system.eq(&handle.system))
+            .filter(schema::jobs::name.eq(&handle.name))
+            .first(&mut *conn)
+            .optional()?
+            .ok_or(Error::JobNotFound(handle.clone()))?;
+        Ok(Self {
+            job,
+            evaluation,
+            jobset,
+            project,
         })
+    }
+
+    pub fn handle(&self) -> handles::Job {
+        handles::job((
+            self.project.name.clone(),
+            self.jobset.name.clone(),
+            self.evaluation.num,
+            self.job.system.clone(),
+            self.job.name.clone(),
+        ))
     }
 
     pub fn info(&self) -> responses::JobInfo {
         responses::JobInfo {
-            begin_status: self.job_begin_status.clone(),
-            begin_time_finished: self.job_begin_time_finished,
-            begin_time_started: self.job_begin_time_started,
-            build_drv: self.job_build_drv.clone(),
-            build_out: self.job_build_out.clone(),
-            build_status: self.job_build_status.clone(),
-            build_time_finished: self.job_build_time_finished,
-            build_time_started: self.job_build_time_started,
-            dist: self.job_dist,
-            end_status: self.job_end_status.clone(),
-            end_time_finished: self.job_end_time_finished,
-            end_time_started: self.job_end_time_started,
-            system: self.job_system.clone(),
-            time_created: self.job_time_created,
+            begin_status: self.job.begin_status.clone(),
+            begin_time_finished: self.job.begin_time_finished,
+            begin_time_started: self.job.begin_time_started,
+            build_drv: self.job.build_drv.clone(),
+            build_out: self.job.build_out.clone(),
+            build_status: self.job.build_status.clone(),
+            build_time_finished: self.job.build_time_finished,
+            build_time_started: self.job.build_time_started,
+            dist: self.job.dist,
+            end_status: self.job.end_status.clone(),
+            end_time_finished: self.job.end_time_finished,
+            end_time_started: self.job.end_time_started,
+            system: self.job.system.clone(),
+            time_created: self.job.time_created,
         }
     }
 
-    async fn mk_input(&self, build_status: &str) -> Result<Value, Error> {
-        let evaluation = self.evaluation().await?;
-        let jobset = evaluation.jobset().await?;
-        let project = jobset.project().await?;
+    pub async fn log_begin(&self) -> Result<Option<String>, Error> {
+        let mut conn = connection().await;
+        let stderr = schema::logs::dsl::logs
+            .find(self.job.begin_log_id)
+            .select(schema::logs::stderr)
+            .first::<Option<String>>(&mut *conn)?;
+        Ok(stderr)
+    }
+
+    pub async fn log_end(&self) -> Result<Option<String>, Error> {
+        let mut conn = connection().await;
+        let stderr = schema::logs::dsl::logs
+            .find(self.job.end_log_id)
+            .select(schema::logs::stderr)
+            .first::<Option<String>>(&mut *conn)?;
+        Ok(stderr)
+    }
+
+    async fn mk_input(&self, status: &str) -> Result<Value, Error> {
         Ok(json!({
-            "drv": self.job_build_drv,
-            "evaluation": evaluation.evaluation_num,
-            "url": jobset.jobset_url,
-            "url_locked": evaluation.evaluation_url_locked,
-            "job": self.job_name,
-            "jobset": jobset.jobset_name,
-            "legacy": jobset.jobset_legacy,
-            "out": self.job_build_out,
-            "project": project.project_name,
-            "status": build_status,
-            "system": self.job_system,
+            "drv": self.job.build_drv,
+            "evaluation": self.evaluation.num,
+            "flake": self.jobset.flake,
+            "job": self.job.name,
+            "jobset": self.jobset.name,
+            "out": self.job.build_out,
+            "project": self.project.name,
+            "status": status,
+            "system": self.job.system,
+            "url": self.evaluation.url,
         }))
     }
 
     pub async fn run(self) -> Result<(), Error> {
         use crate::time::now;
-        let id = self.job_id;
-        let drv = nix::DrvPath::new(&self.job_build_drv);
+
+        let drv = nix::DrvPath::new(&self.job.build_drv);
 
         // FIXME?
-        let handle_1 = self.handle().await?;
-        let handle_2 = handle_1.clone();
-        let handle_3 = handle_1.clone();
-        let handle_4 = handle_1.clone();
-        let handle_5 = handle_1.clone();
-        let job_1 = self;
-        let job_2 = job_1.clone();
+        let self_1 = self.clone();
+        let self_2 = self.clone();
+        let self_3 = self.clone();
+        let self_4 = self.clone();
+        let self_5 = self.clone();
+        let self_6 = self.clone();
 
         // TODO: factor out common code between `begin` and `end`
         let task_begin = async move {
             let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
-                .set(job_begin_time_started.eq(now()))
+            let _ = diesel::update(&self_1.job)
+                .set(schema::jobs::begin_time_started.eq(now()))
                 .execute(&mut *conn);
             drop(conn);
 
-            let evaluation = job_1.evaluation().await?;
-            let jobset = evaluation.jobset().await?;
-            let project = jobset.project().await?;
-
-            let input = job_1.mk_input(&"pending".to_string()).await?;
+            let input = self_1.mk_input(&"pending".to_string()).await?;
             let default_log = serde_json::to_string_pretty(&input).unwrap();
-            let log = if let Some(path) = evaluation.evaluation_actions_path {
+            let log = if let Some(path) = self_1.evaluation.actions_path {
                 if Path::new(&format!("{}/begin", path)).exists() {
                     let (_, log) = actions::run(
-                        &project.project_key,
+                        &self_1.project.key,
                         &format!("{}/begin", path),
                         &format!("{}/secrets", path),
                         &input,
@@ -151,37 +161,47 @@ impl Job {
 
             Ok::<_, Error>(log)
         };
-        let finish_begin = move |r| async move {
-            use handles::Log::*;
+        let finish_begin = move |r: Option<Result<String, Error>>| async move {
             let status = match r {
                 Some(Ok(log)) => {
-                    let _ = Log::new(Begin(handle_1.clone()), log).await;
+                    let mut conn = connection().await;
+                    diesel::update(schema::logs::dsl::logs.find(self_2.job.begin_log_id))
+                        .set(schema::logs::stderr.eq(log))
+                        .execute(&mut *conn)
+                        .unwrap(); // FIXME: no unwrap
                     "success"
                 }
-                Some(Err(_)) => {
-                    let _ = Log::new(Begin(handle_1.clone()), "TODO".to_string()).await;
+                Some(Err(e)) => {
+                    let mut conn = connection().await;
+                    diesel::update(schema::logs::dsl::logs.find(self_2.job.end_log_id))
+                        .set(schema::logs::stderr.eq(e.to_string()))
+                        .execute(&mut *conn)
+                        .unwrap(); // FIXME: no unwrap
                     "error"
                 }
                 None => "canceled",
             };
+            // FIXME: error management
             let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
+            let _ = diesel::update(&self_2.job)
                 .set((
-                    job_begin_status.eq(status),
-                    job_begin_time_finished.eq(now()),
+                    schema::jobs::begin_status.eq(status),
+                    schema::jobs::begin_time_finished.eq(now()),
                 ))
                 .execute(&mut *conn);
             drop(conn);
-            log_event(Event::JobUpdated(handle_2)).await;
+            log_event(Event::JobUpdated(self_2.handle())).await;
         };
-        JOBS_BEGIN.run(id, task_begin, finish_begin).await?;
+        JOBS_BEGIN
+            .run(self.job.id, task_begin, finish_begin)
+            .await?;
 
         // FIXME: write a more intelligent build manager
         let (sender, receiver) = tokio::sync::oneshot::channel::<String>();
         let task_build = async move {
             let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
-                .set(job_build_time_started.eq(now()))
+            let _ = diesel::update(&self_3.job)
+                .set(schema::jobs::build_time_started.eq(now()))
                 .execute(&mut *conn);
             drop(conn);
             nix::build(&drv).await?;
@@ -195,40 +215,38 @@ impl Job {
             };
             sender.send(status.to_string()).unwrap_or_else(|_| panic!());
             let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
+            let _ = diesel::update(&self_4.job)
                 .set((
-                    job_build_status.eq(status),
-                    job_build_time_finished.eq(now()),
+                    schema::jobs::build_status.eq(status),
+                    schema::jobs::build_time_finished.eq(now()),
                 ))
                 .execute(&mut *conn);
             drop(conn);
-            log_event(Event::JobUpdated(handle_3)).await;
+            log_event(Event::JobUpdated(self_4.handle())).await;
         };
-        JOBS_BUILD.run(id, task_build, finish_build).await?;
+        JOBS_BUILD
+            .run(self.job.id, task_build, finish_build)
+            .await?;
 
         let task_end = async move {
             // wait for `begin` to finish
-            JOBS_BEGIN.wait(&id).await;
+            JOBS_BEGIN.wait(&self_5.job.id).await;
             // wait for the build to finish
-            JOBS_BUILD.wait(&id).await;
+            JOBS_BUILD.wait(&self_5.job.id).await;
             let build_status = receiver.await.unwrap_or_else(|_| panic!());
 
             let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
-                .set(job_end_time_started.eq(now()))
-                .execute(&mut *conn);
+            diesel::update(&self_5.job)
+                .set(schema::jobs::end_time_started.eq(now()))
+                .execute(&mut *conn)?;
             drop(conn);
 
-            let evaluation = job_2.evaluation().await?;
-            let jobset = evaluation.jobset().await?;
-            let project = jobset.project().await?;
-
-            let input = job_2.mk_input(&build_status).await?;
+            let input = self_5.mk_input(&build_status).await?;
             let default_log = serde_json::to_string_pretty(&input).unwrap();
-            let log = if let Some(path) = evaluation.evaluation_actions_path {
+            let log = if let Some(path) = self_5.evaluation.actions_path {
                 if Path::new(&format!("{}/end", path)).exists() {
                     let (_, log) = actions::run(
-                        &project.project_key,
+                        &self_5.project.key,
                         &format!("{}/end", path),
                         &format!("{}/secrets", path),
                         &input,
@@ -244,29 +262,38 @@ impl Job {
 
             Ok::<_, Error>(log)
         };
-        let finish_end = move |r| async move {
-            use handles::Log::*;
+        let finish_end = move |r: Option<Result<String, Error>>| async move {
             let status = match r {
                 Some(Ok(log)) => {
-                    // TODO: handle errors
-                    let _ = Log::new(End(handle_4), log).await;
+                    let mut conn = connection().await;
+                    diesel::update(schema::logs::dsl::logs.find(self_6.job.end_log_id))
+                        .set(schema::logs::stderr.eq(log))
+                        .execute(&mut *conn)
+                        .unwrap(); // FIXME: no unwrap
                     "success"
                 }
-                Some(Err(_)) => {
-                    // TODO: handle errors
-                    let _ = Log::new(End(handle_4), "TODO".to_string()).await;
+                Some(Err(e)) => {
+                    let mut conn = connection().await;
+                    diesel::update(schema::logs::dsl::logs.find(self_6.job.end_log_id))
+                        .set(schema::logs::stderr.eq(e.to_string()))
+                        .execute(&mut *conn)
+                        .unwrap(); // FIXME: no unwrap
                     "error"
                 }
                 None => "canceled",
             };
             let mut conn = connection().await;
-            let _ = diesel::update(jobs.find(id))
-                .set((job_end_status.eq(status), job_end_time_finished.eq(now())))
+            // FIXME: error management
+            let _ = diesel::update(&self_6.job)
+                .set((
+                    schema::jobs::end_status.eq(status),
+                    schema::jobs::end_time_finished.eq(now()),
+                ))
                 .execute(&mut *conn);
             drop(conn);
-            log_event(Event::JobUpdated(handle_5)).await;
+            log_event(Event::JobUpdated(self_6.handle())).await;
         };
-        JOBS_END.run(id, task_end, finish_end).await?;
+        JOBS_END.run(self.job.id, task_end, finish_end).await?;
 
         Ok(())
     }

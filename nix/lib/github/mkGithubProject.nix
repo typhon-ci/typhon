@@ -18,12 +18,12 @@ in {
     title ? repo,
     description ? "",
     homepage ? "https://github.com/${owner}/${repo}",
-    legacy ? false,
+    flake ? true,
   }:
     mkProject {
       meta = {inherit title description homepage;};
       actions = {
-        jobsets = mkGithubJobsets {inherit owner repo legacy;};
+        jobsets = mkGithubJobsets {inherit owner repo flake;};
         begin = mkGithubStatus {inherit owner repo typhon_url;};
         end = mkGithubStatus {inherit owner repo typhon_url;};
         webhook = githubWebhook;

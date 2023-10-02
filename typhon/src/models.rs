@@ -1,120 +1,128 @@
 use crate::schema::{evaluations, jobs, jobsets, logs, projects};
 use diesel::prelude::*;
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[diesel(table_name = projects)]
 pub struct Project {
-    pub project_id: i32,
-    pub project_actions_path: Option<String>,
-    pub project_description: String,
-    pub project_homepage: String,
-    pub project_key: String,
-    pub project_legacy: bool,
-    pub project_name: String,
-    pub project_title: String,
-    pub project_url: String,
-    pub project_url_locked: String,
+    pub actions_path: Option<String>,
+    pub description: String,
+    pub flake: bool,
+    pub homepage: String,
+    pub id: i32,
+    pub key: String,
+    pub name: String,
+    pub title: String,
+    pub url: String,
+    pub url_locked: String,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = projects)]
 pub struct NewProject<'a> {
-    pub project_key: &'a str,
-    pub project_legacy: bool,
-    pub project_name: &'a str,
-    pub project_url: &'a str,
+    pub flake: bool,
+    pub key: &'a str,
+    pub name: &'a str,
+    pub url: &'a str,
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[diesel(table_name = jobsets)]
+#[diesel(belongs_to(Project))]
 pub struct Jobset {
-    pub jobset_id: i32,
-    pub jobset_legacy: bool,
-    pub jobset_name: String,
-    pub jobset_project: i32,
-    pub jobset_url: String,
+    pub flake: bool,
+    pub id: i32,
+    pub name: String,
+    pub project_id: i32,
+    pub url: String,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = jobsets)]
 pub struct NewJobset<'a> {
-    pub jobset_legacy: bool,
-    pub jobset_name: &'a str,
-    pub jobset_project: i32,
-    pub jobset_url: &'a str,
+    pub flake: bool,
+    pub name: &'a str,
+    pub project_id: i32,
+    pub url: &'a str,
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[diesel(table_name = evaluations)]
+#[diesel(belongs_to(Jobset))]
 pub struct Evaluation {
-    pub evaluation_id: i32,
-    pub evaluation_actions_path: Option<String>,
-    pub evaluation_jobset: i32,
-    pub evaluation_num: i32,
-    pub evaluation_status: String,
-    pub evaluation_time_created: i64,
-    pub evaluation_time_finished: Option<i64>,
-    pub evaluation_url_locked: String,
+    pub actions_path: Option<String>,
+    pub id: i32,
+    pub jobset_id: i32,
+    pub log_id: i32,
+    pub num: i64,
+    pub status: String,
+    pub time_created: i64,
+    pub time_finished: Option<i64>,
+    pub url: String,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = evaluations)]
 pub struct NewEvaluation<'a> {
-    pub evaluation_actions_path: Option<&'a str>,
-    pub evaluation_jobset: i32,
-    pub evaluation_num: i32,
-    pub evaluation_status: &'a str,
-    pub evaluation_time_created: i64,
-    pub evaluation_url_locked: &'a str,
+    pub actions_path: Option<&'a str>,
+    pub jobset_id: i32,
+    pub log_id: i32,
+    pub num: i64,
+    pub status: &'a str,
+    pub time_created: i64,
+    pub url: &'a str,
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[diesel(table_name = jobs)]
+#[diesel(belongs_to(Evaluation))]
 pub struct Job {
-    pub job_id: i32,
-    pub job_begin_status: String,
-    pub job_begin_time_finished: Option<i64>,
-    pub job_begin_time_started: Option<i64>,
-    pub job_build_drv: String,
-    pub job_build_out: String,
-    pub job_build_status: String,
-    pub job_build_time_finished: Option<i64>,
-    pub job_build_time_started: Option<i64>,
-    pub job_dist: bool,
-    pub job_end_status: String,
-    pub job_end_time_finished: Option<i64>,
-    pub job_end_time_started: Option<i64>,
-    pub job_evaluation: i32,
-    pub job_name: String,
-    pub job_system: String,
-    pub job_time_created: i64,
+    pub begin_log_id: i32,
+    pub begin_status: String,
+    pub begin_time_finished: Option<i64>,
+    pub begin_time_started: Option<i64>,
+    pub build_drv: String,
+    pub build_out: String,
+    pub build_status: String,
+    pub build_time_finished: Option<i64>,
+    pub build_time_started: Option<i64>,
+    pub dist: bool,
+    pub end_log_id: i32,
+    pub end_status: String,
+    pub end_time_finished: Option<i64>,
+    pub end_time_started: Option<i64>,
+    pub evaluation_id: i32,
+    pub id: i32,
+    pub name: String,
+    pub system: String,
+    pub time_created: i64,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = jobs)]
 pub struct NewJob<'a> {
-    pub job_begin_status: &'a str,
-    pub job_build_drv: &'a str,
-    pub job_build_out: &'a str,
-    pub job_build_status: &'a str,
-    pub job_dist: bool,
-    pub job_end_status: &'a str,
-    pub job_evaluation: i32,
-    pub job_name: &'a str,
-    pub job_system: &'a str,
-    pub job_time_created: i64,
+    pub begin_log_id: i32,
+    pub begin_status: &'a str,
+    pub build_drv: &'a str,
+    pub build_out: &'a str,
+    pub build_status: &'a str,
+    pub dist: bool,
+    pub end_log_id: i32,
+    pub end_status: &'a str,
+    pub evaluation_id: i32,
+    pub name: &'a str,
+    pub system: &'a str,
+    pub time_created: i64,
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[diesel(table_name = logs)]
 pub struct Log {
-    pub log_id: i32,
-    pub log_evaluation: Option<i32>,
-    pub log_job: Option<i32>,
-    pub log_stderr: String,
-    pub log_type: String,
+    pub id: i32,
+    pub stderr: Option<String>,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = logs)]
 pub struct NewLog<'a> {
-    pub log_evaluation: Option<i32>,
-    pub log_job: Option<i32>,
-    pub log_stderr: &'a str,
-    pub log_type: &'a str,
+    pub stderr: Option<&'a str>,
 }

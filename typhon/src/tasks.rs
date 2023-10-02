@@ -62,6 +62,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync> Tasks
         tasks.handles.get(&id).is_some()
     }
 
+    // TODO: `f` should be able to output an error
     pub async fn run<
         S: Send + 'static,
         T: Future<Output = S> + Send + 'static,

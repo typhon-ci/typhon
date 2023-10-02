@@ -199,7 +199,7 @@ impl Page {
                 handles::jobset(((*project).into(), (*jobset).into())),
             )),
             ["projects", project, jobset, evaluation] => evaluation
-                .parse::<i32>()
+                .parse::<i64>()
                 .map(|evaluation| {
                     Page::Evaluation(evaluation::init(
                         &mut orders.proxy(Msg::EvaluationMsg),
@@ -208,7 +208,7 @@ impl Page {
                 })
                 .unwrap_or(Page::NotFound),
             ["projects", project, jobset, evaluation, system, job] => evaluation
-                .parse::<i32>()
+                .parse::<i64>()
                 .map(|evaluation| {
                     Page::Job(job::init(
                         &mut orders.proxy(Msg::JobMsg),

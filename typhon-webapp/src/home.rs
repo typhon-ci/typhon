@@ -8,6 +8,7 @@ pub struct Model {
     projects: Vec<(String, responses::ProjectMetadata)>,
     new_project: (String, String, bool),
 }
+
 impl From<Model> for AppUrl {
     fn from(_: Model) -> AppUrl {
         AppUrl::default()
@@ -25,7 +26,7 @@ pub enum Msg {
     SetProjects(Vec<(String, responses::ProjectMetadata)>),
     UpdateNewProjectName(String),
     UpdateNewProjectUrl(String),
-    UpdateNewProjectLegacy,
+    UpdateNewProjectFlake,
 }
 
 pub fn init(orders: &mut impl Orders<Msg>) -> Model {
@@ -40,7 +41,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 name: model.new_project.0.clone(),
                 decl: requests::ProjectDecl {
                     url: model.new_project.1.clone(),
-                    legacy: model.new_project.2.clone(),
+                    flake: model.new_project.2.clone(),
                 },
             };
             model.new_project = <_>::default();
@@ -79,7 +80,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::UpdateNewProjectUrl(url) => {
             model.new_project.1 = url;
         }
-        Msg::UpdateNewProjectLegacy => {
+        Msg::UpdateNewProjectFlake => {
             model.new_project.2 = !model.new_project.2;
         }
     }
@@ -131,13 +132,13 @@ fn view_home(model: &Model, admin: bool) -> Node<Msg> {
                         input_ev(Ev::Input, Msg::UpdateNewProjectUrl),
                         enter
                     ],
-                    label!["Legacy:"],
+                    label!["Flake:"],
                     input![
                         attrs! {
                             At::Value => model.new_project.2,
                             At::Type => "checkbox",
                         },
-                        input_ev(Ev::Change, |_| Msg::UpdateNewProjectLegacy),
+                        input_ev(Ev::Change, |_| Msg::UpdateNewProjectFlake),
                     ],
                     div![],
                     button![

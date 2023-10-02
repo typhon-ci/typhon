@@ -7,7 +7,7 @@ in {
   mkGithubJobsets = {
     owner,
     repo,
-    legacy ? false,
+    flake ? true,
   }:
     eachSystem (system: let
       pkgs = utils.pkgs.${system};
@@ -30,7 +30,7 @@ in {
             -k \ | jq '.
               | map({ (.name): {
                   "url": ("github:${owner}/${repo}/" + .name),
-                  "legacy": ${utils.lib.boolToString legacy}
+                  "flake": ${utils.lib.boolToString flake}
                 }})
               | add'
         '';

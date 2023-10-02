@@ -1,79 +1,78 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    evaluations (evaluation_id) {
-        evaluation_id -> Integer,
-        evaluation_actions_path -> Nullable<Text>,
-        evaluation_jobset -> Integer,
-        evaluation_num -> Integer,
-        evaluation_status -> Text,
-        evaluation_time_created -> BigInt,
-        evaluation_time_finished -> Nullable<BigInt>,
-        evaluation_url_locked -> Text,
-    }
-}
-
-diesel::table! {
-    jobs (job_id) {
-        job_id -> Integer,
-        job_begin_status -> Text,
-        job_begin_time_finished -> Nullable<BigInt>,
-        job_begin_time_started -> Nullable<BigInt>,
-        job_build_drv -> Text,
-        job_build_out -> Text,
-        job_build_status -> Text,
-        job_build_time_finished -> Nullable<BigInt>,
-        job_build_time_started -> Nullable<BigInt>,
-        job_dist -> Bool,
-        job_end_status -> Text,
-        job_end_time_finished -> Nullable<BigInt>,
-        job_end_time_started -> Nullable<BigInt>,
-        job_evaluation -> Integer,
-        job_name -> Text,
-        job_system -> Text,
-        job_time_created -> BigInt,
-    }
-}
-
-diesel::table! {
-    jobsets (jobset_id) {
+    evaluations (id) {
+        actions_path -> Nullable<Text>,
+        id -> Integer,
         jobset_id -> Integer,
-        jobset_legacy -> Bool,
-        jobset_name -> Text,
-        jobset_project -> Integer,
-        jobset_url -> Text,
-    }
-}
-
-diesel::table! {
-    logs (log_id) {
         log_id -> Integer,
-        log_evaluation -> Nullable<Integer>,
-        log_job -> Nullable<Integer>,
-        log_stderr -> Text,
-        log_type -> Text,
+        num -> BigInt,
+        status -> Text,
+        time_created -> BigInt,
+        time_finished -> Nullable<BigInt>,
+        url -> Text,
     }
 }
 
 diesel::table! {
-    projects (project_id) {
-        project_id -> Integer,
-        project_actions_path -> Nullable<Text>,
-        project_description -> Text,
-        project_homepage -> Text,
-        project_key -> Text,
-        project_legacy -> Bool,
-        project_name -> Text,
-        project_title -> Text,
-        project_url -> Text,
-        project_url_locked -> Text,
+    jobs (id) {
+        begin_log_id -> Integer,
+        begin_status -> Text,
+        begin_time_finished -> Nullable<BigInt>,
+        begin_time_started -> Nullable<BigInt>,
+        build_drv -> Text,
+        build_out -> Text,
+        build_status -> Text,
+        build_time_finished -> Nullable<BigInt>,
+        build_time_started -> Nullable<BigInt>,
+        dist -> Bool,
+        end_log_id -> Integer,
+        end_status -> Text,
+        end_time_finished -> Nullable<BigInt>,
+        end_time_started -> Nullable<BigInt>,
+        evaluation_id -> Integer,
+        id -> Integer,
+        name -> Text,
+        system -> Text,
+        time_created -> BigInt,
     }
 }
 
-diesel::joinable!(evaluations -> jobsets (evaluation_jobset));
-diesel::joinable!(jobs -> evaluations (job_evaluation));
-diesel::joinable!(jobsets -> projects (jobset_project));
-diesel::joinable!(logs -> evaluations (log_evaluation));
-diesel::joinable!(logs -> jobs (log_job));
+diesel::table! {
+    jobsets (id) {
+        flake -> Bool,
+        id -> Integer,
+        name -> Text,
+        project_id -> Integer,
+        url -> Text,
+    }
+}
+
+diesel::table! {
+    logs (id) {
+        id -> Integer,
+        stderr -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    projects (id) {
+        actions_path -> Nullable<Text>,
+        description -> Text,
+        flake -> Bool,
+        homepage -> Text,
+        id -> Integer,
+        key -> Text,
+        name -> Text,
+        title -> Text,
+        url -> Text,
+        url_locked -> Text,
+    }
+}
+
+diesel::joinable!(evaluations -> jobsets (jobset_id));
+diesel::joinable!(evaluations -> logs (log_id));
+diesel::joinable!(jobs -> evaluations (evaluation_id));
+diesel::joinable!(jobsets -> projects (project_id));
 
 diesel::allow_tables_to_appear_in_same_query!(evaluations, jobs, jobsets, logs, projects,);

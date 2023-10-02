@@ -2,117 +2,120 @@ use crate::actions;
 use crate::connection;
 use crate::error::Error;
 use crate::gcroots;
-use crate::jobsets::JobsetDecl;
-use crate::models::*;
+use crate::jobsets;
+use crate::models;
 use crate::nix;
-use crate::schema::jobsets::dsl::*;
-use crate::schema::projects::dsl::*;
+use crate::schema;
 use crate::CURRENT_SYSTEM;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 
+use typhon_types::responses::ProjectMetadata;
+
 use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
 use serde::Deserialize;
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
-use typhon_types::responses::ProjectMetadata;
+
+pub struct Project {
+    pub project: models::Project,
+}
 
 impl Project {
     pub async fn create(
         name: &String,
         decl: &typhon_types::requests::ProjectDecl,
     ) -> Result<(), Error> {
-        let project_handle = handles::Project {
-            name: name.to_string(),
-        };
-        if !project_handle.legal() {
-            return Err(Error::IllegalProjectHandle(project_handle.clone()));
+        let handle = handles::project(name.clone());
+        if !handle.legal() {
+            return Err(Error::IllegalProjectHandle(handle.clone()));
         }
-        match Self::get(&project_handle).await {
-            Ok(_) => Err(Error::ProjectAlreadyExists(project_handle.clone())),
+        match Self::get(&handle).await {
+            Ok(_) => Err(Error::ProjectAlreadyExists(handle.clone())),
             Err(_) => {
                 let key = age::x25519::Identity::generate()
                     .to_string()
                     .expose_secret()
                     .clone();
-                let new_project = NewProject {
-                    project_url: &decl.url,
-                    project_key: &key,
-                    project_legacy: decl.legacy,
-                    project_name: &project_handle.name,
+                let new_project = models::NewProject {
+                    flake: decl.flake,
+                    url: &decl.url,
+                    key: &key,
+                    name: &handle.name,
                 };
                 let mut conn = connection().await;
-                diesel::insert_into(projects)
+                diesel::insert_into(schema::projects::table)
                     .values(&new_project)
                     .execute(&mut *conn)?;
                 drop(conn);
-                log_event(Event::ProjectNew(project_handle.clone())).await;
+                log_event(Event::ProjectNew(handle.clone())).await;
                 Ok(())
             }
         }
     }
 
-    pub fn default_jobsets(&self) -> HashMap<String, JobsetDecl> {
+    pub fn default_jobsets(&self) -> HashMap<String, jobsets::JobsetDecl> {
         HashMap::from([(
             "main".to_string(),
-            JobsetDecl {
-                url: self.project_url.clone(),
-                legacy: false,
+            jobsets::JobsetDecl {
+                flake: true,
+                url: self.project.url.clone(),
             },
         )])
     }
 
     pub async fn delete(&self) -> Result<(), Error> {
+        // FIXME: proper deletion
+
         let mut conn = connection().await;
-        diesel::delete(projects.find(self.project_id)).execute(&mut *conn)?;
+        diesel::delete(&self.project).execute(&mut *conn)?;
+        drop(conn);
+
         log_event(Event::ProjectDeleted(self.handle())).await;
+
         Ok(())
     }
 
-    pub async fn get(project_handle: &handles::Project) -> Result<Self, Error> {
-        let handles::pattern!(project_name_) = project_handle;
+    pub async fn get(handle: &handles::Project) -> Result<Self, Error> {
         let mut conn = connection().await;
-        Ok(projects
-            .filter(project_name.eq(project_name_))
-            .first::<Project>(&mut *conn)
-            .map_err(|_| {
-                Error::ProjectNotFound(handles::Project {
-                    name: project_name_.clone(),
-                })
-            })?)
+        let project = schema::projects::table
+            .filter(schema::projects::name.eq(&handle.name))
+            .first::<models::Project>(&mut *conn)
+            .optional()?
+            .ok_or(Error::ProjectNotFound(handle.clone()))?;
+        Ok(Self { project })
     }
 
     pub fn handle(&self) -> handles::Project {
-        handles::Project {
-            name: self.project_name.clone(),
-        }
+        handles::project(self.project.name.clone())
     }
 
     pub async fn info(&self) -> Result<responses::ProjectInfo, Error> {
         let mut conn = connection().await;
-        let jobsets_names = jobsets
-            .filter(jobset_project.eq(self.project_id))
-            .load::<Jobset>(&mut *conn)?
+        let jobsets_names = schema::jobsets::table
+            .filter(schema::jobsets::project_id.eq(&self.project.id))
+            .load::<models::Jobset>(&mut *conn)?
             .iter()
-            .map(|jobset| jobset.jobset_name.clone())
+            .map(|jobset| jobset.name.clone())
             .collect();
         drop(conn);
-        let public_key = age::x25519::Identity::from_str(&self.project_key)
+        let public_key = age::x25519::Identity::from_str(&self.project.key)
             .map_err(|_| Error::Todo)?
             .to_public()
             .to_string();
         Ok(responses::ProjectInfo {
-            actions_path: self.project_actions_path.clone(),
-            url: self.project_url.clone(),
-            url_locked: self.project_url_locked.clone(),
+            actions_path: self.project.actions_path.clone(),
+            flake: self.project.flake,
+            url: self.project.url.clone(),
+            url_locked: self.project.url_locked.clone(),
             jobsets: jobsets_names,
-            legacy: self.project_legacy,
             metadata: responses::ProjectMetadata {
-                title: self.project_title.clone(),
-                description: self.project_description.clone(),
-                homepage: self.project_homepage.clone(),
+                title: self.project.title.clone(),
+                description: self.project.description.clone(),
+                homepage: self.project.homepage.clone(),
             },
             public_key,
         })
@@ -120,17 +123,17 @@ impl Project {
 
     pub async fn list() -> Result<Vec<(String, responses::ProjectMetadata)>, Error> {
         let mut conn = connection().await;
-        Ok(projects
-            .order(project_name.asc())
-            .load::<Project>(&mut *conn)?
+        Ok(schema::projects::table
+            .order(schema::projects::name.asc())
+            .load::<models::Project>(&mut *conn)?
             .iter()
             .map(|project| {
                 (
-                    project.project_name.clone(),
+                    project.name.clone(),
                     responses::ProjectMetadata {
-                        title: project.project_title.clone(),
-                        description: project.project_description.clone(),
-                        homepage: project.project_homepage.clone(),
+                        title: project.title.clone(),
+                        description: project.description.clone(),
+                        homepage: project.homepage.clone(),
                     },
                 )
             })
@@ -138,7 +141,7 @@ impl Project {
     }
 
     pub async fn refresh(&self) -> Result<(), Error> {
-        let url_locked = nix::lock(&self.project_url).await?;
+        let url_locked = nix::lock(&self.project.url).await?;
 
         #[derive(Deserialize)]
         struct TyphonProject {
@@ -148,14 +151,14 @@ impl Project {
         }
 
         let TyphonProject { actions, metadata } = serde_json::from_value(
-            nix::eval(&url_locked, &"typhonProject", self.project_legacy).await?,
+            nix::eval(&url_locked, &"typhonProject", self.project.flake).await?,
         )
         .expect("TODO");
 
         let actions: Option<&String> = actions.as_ref().map(|m| m.get(&*CURRENT_SYSTEM)).flatten();
 
-        let actions_path = if let Some(v) = actions {
-            let drv = nix::derivation(nix::Expr::Path(v.clone())).await?;
+        let actions_path = if let Some(x) = actions {
+            let drv = nix::derivation(nix::Expr::Path(x.clone())).await?;
             Some(nix::build(&drv.path).await?["out"].clone())
             // TODO: check public key used to encrypt secrets
         } else {
@@ -163,13 +166,13 @@ impl Project {
         };
 
         let mut conn = connection().await;
-        diesel::update(projects.find(self.project_id))
+        diesel::update(&self.project)
             .set((
-                project_title.eq(metadata.title),
-                project_description.eq(metadata.description),
-                project_homepage.eq(metadata.homepage),
-                project_actions_path.eq(actions_path),
-                project_url_locked.eq(url_locked),
+                schema::projects::actions_path.eq(actions_path),
+                schema::projects::description.eq(metadata.description),
+                schema::projects::homepage.eq(metadata.homepage),
+                schema::projects::title.eq(metadata.title),
+                schema::projects::url_locked.eq(url_locked),
             ))
             .execute(&mut *conn)?;
         gcroots::update(&mut *conn);
@@ -181,8 +184,11 @@ impl Project {
 
     pub async fn set_decl(&self, decl: &typhon_types::requests::ProjectDecl) -> Result<(), Error> {
         let mut conn = connection().await;
-        diesel::update(projects.find(self.project_id))
-            .set((project_url.eq(&decl.url), project_legacy.eq(decl.legacy)))
+        diesel::update(&self.project)
+            .set((
+                schema::projects::flake.eq(decl.flake),
+                schema::projects::url.eq(&decl.url),
+            ))
             .execute(&mut *conn)?;
         drop(conn);
         log_event(Event::ProjectUpdated(self.handle())).await;
@@ -192,8 +198,8 @@ impl Project {
     pub async fn set_private_key(&self, key: &String) -> Result<(), Error> {
         let _ = age::x25519::Identity::from_str(key).map_err(|_| Error::Todo)?;
         let mut conn = connection().await;
-        diesel::update(projects.find(self.project_id))
-            .set(project_key.eq(key))
+        diesel::update(&self.project)
+            .set(schema::projects::key.eq(key))
             .execute(&mut *conn)?;
         drop(conn);
         log_event(Event::ProjectUpdated(self.handle())).await;
@@ -202,12 +208,12 @@ impl Project {
 
     pub async fn update_jobsets(&self) -> Result<Vec<String>, Error> {
         // run action `jobsets`
-        let decls: HashMap<String, JobsetDecl> = match &self.project_actions_path {
+        let decls: HashMap<String, jobsets::JobsetDecl> = match &self.project.actions_path {
             Some(path) => {
                 if Path::new(&format!("{}/jobsets", path)).exists() {
                     let action_input = serde_json::json!(null);
                     let (action_output, _) = actions::run(
-                        &self.project_key,
+                        &self.project.key,
                         &format!("{}/jobsets", path),
                         &format!("{}/secrets", path),
                         &action_input,
@@ -223,46 +229,50 @@ impl Project {
         };
 
         let mut conn = connection().await;
-        conn.transaction::<(), Error, _>(|conn| {
-            let current_jobsets = jobsets
-                .filter(jobset_project.eq(self.project_id))
-                .load::<Jobset>(conn)?;
+        let current_jobsets: Vec<jobsets::Jobset> = schema::jobsets::table
+            .filter(schema::jobsets::project_id.eq(&self.project.id))
+            .load::<models::Jobset>(&mut *conn)?
+            .drain(..)
+            .map(|jobset| jobsets::Jobset {
+                project: self.project.clone(),
+                jobset,
+            })
+            .collect();
+        drop(conn);
 
-            // delete obsolete jobsets
-            for jobset in &current_jobsets {
-                if !decls.contains_key(&jobset.jobset_name) {
-                    diesel::delete(jobsets.find(jobset.jobset_id)).execute(conn)?;
-                }
+        // FIXME
+        // delete obsolete jobsets
+        let mut conn = connection().await;
+        for jobset in &current_jobsets {
+            if !(decls.get(&jobset.jobset.name) == Some(&jobset.decl())) {
+                diesel::delete(schema::jobsets::dsl::jobsets.find(&jobset.jobset.id))
+                    .execute(&mut *conn)?;
             }
+        }
+        drop(conn);
 
-            // create new jobsets or update old ones
-            for (name, decl) in decls.iter() {
-                current_jobsets
-                    .iter()
-                    .find(|&jobset| jobset.jobset_name == *name)
-                    .map(|jobset| {
-                        diesel::update(jobsets.find(jobset.jobset_id))
-                            .set(jobset_url.eq(decl.url.clone()))
-                            .execute(conn)?;
-                        Ok::<(), Error>(())
-                    })
-                    .unwrap_or_else(|| {
-                        let new_jobset = NewJobset {
-                            jobset_project: self.project_id,
-                            jobset_name: name,
-                            jobset_url: &decl.url,
-                            jobset_legacy: decl.legacy,
-                        };
-                        diesel::insert_into(jobsets)
-                            .values(&new_jobset)
-                            .execute(conn)?;
-                        Ok::<(), Error>(())
-                    })?;
+        // create new jobsets
+        let mut conn = connection().await;
+        for (name, decl) in decls.iter() {
+            if current_jobsets
+                .iter()
+                .find(|jobset| jobset.jobset.name == *name)
+                .is_none()
+            {
+                let new_jobset = models::NewJobset {
+                    flake: decl.flake,
+                    name,
+                    project_id: self.project.id,
+                    url: &decl.url,
+                };
+                diesel::insert_into(schema::jobsets::table)
+                    .values(&new_jobset)
+                    .execute(&mut *conn)?;
             }
+        }
 
-            Ok(())
-        })?;
         gcroots::update(&mut *conn);
+
         drop(conn);
 
         log_event(Event::ProjectJobsetsUpdated(self.handle())).await;
@@ -274,12 +284,12 @@ impl Project {
         &self,
         input: actions::webhooks::Input,
     ) -> Result<Vec<typhon_types::requests::Request>, Error> {
-        match &self.project_actions_path {
+        match &self.project.actions_path {
             Some(path) => {
                 if Path::new(&format!("{}/webhook", path)).exists() {
                     let action_input = serde_json::to_value(input).unwrap();
                     let (action_output, _) = actions::run(
-                        &self.project_key,
+                        &self.project.key,
                         &format!("{}/webhook", path),
                         &format!("{}/secrets", path),
                         &action_input,

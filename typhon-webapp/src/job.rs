@@ -32,8 +32,8 @@ pub enum Msg {
     FetchLogBegin,
     FetchLogEnd,
     GetInfo(responses::JobInfo),
-    GetLogBegin(String),
-    GetLogEnd(String),
+    GetLogBegin(Option<String>),
+    GetLogEnd(Option<String>),
     Noop,
     LogChunk(String),
 }
@@ -127,10 +127,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.info = Some(info);
         }
         Msg::GetLogBegin(log) => {
-            model.log_begin = Some(log);
+            model.log_begin = log;
         }
         Msg::GetLogEnd(log) => {
-            model.log_end = Some(log);
+            model.log_end = log;
         }
         Msg::Noop => (),
         Msg::LogChunk(chunk) => model.log.push(chunk),

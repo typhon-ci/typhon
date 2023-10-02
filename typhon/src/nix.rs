@@ -10,9 +10,9 @@ use tokio::process::Command;
 #[derive(Debug)]
 pub enum Expr {
     Flake {
+        flake: bool,
         url: String,
         path: String,
-        legacy: bool,
     },
     Path(String),
 }
@@ -189,8 +189,10 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
 /// the derivation themselves.
 pub async fn derivation_json(expr: &Expr) -> Result<serde_json::Value, Error> {
     let mut cmd = match expr {
-        Expr::Flake { url, path, legacy } => {
-            if *legacy {
+        Expr::Flake { flake, url, path } => {
+            if *flake {
+                Command::nix(["derivation", "show", &format!("{}#{}", url, path)])
+            } else {
                 Command::nix([
                     "derivation",
                     "show",
@@ -200,8 +202,6 @@ pub async fn derivation_json(expr: &Expr) -> Result<serde_json::Value, Error> {
                     url,
                     &format!("{}#{}", env!("TYPHON_FLAKE"), path),
                 ])
-            } else {
-                Command::nix(["derivation", "show", &format!("{}#{}", url, path)])
             }
         }
         Expr::Path(path) => Command::nix(["derivation", "show", path]),
@@ -298,9 +298,11 @@ pub async fn derivation(expr: Expr) -> Result<Derivation, Error> {
     }
 }
 
-pub async fn eval(url: &str, path: &str, legacy: bool) -> Result<serde_json::Value, Error> {
+pub async fn eval(url: &str, path: &str, flake: bool) -> Result<serde_json::Value, Error> {
     Ok(serde_json::from_str(
-        &(if legacy {
+        &(if flake {
+            Command::nix(["eval", "--json", &format!("{}#{}", url, path)])
+        } else {
             Command::nix([
                 "eval",
                 "--json",
@@ -310,8 +312,6 @@ pub async fn eval(url: &str, path: &str, legacy: bool) -> Result<serde_json::Val
                 url,
                 &format!("{}#{}", env!("TYPHON_FLAKE"), path),
             ])
-        } else {
-            Command::nix(["eval", "--json", &format!("{}#{}", url, path)])
         })
         .sync_stdout()
         .await?
@@ -321,8 +321,8 @@ pub async fn eval(url: &str, path: &str, legacy: bool) -> Result<serde_json::Val
 
 pub type NewJobs = HashMap<(String, String), (Derivation, bool)>;
 
-pub async fn eval_jobs(url: &str, legacy: bool) -> Result<NewJobs, Error> {
-    let json = eval(url, "typhonJobs", legacy).await?;
+pub async fn eval_jobs(url: &str, flake: bool) -> Result<NewJobs, Error> {
+    let json = eval(url, "typhonJobs", flake).await?;
     let mut jobs: HashMap<(String, String), (Derivation, bool)> = HashMap::new();
     for system in json.as_object().unwrap().keys() {
         for name in json[system].as_object().unwrap().keys() {
@@ -330,15 +330,15 @@ pub async fn eval_jobs(url: &str, legacy: bool) -> Result<NewJobs, Error> {
                 (system.clone(), name.clone()),
                 (
                     derivation(Expr::Flake {
+                        flake,
                         url: url.to_string(),
-                        legacy,
                         path: format!("typhonJobs.{system}.{name}"),
                     })
                     .await?,
                     eval(
                         url,
                         &format!("typhonJobs.{system}.{name}.passthru.typhonDist"),
-                        legacy,
+                        flake,
                     )
                     .await
                     .map(|json| json.as_bool().unwrap_or(false))

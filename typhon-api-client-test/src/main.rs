@@ -60,7 +60,7 @@ macro_rules! s {
 async fn create_project(name: &String, url: String) {
     s!(Res::Ok = Req::CreateProject {
         name: name.clone(),
-        decl: requests::ProjectDecl { url, legacy: false },
+        decl: requests::ProjectDecl { url, flake: true },
     });
 }
 
@@ -72,11 +72,11 @@ impl Explain for Req {
         match self {
             Req::CreateProject {
                 name,
-                decl: requests::ProjectDecl { url, legacy },
+                decl: requests::ProjectDecl { url, flake },
             } => {
                 format!(
-                    "Create {} project {} with url {}",
-                    if *legacy { "legacy" } else { "" },
+                    "Create{} project {} with url {}",
+                    if !*flake { " legacy" } else { "" },
                     name.bold(),
                     url.bold()
                 )

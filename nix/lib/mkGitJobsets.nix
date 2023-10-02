@@ -6,7 +6,7 @@ utils: lib: let
 in {
   mkGitJobsets = {
     url,
-    legacy ? false,
+    flake ? true,
   }:
     eachSystem (system: let
       pkgs = utils.pkgs.${system};
@@ -24,7 +24,7 @@ in {
             | split("\n")
             | map({(.): {
                 "url": ("git+${url}?ref=" + .),
-                "legacy": ${utils.lib.boolToString legacy}
+                "flake": ${utils.lib.boolToString flake}
               }})
             | add'
         '';

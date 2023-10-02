@@ -20,7 +20,10 @@ pub use typhon_types::{
 };
 
 use error::Error;
-use models::*;
+use evaluations::Evaluation;
+use jobs::Job;
+use jobsets::Jobset;
+use projects::Project;
 
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use clap::Parser;
@@ -146,16 +149,17 @@ impl FromRequest for User {
 }
 
 pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
+    use requests::*;
     match req {
-        requests::Request::ListProjects
-        | requests::Request::Project(_, requests::Project::Info)
-        | requests::Request::Jobset(_, requests::Jobset::Info)
-        | requests::Request::Evaluation(_, requests::Evaluation::Info)
-        | requests::Request::Evaluation(_, requests::Evaluation::Log)
-        | requests::Request::Job(_, requests::Job::Info)
-        | requests::Request::Job(_, requests::Job::LogBegin)
-        | requests::Request::Job(_, requests::Job::LogEnd)
-        | requests::Request::Login(_) => true,
+        Request::ListProjects
+        | Request::Project(_, Project::Info)
+        | Request::Jobset(_, Jobset::Info)
+        | Request::Evaluation(_, Evaluation::Info)
+        | Request::Evaluation(_, Evaluation::Log)
+        | Request::Job(_, Job::Info)
+        | Request::Job(_, Job::LogBegin)
+        | Request::Job(_, Job::LogEnd)
+        | Request::Login(_) => true,
         _ => user.is_admin(),
     }
 }
@@ -214,10 +218,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                     requests::Evaluation::Info => {
                         Response::EvaluationInfo(evaluation.info().await?)
                     }
-                    requests::Evaluation::Log => {
-                        let log = Log::get(handles::Log::Eval(evaluation_handle.clone())).await?;
-                        Response::Log(log.log_stderr)
-                    }
+                    requests::Evaluation::Log => Response::Log(evaluation.log().await?),
                 }
             }
             requests::Request::Job(job_handle, req) => {
@@ -228,14 +229,8 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         Response::Ok
                     }
                     requests::Job::Info => Response::JobInfo(job.info()),
-                    requests::Job::LogBegin => {
-                        let log = Log::get(handles::Log::Begin(job_handle.clone())).await?;
-                        Response::Log(log.log_stderr)
-                    }
-                    requests::Job::LogEnd => {
-                        let log = Log::get(handles::Log::End(job_handle.clone())).await?;
-                        Response::Log(log.log_stderr)
-                    }
+                    requests::Job::LogBegin => Response::Log(job.log_begin().await?),
+                    requests::Job::LogEnd => Response::Log(job.log_end().await?),
                 }
             }
             requests::Request::Login(password) => {

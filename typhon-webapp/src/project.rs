@@ -10,7 +10,7 @@ pub struct Model {
     handle: handles::Project,
     info: Option<responses::ProjectInfo>,
     declaration_url: editable_text::Model,
-    declaration_legacy: bool,
+    declaration_flake: bool,
 }
 
 impl Model {
@@ -42,7 +42,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
         handle: handle.clone(),
         info: None,
         declaration_url: editable_text::init("".to_string()),
-        declaration_legacy: false,
+        declaration_flake: false,
     }
 }
 
@@ -75,7 +75,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 |url| {
                     requests::Project::SetDecl(requests::ProjectDecl {
                         url,
-                        legacy: model.declaration_legacy,
+                        flake: model.declaration_flake,
                     })
                 }
             )

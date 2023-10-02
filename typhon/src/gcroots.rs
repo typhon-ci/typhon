@@ -1,8 +1,5 @@
-use crate::models::*;
-use crate::schema::evaluations::dsl::*;
-use crate::schema::jobs::dsl::*;
-use crate::schema::jobsets::dsl::*;
-use crate::schema::projects::dsl::*;
+use crate::schema;
+
 use diesel::prelude::*;
 
 use std::collections::HashSet;
@@ -28,31 +25,33 @@ impl From<std::io::Error> for Error {
     }
 }
 
-fn update_aux(conn: &mut SqliteConnection) -> Result<(), Error> {
+allow_columns_to_appear_in_same_group_by_clause!(
+    schema::jobs::build_out,
+    schema::evaluations::jobset_id
+);
+
+fn update_aux(conn: &mut diesel::SqliteConnection) -> Result<(), Error> {
     // collect all gcroots from the database
     let mut gcroots: HashSet<String> = HashSet::new();
-    for project in projects.load::<Project>(conn)? {
-        project
-            .project_actions_path
-            .map(|path| gcroots.insert(path.clone()));
+    let mut res = schema::evaluations::table
+        .inner_join(schema::jobs::table)
+        .group_by((schema::jobs::build_out, schema::evaluations::jobset_id))
+        .select((
+            schema::jobs::build_out,
+            schema::evaluations::jobset_id,
+            diesel::dsl::max(schema::evaluations::num),
+        ))
+        .load::<(String, i32, Option<i64>)>(conn)?;
+    for (path, _, _) in res.drain(..) {
+        gcroots.insert(path);
     }
-    for jobset in jobsets.load::<Jobset>(conn)? {
-        let latest_evaluation = evaluations
-            .filter(evaluation_jobset.eq(jobset.jobset_id))
-            .order(evaluation_id.desc())
-            .first::<Evaluation>(conn)
-            .ok();
-        if let Some(evaluation) = latest_evaluation {
-            evaluation
-                .evaluation_actions_path
-                .map(|path| gcroots.insert(path.clone()));
-            for job in jobs
-                .filter(job_evaluation.eq(evaluation.evaluation_id))
-                .load::<Job>(conn)?
-            {
-                gcroots.insert(job.job_build_drv.clone());
-                gcroots.insert(job.job_build_out.clone());
-            }
+    // TODO: insert build time dependencies
+    let mut res = schema::projects::table
+        .select(schema::projects::actions_path)
+        .load::<Option<String>>(conn)?;
+    for actions in res.drain(..) {
+        if let Some(path) = actions {
+            gcroots.insert(path);
         }
     }
 
@@ -78,6 +77,6 @@ fn update_aux(conn: &mut SqliteConnection) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn update(conn: &mut SqliteConnection) -> () {
-    update_aux(conn).unwrap_or_else(|e| log::error!("error when updating gcroots: {:?}", e))
+pub fn update(conn: &mut diesel::SqliteConnection) -> () {
+    update_aux(conn).unwrap_or_else(|e| log::error!("error when updating gcroots: {:?}", e));
 }

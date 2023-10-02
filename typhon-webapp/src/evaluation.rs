@@ -24,7 +24,7 @@ pub enum Msg {
     FetchInfo,
     FetchLog,
     GetInfo(responses::EvaluationInfo),
-    GetLog(String),
+    GetLog(Option<String>),
     Noop,
 }
 
@@ -86,7 +86,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.info = Some(info);
         }
         Msg::GetLog(log) => {
-            model.log = Some(log);
+            model.log = log;
         }
         Msg::Noop => (),
     }
@@ -117,7 +117,7 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
             None => div!["loading..."],
             Some(info) => div![
                 p![format!("Status: {}", info.status)],
-                p![format!("Flake locked: {}", info.url_locked)],
+                p![format!("URL: {}", info.url)],
                 p![format!(
                     "Actions path: {}",
                     info.actions_path.clone().unwrap_or("".into())

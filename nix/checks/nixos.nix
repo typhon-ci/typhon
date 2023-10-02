@@ -36,7 +36,7 @@ pkgs.testers.nixosTest ({pkgs, ...}: {
         typhon.wait_for_unit("nginx.service")
 
     with subtest("Create project"):
-        typhon.succeed("${curl} -X POST --json '{\"url\":\"${flake}\",\"legacy\":false}' ${url}/projects/test/create")
+        typhon.succeed("${curl} -X POST --json '{\"url\":\"${flake}\",\"flake\":true}' ${url}/projects/test/create")
 
     with subtest("Refresh project"):
         typhon.succeed("${curl} -X POST ${url}/projects/test/refresh")
