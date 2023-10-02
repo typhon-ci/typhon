@@ -9,10 +9,8 @@ pub enum Error {
     ActionError(actions::Error),
     BadJobsetDecl(String),
     EvaluationNotFound(handles::Evaluation),
-    EvaluationNotRunning(handles::Evaluation),
     IllegalProjectHandle(handles::Project),
     JobNotFound(handles::Job),
-    JobNotRunning(handles::Job),
     JobsetNotFound(handles::Jobset),
     LogNotFound(handles::Log),
     NixError(nix::Error),
@@ -50,9 +48,6 @@ impl std::fmt::Display for Error {
             JobNotFound(job_handle) => {
                 write!(f, "Job {} not found", job_handle)
             }
-            JobNotRunning(job_handle) => {
-                write!(f, "Job {} is not running", job_handle)
-            }
             JobsetNotFound(jobset_handle) => {
                 write!(f, "Jobset {} not found", jobset_handle)
             }
@@ -61,9 +56,6 @@ impl std::fmt::Display for Error {
             }
             EvaluationNotFound(evaluation_handle) => {
                 write!(f, "Evaluation {} not found", evaluation_handle)
-            }
-            EvaluationNotRunning(evaluation_handle) => {
-                write!(f, "Evaluation {} is not running", evaluation_handle)
             }
             ProjectAlreadyExists(project_handle) => {
                 write!(f, "Project {} already exists", project_handle)
@@ -116,8 +108,6 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             AccessDenied
             | ActionError(_)
             | BadJobsetDecl(_)
-            | EvaluationNotRunning(_)
-            | JobNotRunning(_)
             | IllegalProjectHandle(_)
             | NixError(_)
             | ProjectAlreadyExists(_)

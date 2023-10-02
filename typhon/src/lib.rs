@@ -212,7 +212,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                 let evaluation = Evaluation::get(evaluation_handle).await?;
                 match req {
                     requests::Evaluation::Cancel => {
-                        evaluation.cancel().await?;
+                        evaluation.cancel().await;
                         Response::Ok
                     }
                     requests::Evaluation::Info => {
@@ -225,7 +225,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                 let job = Job::get(&job_handle).await?;
                 match req {
                     requests::Job::Cancel => {
-                        job.cancel().await?;
+                        job.cancel().await;
                         Response::Ok
                     }
                     requests::Job::Info => Response::JobInfo(job.info()),

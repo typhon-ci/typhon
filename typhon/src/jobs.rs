@@ -23,15 +23,30 @@ pub struct Job {
 }
 
 impl Job {
-    pub async fn cancel(&self) -> Result<(), Error> {
+    pub async fn cancel(&self) -> bool {
         let a = JOBS_BEGIN.cancel(&self.job.id).await;
         let b = JOBS_BUILD.cancel(&self.job.id).await;
         let c = JOBS_END.cancel(&self.job.id).await;
-        if a || b || c {
-            Ok(())
-        } else {
-            Err(Error::JobNotRunning(self.handle()))
-        }
+        a || b || c
+    }
+
+    pub async fn delete(&self) -> Result<(), Error> {
+        self.cancel().await;
+
+        let mut conn = connection().await;
+        diesel::delete(schema::logs::table.find(&self.job.begin_log_id)).execute(&mut *conn)?;
+        diesel::delete(schema::logs::table.find(&self.job.end_log_id)).execute(&mut *conn)?;
+        drop(conn);
+
+        JOBS_BEGIN.cancel(&self.job.id).await;
+        JOBS_BUILD.cancel(&self.job.id).await;
+        JOBS_END.cancel(&self.job.id).await;
+
+        let mut conn = connection().await;
+        diesel::delete(schema::jobs::table.find(self.job.id)).execute(&mut *conn)?;
+        drop(conn);
+
+        Ok(())
     }
 
     pub async fn get(handle: &handles::Job) -> Result<Self, Error> {

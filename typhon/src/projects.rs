@@ -68,7 +68,20 @@ impl Project {
     }
 
     pub async fn delete(&self) -> Result<(), Error> {
-        // FIXME: proper deletion
+        let mut conn = connection().await;
+        let jobsets: Vec<jobsets::Jobset> = schema::jobsets::table
+            .load::<models::Jobset>(&mut *conn)?
+            .drain(..)
+            .map(|jobset| jobsets::Jobset {
+                jobset,
+                project: self.project.clone(),
+            })
+            .collect();
+        drop(conn);
+
+        for jobset in jobsets.iter() {
+            jobset.delete().await?;
+        }
 
         let mut conn = connection().await;
         diesel::delete(&self.project).execute(&mut *conn)?;
@@ -229,7 +242,7 @@ impl Project {
         };
 
         let mut conn = connection().await;
-        let current_jobsets: Vec<jobsets::Jobset> = schema::jobsets::table
+        let mut current_jobsets: Vec<jobsets::Jobset> = schema::jobsets::table
             .filter(schema::jobsets::project_id.eq(&self.project.id))
             .load::<models::Jobset>(&mut *conn)?
             .drain(..)
@@ -240,25 +253,24 @@ impl Project {
             .collect();
         drop(conn);
 
-        // FIXME
         // delete obsolete jobsets
-        let mut conn = connection().await;
-        for jobset in &current_jobsets {
-            if !(decls.get(&jobset.jobset.name) == Some(&jobset.decl())) {
-                diesel::delete(schema::jobsets::dsl::jobsets.find(&jobset.jobset.id))
-                    .execute(&mut *conn)?;
+        let mut set = std::collections::HashSet::<String>::new();
+        for jobset in current_jobsets.drain(..) {
+            if decls
+                .get(&jobset.jobset.name)
+                .is_some_and(|decl| *decl == jobset.decl())
+            {
+                set.insert(jobset.jobset.name);
+            } else {
+                jobset.delete().await?;
             }
         }
-        drop(conn);
+
+        let mut conn = connection().await;
 
         // create new jobsets
-        let mut conn = connection().await;
         for (name, decl) in decls.iter() {
-            if current_jobsets
-                .iter()
-                .find(|jobset| jobset.jobset.name == *name)
-                .is_none()
-            {
+            if !set.contains(name) {
                 let new_jobset = models::NewJobset {
                     flake: decl.flake,
                     name,

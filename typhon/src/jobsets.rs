@@ -24,6 +24,31 @@ pub struct JobsetDecl {
 }
 
 impl Jobset {
+    pub async fn delete(&self) -> Result<(), Error> {
+        let mut conn = connection().await;
+        let evaluations: Vec<evaluations::Evaluation> = schema::evaluations::table
+            .filter(schema::evaluations::jobset_id.eq(&self.jobset.id))
+            .load::<models::Evaluation>(&mut *conn)?
+            .drain(..)
+            .map(|evaluation| evaluations::Evaluation {
+                evaluation,
+                jobset: self.jobset.clone(),
+                project: self.project.clone(),
+            })
+            .collect();
+        drop(conn);
+
+        for evaluation in evaluations.iter() {
+            evaluation.delete().await?;
+        }
+
+        let mut conn = connection().await;
+        diesel::delete(schema::jobsets::table.find(&self.jobset.id)).execute(&mut *conn)?;
+        drop(conn);
+
+        Ok(())
+    }
+
     pub async fn evaluate(&self, force: bool) -> Result<handles::Evaluation, Error> {
         let url = nix::lock(&self.jobset.url).await?;
 

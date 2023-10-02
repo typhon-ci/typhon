@@ -22,13 +22,37 @@ pub struct Evaluation {
 }
 
 impl Evaluation {
-    pub async fn cancel(&self) -> Result<(), Error> {
-        let r = EVALUATIONS.cancel(&self.evaluation.id).await;
-        if r {
-            Ok(())
-        } else {
-            Err(Error::EvaluationNotRunning(self.handle()))
+    pub async fn cancel(&self) -> bool {
+        EVALUATIONS.cancel(&self.evaluation.id).await
+    }
+
+    pub async fn delete(&self) -> Result<(), Error> {
+        self.cancel().await;
+
+        let mut conn = connection().await;
+        let jobs: Vec<jobs::Job> = schema::jobs::table
+            .filter(schema::jobs::evaluation_id.eq(self.evaluation.id))
+            .load::<models::Job>(&mut *conn)?
+            .drain(..)
+            .map(|job| jobs::Job {
+                job,
+                evaluation: self.evaluation.clone(),
+                jobset: self.jobset.clone(),
+                project: self.project.clone(),
+            })
+            .collect();
+        diesel::delete(schema::logs::table.find(&self.evaluation.log_id)).execute(&mut *conn)?;
+        drop(conn);
+
+        for job in jobs.iter() {
+            job.delete().await?;
         }
+
+        let mut conn = connection().await;
+        diesel::delete(schema::evaluations::table.find(&self.evaluation.id)).execute(&mut *conn)?;
+        drop(conn);
+
+        Ok(())
     }
 
     pub async fn get(handle: &handles::Evaluation) -> Result<Self, Error> {
