@@ -28,6 +28,7 @@ impl Responder for ResponseWrapper {
         use crate::Response::*;
         match self.0 {
             Ok => web::Json(true).respond_to(req),
+            ListEvaluations(payload) => web::Json(payload).respond_to(req),
             ListProjects(payload) => web::Json(payload).respond_to(req),
             ProjectInfo(payload) => web::Json(payload).respond_to(req),
             ProjectUpdateJobsets(payload) => web::Json(payload).respond_to(req),
@@ -64,6 +65,9 @@ macro_rules! r {
 }
 
 r!(
+    list_evaluations(body: web::Json<EvaluationSearch>) =>
+        Request::ListEvaluations(body.into_inner());
+
     create_project(path: web::Path<String>, body: web::Json<ProjectDecl>) => {
         let name = path.into_inner();
         let decl = body.into_inner();
@@ -285,6 +289,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope(&format!("{}/api", SETTINGS.webroot))
             .route("", web::post().to(raw_request))
+            .route("/evaluations", web::post().to(list_evaluations))
             .route("/events", web::get().to(events))
             .route("/projects", web::get().to(list_projects))
             .route("/drv-log{path:.*}", web::get().to(drv_log))

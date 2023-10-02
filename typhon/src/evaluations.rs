@@ -211,4 +211,34 @@ impl Evaluation {
 
         Ok(())
     }
+
+    pub async fn search(
+        search: &requests::EvaluationSearch,
+    ) -> Result<Vec<(handles::Evaluation, i64)>, Error> {
+        let mut conn = connection().await;
+        let mut query = schema::evaluations::table
+            .inner_join(schema::jobsets::table.inner_join(schema::projects::table))
+            .into_boxed();
+        if let Some(name) = &search.project_name {
+            query = query.filter(schema::projects::name.eq(name));
+        }
+        if let Some(name) = &search.jobset_name {
+            query = query.filter(schema::jobsets::name.eq(name));
+        }
+        query = query
+            .order(schema::evaluations::num.desc())
+            .offset(search.offset as i64)
+            .limit(search.limit as i64);
+        let mut evaluations =
+            query.load::<(models::Evaluation, (models::Jobset, models::Project))>(&mut *conn)?;
+        drop(conn);
+        let mut res = Vec::new();
+        for (evaluation, (jobset, project)) in evaluations.drain(..) {
+            res.push((
+                handles::evaluation((project.name, jobset.name, evaluation.num)),
+                evaluation.time_created,
+            ));
+        }
+        Ok(res)
+    }
 }

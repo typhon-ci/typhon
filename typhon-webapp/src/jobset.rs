@@ -23,13 +23,16 @@ pub enum Msg {
     ErrorIgnored,
     Evaluate(bool),
     Event(Event),
+    FetchEvaluations,
     FetchInfo,
+    GetEvaluations(Vec<(handles::Evaluation, i64)>),
     GetInfo(responses::JobsetInfo),
     Noop,
     TimestampMsg(i64, timestamp::Msg),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
+    orders.send_msg(Msg::FetchEvaluations);
     orders.send_msg(Msg::FetchInfo);
     Model {
         error: None,
@@ -58,7 +61,23 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             );
         }
         Msg::Event(_) => {
+            orders.send_msg(Msg::FetchEvaluations);
             orders.send_msg(Msg::FetchInfo);
+        }
+        Msg::FetchEvaluations => {
+            let handle = model.handle.clone();
+            let req = requests::Request::ListEvaluations(requests::EvaluationSearch {
+                project_name: Some(handle.project.name),
+                jobset_name: Some(handle.name),
+                offset: 0,
+                limit: 10,
+            });
+            perform_request!(
+                orders,
+                req,
+                responses::Response::ListEvaluations(evaluations) => Msg::GetEvaluations(evaluations),
+                Msg::Error,
+            );
         }
         Msg::FetchInfo => {
             let handle = model.handle.clone();
@@ -70,21 +89,22 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
-        Msg::GetInfo(info) => {
-            model.evaluations = info
-                .evaluations
+        Msg::GetEvaluations(evaluations) => {
+            model.evaluations = evaluations
                 .iter()
-                .map(|(id, time)| {
-                    let id = id.clone();
+                .map(|(handle, time)| {
+                    let num = handle.num.clone();
                     (
-                        id.clone(),
+                        num.clone(),
                         timestamp::init(
-                            &mut orders.proxy(move |msg| Msg::TimestampMsg(id, msg)),
+                            &mut orders.proxy(move |msg| Msg::TimestampMsg(num, msg)),
                             time,
                         ),
                     )
                 })
                 .collect();
+        }
+        Msg::GetInfo(info) => {
             model.info = Some(info);
         }
         Msg::Noop => (),

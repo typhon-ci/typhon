@@ -124,6 +124,14 @@ pub mod requests {
     use serde::{Deserialize, Serialize};
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct EvaluationSearch {
+        pub jobset_name: Option<String>,
+        pub limit: u8,
+        pub offset: i32,
+        pub project_name: Option<String>,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectDecl {
         pub flake: bool,
         pub url: String,
@@ -162,6 +170,7 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Request {
+        ListEvaluations(EvaluationSearch),
         ListProjects,
         CreateProject { name: String, decl: ProjectDecl },
         Project(handles::Project, Project),
@@ -174,6 +183,7 @@ pub mod requests {
     impl std::fmt::Display for Request {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
+                Request::ListEvaluations(_) => write!(f, "Search through evaluations"),
                 Request::ListProjects => write!(f, "List projects"),
                 Request::CreateProject { name, decl } => {
                     write!(
@@ -195,6 +205,7 @@ pub mod requests {
 }
 
 pub mod responses {
+    use crate::handles;
     use serde::{Deserialize, Serialize};
 
     #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -220,7 +231,7 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobsetInfo {
-        pub evaluations: Vec<(i64, i64)>,
+        pub last_evaluation: Option<(i64, i64)>,
         pub flake: bool,
         pub url: String,
     }
@@ -263,6 +274,7 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Response {
         Ok,
+        ListEvaluations(Vec<(handles::Evaluation, i64)>),
         ListProjects(Vec<(String, ProjectMetadata)>),
         ProjectInfo(ProjectInfo),
         ProjectUpdateJobsets(Vec<String>),

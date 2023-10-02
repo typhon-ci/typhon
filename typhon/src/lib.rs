@@ -151,7 +151,8 @@ impl FromRequest for User {
 pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
     use requests::*;
     match req {
-        Request::ListProjects
+        Request::ListEvaluations(_)
+        | Request::ListProjects
         | Request::Project(_, Project::Info)
         | Request::Jobset(_, Jobset::Info)
         | Request::Evaluation(_, Evaluation::Info)
@@ -167,6 +168,9 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
 pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Response, Error> {
     if authorize_request(user, req) {
         Ok(match req {
+            requests::Request::ListEvaluations(search) => {
+                Response::ListEvaluations(Evaluation::search(search).await?)
+            }
             requests::Request::ListProjects => Response::ListProjects(Project::list().await?),
             requests::Request::CreateProject { name, decl } => {
                 Project::create(name, decl).await?;

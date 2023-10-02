@@ -133,14 +133,13 @@ impl Jobset {
 
     pub async fn info(&self) -> Result<responses::JobsetInfo, Error> {
         let mut conn = connection().await;
-        let evaluations = schema::evaluations::table
+        let last_evaluation = schema::evaluations::table
             .filter(schema::evaluations::jobset_id.eq(self.jobset.id))
-            .load::<models::Evaluation>(&mut *conn)?
-            .iter()
-            .map(|eval| (eval.num, eval.time_created))
-            .collect();
+            .first::<models::Evaluation>(&mut *conn)
+            .optional()?
+            .map(|eval| (eval.num, eval.time_created));
         Ok(responses::JobsetInfo {
-            evaluations,
+            last_evaluation,
             flake: self.jobset.flake,
             url: self.jobset.url.clone(),
         })
