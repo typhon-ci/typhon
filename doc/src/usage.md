@@ -43,6 +43,7 @@ attribute. We're going to import `typhon` as a flake input and use the
       owner = "$user";
       repo = "$project";
       secrets = ./secrets.age;
+      typhon_url = "$typhon_url";
     };
   };
 }
