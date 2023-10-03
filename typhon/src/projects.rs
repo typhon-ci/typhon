@@ -61,7 +61,7 @@ impl Project {
         HashMap::from([(
             "main".to_string(),
             jobsets::JobsetDecl {
-                flake: true,
+                flake: self.project.flake,
                 url: self.project.url.clone(),
             },
         )])
