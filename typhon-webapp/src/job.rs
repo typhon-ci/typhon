@@ -1,9 +1,11 @@
 use crate::{appurl::AppUrl, perform_request, view_error, view_log, SETTINGS};
+
+use typhon_types::*;
+
 use seed::{
     prelude::{js_sys::Promise, *},
     *,
 };
-use typhon_types::*;
 
 pub struct Model {
     error: Option<responses::ResponseError>,
@@ -53,16 +55,17 @@ pub fn fetch_logs_as_stream(drv: String) -> impl Stream<Item = String> {
     use crate::*;
     use async_stream::stream;
     stream! {
+        use gloo_net::http;
         let settings = SETTINGS.get().unwrap();
         let token = get_token();
-        let req = Request::new(format!("{}/drv-log{}", settings.api_server.url(false), &drv))
-            .method(Method::Get);
+        let req = http::RequestBuilder::new(&format!("{}/drv-log{}", settings.api_server.url(), &drv))
+            .method(http::Method::GET);
         let req = match token {
             None => req,
-            Some(token) => req.header(Header::custom("token", token)),
+            Some(token) => req.header(&"token", &token),
         };
-        let res = req.fetch().await.unwrap();
-        let readable_stream: web_sys::ReadableStream = res.raw_response().body().unwrap();
+        let res = req.send().await.unwrap();
+        let readable_stream: web_sys::ReadableStream = res.body().unwrap();
         let reader: js_sys::Object = readable_stream.get_reader();
         let promise = read_line_by_line(reader);
         let mut maybe_promise = Some(promise);
@@ -211,7 +214,7 @@ fn view_job(model: &Model) -> Node<Msg> {
                 p![format!("Status (build): {}", info.build_status)],
                 p![format!("Status (end): {}", info.end_status)],
                 if info.dist {
-                    let api_url = SETTINGS.get().unwrap().api_server.url(false);
+                    let api_url = SETTINGS.get().unwrap().api_server.url();
                     let job = &model.handle.name;
                     let system = &model.handle.system;
                     let evaluation = &model.handle.evaluation.num;

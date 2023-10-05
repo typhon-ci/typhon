@@ -9,6 +9,10 @@ mod project;
 mod timestamp;
 
 use appurl::AppUrl;
+use gloo_console::log;
+use gloo_net::http;
+use gloo_storage::LocalStorage;
+use gloo_storage::Storage;
 use once_cell::sync::OnceCell;
 use seed::{prelude::*, *};
 use serde::{Deserialize, Serialize};
@@ -21,12 +25,11 @@ pub struct ApiServerSettings {
 }
 
 impl ApiServerSettings {
-    pub fn url(&self, websocket: bool) -> String {
+    pub fn url(&self) -> String {
         format!(
-            "{}{}://{}",
-            if websocket { "ws" } else { "http" },
-            if self.https { "s" } else { "" },
-            self.baseurl
+            "{}://{}",
+            if self.https { "https" } else { "http" },
+            self.baseurl,
         )
     }
 }
@@ -62,11 +65,11 @@ pub fn get_token() -> Option<String> {
 }
 
 pub fn set_token(token: &String) {
-    LocalStorage::insert("typhon_token", &token).expect("save token");
+    LocalStorage::set("typhon_token", &token).unwrap()
 }
 
 pub fn reset_token() {
-    LocalStorage::remove("typhon_token").expect("remove saved token");
+    LocalStorage::delete("typhon_token")
 }
 
 pub async fn handle_request(
@@ -74,20 +77,19 @@ pub async fn handle_request(
 ) -> Result<responses::Response, responses::ResponseError> {
     let settings = SETTINGS.get().unwrap();
     let token = get_token();
-    let req = Request::new(settings.api_server.url(false))
-        .method(Method::Post)
-        .json(request)
-        .expect("Failed to serialize request");
+    let req = http::RequestBuilder::new(&settings.api_server.url()).method(http::Method::POST);
     let req = match token {
         None => req,
-        Some(token) => req.header(Header::custom("token", token)),
+        Some(token) => req.header("token", &token),
     };
-    req.fetch()
+    req.json(request)
+        .unwrap()
+        .send()
         .await
         .unwrap()
         .json()
         .await
-        .expect("Failed to deserialize response")
+        .unwrap()
 }
 
 pub fn perform_request_aux<Ms: 'static, MsO: 'static>(
@@ -108,7 +110,7 @@ macro_rules! perform_request {
             move |rsp| match rsp {
                 $pat => $body,
                 rsp => {
-                    log!(format!(
+                    gloo_console::log!(format!(
                         "perform_request: unexpected response {:#?} to request {:#?}",
                         rsp, req
                     ));
@@ -239,7 +241,6 @@ impl Page {
 pub struct Model {
     page: Page,
     admin: bool,
-    ws: WebSocket,
 }
 
 #[derive(Debug)]
@@ -253,7 +254,7 @@ enum Msg {
     EvaluationMsg(evaluation::Msg),
     JobMsg(job::Msg),
     UrlChanged(subs::UrlChanged),
-    WsMessageReceived(WebSocketMessage),
+    EventReceived(Event), // FIXME: get events from the server
 }
 
 fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
@@ -263,14 +264,6 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     Model {
         page: Page::init(url, orders),
         admin: get_token().is_some(), // TODO
-        ws: WebSocket::builder(format!("{}/events", settings.api_server.url(true)), orders)
-            .on_message(move |msg| {
-                msg_sender(Some(Msg::WsMessageReceived(msg)));
-            })
-            .on_error(|| {})
-            .on_close(|_| {})
-            .build_and_open()
-            .expect("failed to open websocket"),
     }
 }
 
@@ -348,9 +341,8 @@ fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => job::update(msg, job_model, &mut orders.proxy(Msg::JobMsg)),
-        (Msg::WsMessageReceived(msg), _) => {
-            let event: Event = msg.json().expect("failed to deserialize event");
-            log!(event);
+        (Msg::EventReceived(event), _) => {
+            log!(format!("event: {:?}", event));
             match &mut model.page {
                 Page::Home(model) => home::update(
                     home::Msg::Event(event),
@@ -427,11 +419,6 @@ fn header(model: &Model) -> Node<Msg> {
 }
 
 fn view(model: &Model) -> impl IntoNodes<Msg> {
-    // The websocket needs to be stored in the app model because the connection is closed on drop.
-    // However, the app never uses the websocket, causing a warning that the field is not read.
-    // Thus the field is read here to avoid the warning.
-    let _ = model.ws;
-
     nodes![
         raw!["
               <link href=\"https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css\" rel=\"stylesheet\">

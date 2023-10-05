@@ -1,5 +1,7 @@
 use typhon_webapp::{app, ApiServerSettings, Settings};
 
+use gloo_net::http;
+
 /// Finds the webroot of the webapp by grapping the [link] tag
 /// corresponding to the typhon webapp's wasm.
 fn find_webroot() -> Option<String> {
@@ -25,9 +27,9 @@ async fn load_settings() -> Settings {
     });
     use seed::prelude::*;
     let settings_path = format!("{client_webroot}settings.json");
-    let req = Request::new(&settings_path).method(Method::Get);
-    let api_server = match req.fetch().await {
-        Ok(data) if data.status().is_ok() => data
+    let req = http::RequestBuilder::new(&settings_path).method(http::Method::GET);
+    let api_server = match req.send().await {
+        Ok(data) if data.status() == 0 => data
             .json()
             .await
             .map_err(|_| {
