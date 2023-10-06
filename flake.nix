@@ -11,19 +11,9 @@
 
     nixpkgs.url = "nixpkgs/nixos-unstable";
 
-    crane = {
-      url = "github:ipetkov/crane";
-      inputs.flake-compat.follows = "flake-compat";
-      inputs.flake-utils.follows = "flake-utils";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.rust-overlay.follows = "rust-overlay";
-    };
+    crane.url = "github:ipetkov/crane";
 
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-    };
+    rust-overlay.url = "github:oxalica/rust-overlay";
 
     nix.url = "github:nixos/nix";
   };
