@@ -26,28 +26,18 @@
 
   nodeDependencies =
     (pkgs.callPackage ../../typhon-webapp/npm-nix {}).nodeDependencies;
-
-  inherit
-    (pkgs)
-    nodePackages
-    binaryen
-    trunk
-    wasm-bindgen-cli
-    ;
 in
-  craneLib.buildPackage {
+  craneLib.buildTrunkPackage {
     inherit
       src
       cargoToml
       cargoArtifacts
       RUSTFLAGS
       ;
-    buildPhaseCargoCommand = ''
+    trunkIndexPath = "typhon-webapp/index.html";
+    preBuild = ''
       ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
-      # See #351 on Trunk
-      echo "tools.wasm_bindgen = \"$(wasm-bindgen --version | cut -d' ' -f2)\"" >> Trunk.toml
       echo "build.public_url = \"WEBROOT\"" >> Trunk.toml
-      trunk build --release typhon-webapp/index.html
     '';
     # we only need to remove references on *.wasm files
     doNotRemoveReferencesToVendorDir = true;
@@ -58,11 +48,4 @@ in
           removeReferencesToVendoredSources $file
         done
     '';
-    nativeBuildInputs = [
-      binaryen
-      nodePackages.sass
-      trunk
-      wasm-bindgen-cli
-    ];
-    doCheck = false;
   }
