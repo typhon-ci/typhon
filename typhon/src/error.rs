@@ -43,7 +43,7 @@ impl std::fmt::Display for Error {
             ActionError(e) => write!(f, "Action error: {}", e),
             BadJobsetDecl(s) => write!(f, "Bad jobset declaration: {}", s),
             IllegalProjectHandle(handle) => {
-                write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contains dashes [-] or underscores [_].", handle.name)
+                write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contain dashes [-] or underscores [_].", handle.name)
             }
             JobNotFound(job_handle) => {
                 write!(f, "Job {} not found", job_handle)
