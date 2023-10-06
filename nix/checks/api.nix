@@ -23,20 +23,10 @@
     pkgs.pkg-config
   ];
 
-  cargoArtifacts = craneLib.buildDepsOnly {
-    inherit
-      src
-      cargoToml
-      cargoExtraArgs
-      nativeBuildInputs
-      ;
-  };
-
   typhon-api-client-test = craneLib.buildPackage {
     inherit
       src
       cargoToml
-      cargoArtifacts
       cargoExtraArgs
       nativeBuildInputs
       ;
