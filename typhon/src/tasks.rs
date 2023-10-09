@@ -114,15 +114,16 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync> Tasks
     pub async fn shutdown(&'static self) {
         let mut tasks = self.tasks.lock().await;
         tasks.shutdown = true;
+        let ids: Vec<_> = tasks.handles.keys().cloned().collect();
+        drop(tasks);
         let mut set = tokio::task::JoinSet::new();
-        for id in tasks.handles.keys() {
+        for id in ids {
             set.spawn({
                 let id = id.clone();
                 async move { self.wait(&id).await }
             });
-            self.cancel(id).await;
+            self.cancel(&id).await;
         }
-        drop(tasks);
         while let Some(_) = set.join_next().await {}
     }
 }
