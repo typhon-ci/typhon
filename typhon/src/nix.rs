@@ -63,7 +63,7 @@ trait CommandExtTrait {
 impl CommandExtTrait for Command {
     fn nix<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(args: I) -> Command {
         let mut cmd = Command::new("nix");
-        cmd.args(args);
+        cmd.kill_on_drop(true).args(args);
         cmd
     }
     async fn sync_stdout(&mut self) -> Result<String, Error> {

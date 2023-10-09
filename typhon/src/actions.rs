@@ -37,6 +37,7 @@ mod sandboxed_command {
     pub fn new() -> Command {
         let mut command = Command::new("bwrap");
         command
+            .kill_on_drop(true)
             .args(["--proc", "/proc"])
             .args(["--dev", "/dev"])
             .args(["--ro-bind", "/nix/store", "/nix/store"])
