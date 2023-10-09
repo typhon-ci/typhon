@@ -1,4 +1,4 @@
-use tokio::sync::oneshot::{channel, Sender};
+use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 
 use std::collections::HashMap;
@@ -17,8 +17,8 @@ impl std::fmt::Display for Error {
 
 #[derive(Debug)]
 struct TaskHandle {
-    canceler: Option<Sender<()>>,
-    waiters: Vec<Sender<()>>,
+    canceler: Option<oneshot::Sender<()>>,
+    waiters: Vec<oneshot::Sender<()>>,
 }
 
 #[derive(Debug)]
@@ -44,7 +44,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync> Tasks
 
     pub async fn wait(&self, id: &Id) -> () {
         let mut tasks = self.tasks.lock().await;
-        let (send, recv) = channel::<()>();
+        let (send, recv) = oneshot::channel::<()>();
         match tasks.handles.get_mut(&id) {
             Some(task) => {
                 task.waiters.push(send);
@@ -78,7 +78,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync> Tasks
         if tasks.shutdown {
             return Err(Error::ShuttingDown);
         }
-        let (send, recv) = channel::<()>();
+        let (send, recv) = oneshot::channel::<()>();
         let handle = TaskHandle {
             canceler: Some(send),
             waiters: Vec::new(),
