@@ -1,3 +1,5 @@
+use crate::connection;
+use crate::nix;
 use crate::schema;
 
 use diesel::prelude::*;
@@ -11,6 +13,7 @@ use std::path::Path;
 enum Error {
     DbError(diesel::result::Error),
     IoError(std::io::Error),
+    NixError(nix::Error),
 }
 
 impl From<diesel::result::Error> for Error {
@@ -25,15 +28,22 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl From<nix::Error> for Error {
+    fn from(e: nix::Error) -> Error {
+        Error::NixError(e)
+    }
+}
+
 allow_columns_to_appear_in_same_group_by_clause!(
     schema::jobs::build_out,
     schema::evaluations::jobset_id
 );
 
-fn update_aux(conn: &mut diesel::SqliteConnection) -> Result<(), Error> {
+async fn update_aux() -> Result<(), Error> {
     // collect all gcroots from the database
+    let mut conn = connection().await;
     let mut gcroots: HashSet<String> = HashSet::new();
-    let mut res = schema::evaluations::table
+    let mut res_1 = schema::evaluations::table
         .inner_join(schema::jobs::table)
         .group_by((schema::jobs::build_out, schema::evaluations::jobset_id))
         .select((
@@ -41,15 +51,16 @@ fn update_aux(conn: &mut diesel::SqliteConnection) -> Result<(), Error> {
             schema::evaluations::jobset_id,
             diesel::dsl::max(schema::evaluations::num),
         ))
-        .load::<(String, i32, Option<i64>)>(conn)?;
-    for (path, _, _) in res.drain(..) {
+        .load::<(String, i32, Option<i64>)>(&mut *conn)?;
+    let mut res_2 = schema::projects::table
+        .select(schema::projects::actions_path)
+        .load::<Option<String>>(&mut *conn)?;
+    drop(conn);
+    // TODO: insert build time dependencies
+    for (path, _, _) in res_1.drain(..) {
         gcroots.insert(path);
     }
-    // TODO: insert build time dependencies
-    let mut res = schema::projects::table
-        .select(schema::projects::actions_path)
-        .load::<Option<String>>(conn)?;
-    for actions in res.drain(..) {
+    for actions in res_2.drain(..) {
         if let Some(path) = actions {
             gcroots.insert(path);
         }
@@ -77,6 +88,8 @@ fn update_aux(conn: &mut diesel::SqliteConnection) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn update(conn: &mut diesel::SqliteConnection) -> () {
-    update_aux(conn).unwrap_or_else(|e| log::error!("error when updating gcroots: {:?}", e));
+pub async fn update() -> () {
+    update_aux()
+        .await
+        .unwrap_or_else(|e| log::error!("error when updating gcroots: {:?}", e));
 }

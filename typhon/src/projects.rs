@@ -188,8 +188,10 @@ impl Project {
                 schema::projects::url_locked.eq(url_locked),
             ))
             .execute(&mut *conn)?;
-        gcroots::update(&mut *conn);
         drop(conn);
+
+        gcroots::update().await;
+
         log_event(Event::ProjectUpdated(self.handle())).await;
 
         Ok(())
@@ -266,9 +268,8 @@ impl Project {
             }
         }
 
-        let mut conn = connection().await;
-
         // create new jobsets
+        let mut conn = connection().await;
         for (name, decl) in decls.iter() {
             if !set.contains(name) {
                 let new_jobset = models::NewJobset {
@@ -282,10 +283,9 @@ impl Project {
                     .execute(&mut *conn)?;
             }
         }
-
-        gcroots::update(&mut *conn);
-
         drop(conn);
+
+        gcroots::update().await;
 
         log_event(Event::ProjectJobsetsUpdated(self.handle())).await;
 

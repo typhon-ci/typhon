@@ -150,8 +150,9 @@ impl Evaluation {
             let _ = diesel::update(&self_2.evaluation)
                 .set(schema::evaluations::status.eq(status))
                 .execute(&mut *conn);
-            gcroots::update(&mut *conn);
             drop(conn);
+
+            gcroots::update().await;
 
             log_event(Event::EvaluationFinished(self_2.handle())).await;
         };

@@ -97,9 +97,9 @@ impl Jobset {
             Ok(evaluation)
         })?;
 
-        gcroots::update(&mut *conn);
-
         drop(conn);
+
+        gcroots::update().await;
 
         let evaluation = evaluations::Evaluation {
             project: self.project.clone(),
