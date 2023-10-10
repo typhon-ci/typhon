@@ -1,13 +1,15 @@
 use crate::BUILD_LOGS;
+
 use async_trait::async_trait;
 use serde_json::Value;
-use std::{collections::HashMap, ffi::OsStr, process::Stdio};
 use tokio::io::AsyncBufReadExt;
 use tokio::io::AsyncReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
 
-#[derive(Debug)]
+use std::{collections::HashMap, ffi::OsStr, process::Stdio};
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
     Flake {
         flake: bool,
@@ -17,9 +19,9 @@ pub enum Expr {
     Path(String),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    SerdeJson(serde_json::Error),
+    SerdeJson(String), // serde_json::Error is not Clone
     UnexpectedOutput {
         context: String,
     },
@@ -41,7 +43,7 @@ impl std::fmt::Display for Error {
 
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Error {
-        Error::SerdeJson(err)
+        Error::SerdeJson(err.to_string())
     }
 }
 
@@ -57,6 +59,7 @@ const RUNNING_NIX_FAILED: &str = "command Nix failed to run";
 trait CommandExtTrait {
     fn nix<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(args: I) -> Self;
     async fn sync_stdout(&mut self) -> Result<String, Error>;
+    async fn sync_stderr(&mut self) -> Result<String, Error>;
 }
 
 #[async_trait]
@@ -79,6 +82,21 @@ impl CommandExtTrait for Command {
             })
         } else {
             Ok(stdout)
+        }
+    }
+    async fn sync_stderr(&mut self) -> Result<String, Error> {
+        let nix_output = self.output().await.expect(RUNNING_NIX_FAILED);
+        let stdout = String::from_utf8(nix_output.stdout)?;
+        let stderr = String::from_utf8(nix_output.stderr)?;
+
+        if !nix_output.status.success() {
+            Err(Error::NixCommand {
+                cmd: format!("{:?}", self),
+                stdout,
+                stderr,
+            })
+        } else {
+            Ok(stderr)
         }
     }
 }
@@ -519,4 +537,151 @@ mod messages {
         };
         Some(Message { id: id?, body })
     }
+}
+
+pub mod build {
+    use super::Command;
+    use super::CommandExtTrait;
+    use super::DrvPath;
+
+    use crate::tasks::Tasks;
+
+    use once_cell::sync::Lazy;
+    use tokio::sync::mpsc;
+    use tokio::sync::oneshot;
+    use tokio::sync::Mutex;
+    use tokio::task::JoinHandle;
+
+    use std::collections::HashMap;
+
+    async fn is_cached(drv: &DrvPath) -> Result<bool, super::Error> {
+        let output = Command::nix(["build", "--dry-run"])
+            .arg(format!("{}^*", drv))
+            .sync_stderr()
+            .await?;
+        Ok(!output.contains("built"))
+    }
+
+    type Output = Result<super::DrvOutputs, super::Error>;
+
+    enum Msg {
+        Abort(DrvPath),
+        Build(DrvPath, oneshot::Sender<Option<Output>>),
+        Finished(DrvPath, Option<Output>),
+        Shutdown,
+    }
+
+    pub struct Builder {
+        handle: Mutex<Option<JoinHandle<()>>>,
+        sender: mpsc::Sender<Msg>,
+    }
+
+    impl Builder {
+        fn new() -> Self {
+            let (sender, mut receiver) = mpsc::channel(256);
+            let sender_self = sender.clone();
+            let handle = tokio::spawn(async move {
+                let mut waiters: HashMap<DrvPath, (Vec<oneshot::Sender<Option<Output>>>, usize)> =
+                    HashMap::new();
+                while let Some(msg) = receiver.recv().await {
+                    match msg {
+                        Msg::Abort(drv) => {
+                            if let Some(waiters) = waiters.get_mut(&drv) {
+                                waiters.1 = waiters.1 - 1;
+                                if waiters.1 == 0 {
+                                    TASKS.cancel(&drv).await;
+                                }
+                            }
+                        }
+                        Msg::Build(drv, sender) => {
+                            if let Some((senders, n)) = waiters.get_mut(&drv) {
+                                senders.push(sender);
+                                *n = *n + 1;
+                            } else {
+                                waiters.insert(drv.clone(), (vec![sender], 1));
+                                let sender_self_1 = sender_self.clone();
+                                let sender_self_2 = sender_self.clone();
+                                let drv_1 = drv.clone();
+                                let drv_2 = drv.clone();
+                                let task = async move {
+                                    if is_cached(&drv_1).await == Ok(false) {
+                                        let json: serde_json::Value = serde_json::from_str(
+                                            &Command::nix([
+                                                "derivation",
+                                                "show",
+                                                &drv_1.to_string(),
+                                            ])
+                                            .sync_stdout()
+                                            .await
+                                            .unwrap(),
+                                        )
+                                        .unwrap();
+                                        let input_drvs = json[&drv_1.to_string()]["inputDrvs"]
+                                            .as_object()
+                                            .unwrap();
+                                        let mut receivers: Vec<oneshot::Receiver<Option<Output>>> =
+                                            Vec::new();
+                                        for (drv, _) in input_drvs {
+                                            let (sender, receiver) = oneshot::channel();
+                                            let _ = sender_self_1
+                                                .send(Msg::Build(DrvPath::new(drv), sender))
+                                                .await;
+                                            receivers.push(receiver);
+                                        }
+                                        for receiver in receivers.drain(..) {
+                                            let _ = receiver.await;
+                                        }
+                                    }
+                                    super::build(&drv_1).await
+                                };
+                                let finish = |res: Option<Output>| async move {
+                                    let _ =
+                                        sender_self_2.send(Msg::Finished(drv_2, res.clone())).await;
+                                };
+                                let _ = TASKS.run(drv, task, finish).await;
+                            }
+                        }
+                        Msg::Finished(drv, res) => {
+                            if let Some((senders, _)) = waiters.remove(&drv) {
+                                for sender in senders {
+                                    let _ = sender.send(res.clone());
+                                }
+                            }
+                        }
+                        Msg::Shutdown => break,
+                    }
+                }
+            });
+            let handle = Mutex::new(Some(handle));
+            Self { handle, sender }
+        }
+
+        pub async fn run(&self, drv: DrvPath) -> Option<Output> {
+            let (sender, receiver) = oneshot::channel();
+            let _ = self.sender.send(Msg::Build(drv, sender)).await;
+            if let Ok(res) = receiver.await {
+                res
+            } else {
+                None
+            }
+        }
+
+        pub async fn abort(&self, drv: DrvPath) {
+            let _ = self.sender.send(Msg::Abort(drv)).await;
+        }
+
+        pub async fn shutdown(&self) {
+            if self.sender.send(Msg::Shutdown).await.is_ok() {
+                if let Some(handle) = self.handle.lock().await.take() {
+                    let _ = handle.await;
+                }
+            } else {
+                self.handle.lock().await.take().map(|handle| handle.abort());
+            }
+            TASKS.shutdown().await;
+        }
+    }
+
+    static TASKS: Lazy<Tasks<DrvPath>> = Lazy::new(Tasks::new);
+    pub static BUILDS: Lazy<Builder> = Lazy::new(Builder::new);
 }

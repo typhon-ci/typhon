@@ -279,10 +279,10 @@ pub async fn shutdown() {
     tokio::join!(
         EVENT_LOGGER.shutdown(),
         EVALUATIONS.shutdown(),
-        JOBS_BUILD.shutdown(),
         JOBS_BEGIN.shutdown(),
         JOBS_END.shutdown(),
         BUILD_LOGS.shutdown(),
+        nix::build::BUILDS.shutdown(),
     );
     eprintln!("Good bye!");
 }

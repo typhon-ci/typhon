@@ -27,6 +27,9 @@ impl Job {
         let a = JOBS_BEGIN.cancel(&self.job.id).await;
         let b = JOBS_BUILD.cancel(&self.job.id).await;
         let c = JOBS_END.cancel(&self.job.id).await;
+        nix::build::BUILDS
+            .abort(nix::DrvPath::new(&self.job.build_drv))
+            .await;
         a || b || c
     }
 
@@ -38,6 +41,9 @@ impl Job {
         diesel::delete(schema::logs::table.find(&self.job.end_log_id)).execute(&mut *conn)?;
         drop(conn);
 
+        nix::build::BUILDS
+            .abort(nix::DrvPath::new(&self.job.build_drv))
+            .await;
         JOBS_BEGIN.cancel(&self.job.id).await;
         JOBS_BUILD.cancel(&self.job.id).await;
         JOBS_END.cancel(&self.job.id).await;
@@ -211,7 +217,6 @@ impl Job {
             .run(self.job.id, task_begin, finish_begin)
             .await?;
 
-        // FIXME: write a more intelligent build manager
         let (sender, receiver) = tokio::sync::oneshot::channel::<String>();
         let task_build = async move {
             let mut conn = connection().await;
@@ -219,12 +224,12 @@ impl Job {
                 .set(schema::jobs::build_time_started.eq(now()))
                 .execute(&mut *conn);
             drop(conn);
-            nix::build(&drv).await?;
-            Ok::<(), Error>(())
+            nix::build::BUILDS.run(drv).await
         };
-        let finish_build = move |r| async move {
+        let finish_build = move |r: Option<Option<Result<nix::DrvOutputs, nix::Error>>>| async move {
+            let r = r.flatten();
             let status = match r {
-                Some(Ok(())) => "success",
+                Some(Ok(_)) => "success",
                 Some(Err(_)) => "error", // TODO: log error
                 None => "canceled",
             };
