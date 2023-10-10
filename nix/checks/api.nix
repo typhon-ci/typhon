@@ -21,6 +21,8 @@
   nativeBuildInputs = [
     pkgs.openssl
     pkgs.pkg-config
+    pkgs.zlib
+    pkgs.curl
   ];
 
   typhon-api-client-test = craneLib.buildPackage {
