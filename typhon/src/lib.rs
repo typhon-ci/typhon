@@ -282,6 +282,7 @@ pub async fn shutdown() {
         JOBS_BUILD.shutdown(),
         JOBS_BEGIN.shutdown(),
         JOBS_END.shutdown(),
+        BUILD_LOGS.shutdown(),
     );
     eprintln!("Good bye!");
 }

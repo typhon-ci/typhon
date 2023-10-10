@@ -2,6 +2,8 @@ pub mod live {
     use std::collections::HashMap;
     use tokio::sync::mpsc;
     use tokio::sync::oneshot;
+    use tokio::sync::Mutex;
+    use tokio::task::JoinHandle;
 
     #[derive(Debug)]
     enum Message<Id> {
@@ -20,7 +22,10 @@ pub mod live {
     }
 
     #[derive(Debug)]
-    pub struct Cache<Id>(mpsc::Sender<Message<Id>>);
+    pub struct Cache<Id> {
+        sender: mpsc::Sender<Message<Id>>,
+        handle: Mutex<Option<JoinHandle<()>>>,
+    }
 
     impl<Id: Clone + Eq + PartialEq + Send + std::fmt::Debug + std::hash::Hash + 'static> Cache<Id>
     where
@@ -28,7 +33,7 @@ pub mod live {
     {
         pub fn new() -> Self {
             let (sender, mut receiver) = mpsc::channel(32);
-            tokio::spawn(async move {
+            let handle = tokio::spawn(async move {
                 type Listeners = Vec<mpsc::Sender<String>>;
                 let mut state: HashMap<Id, (Vec<String>, Listeners)> = HashMap::new();
                 while let Some(msg) = receiver.recv().await {
@@ -68,7 +73,10 @@ pub mod live {
                     }
                 }
             });
-            Cache(sender)
+            Self {
+                sender,
+                handle: Mutex::new(Some(handle)),
+            }
         }
 
         pub async fn listen(
@@ -77,7 +85,7 @@ pub mod live {
         ) -> Option<impl futures_core::stream::Stream<Item = String>> {
             let (lines_sender, mut lines_receiver) = mpsc::channel(32);
             let (not_found_sender, not_found_receiver) = oneshot::channel();
-            self.0
+            self.sender
                 .send(Message::Listen {
                     id: id.clone(),
                     lines_sender,
@@ -98,7 +106,7 @@ pub mod live {
         }
 
         pub async fn send_line(&self, id: &Id, line: String) {
-            self.0
+            self.sender
                 .send(Message::Line {
                     id: id.clone(),
                     line,
@@ -108,10 +116,14 @@ pub mod live {
         }
 
         pub async fn reset(&self, id: &Id) {
-            self.0
+            self.sender
                 .send(Message::Reset { id: id.clone() })
                 .await
                 .unwrap()
+        }
+
+        pub async fn shutdown(&self) {
+            let _ = self.handle.lock().await.take().map(|handle| handle.abort());
         }
     }
 }
