@@ -45,14 +45,17 @@ pub mod live {
                             if !state.contains_key(&id) {
                                 state.insert(id.clone(), (vec![], Vec::new()));
                             }
-                            let (lines, listeners) = state.get_mut(&id).unwrap();
+                            let (lines, ref mut listeners) = state.get_mut(&id).unwrap();
                             lines.push(line.clone());
 
-                            for i in 0..listeners.len() {
-                                if let Err(_) = listeners[i].send(line.clone()).await {
-                                    listeners.remove(i);
+                            let mut new_listeners: Listeners = Vec::new();
+                            for listener in listeners.drain(..) {
+                                match listener.send(line.clone()).await {
+                                    Ok(()) => new_listeners.push(listener),
+                                    Err(_) => (),
                                 }
                             }
+                            *listeners = new_listeners;
                         }
                         Message::Listen {
                             id,
