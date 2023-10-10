@@ -399,6 +399,42 @@ pub async fn log(drv: String) -> Result<String, Error> {
     Command::nix(["log"]).arg(drv).sync_stdout().await
 }
 
+pub async fn dependencies(drv: &String) -> Result<Vec<String>, Error> {
+    let mut dependencies: Vec<String> = Vec::new();
+    let json: serde_json::Value = serde_json::from_str(
+        &Command::nix(["derivation", "show", &drv])
+            .sync_stdout()
+            .await?,
+    )
+    .unwrap();
+
+    let input_drvs = json[&drv]["inputDrvs"].as_object().unwrap();
+    for (drv, json) in input_drvs {
+        let outputs = json["outputs"].as_array().unwrap();
+        let json: serde_json::Value = serde_json::from_str(
+            &Command::nix(["derivation", "show", &drv])
+                .sync_stdout()
+                .await?,
+        )
+        .unwrap();
+        for output in outputs {
+            dependencies.push(
+                json[&drv]["outputs"][output.as_str().unwrap()]["path"]
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            )
+        }
+    }
+
+    let input_srcs = json[drv]["inputSrcs"].as_array().unwrap();
+    for src in input_srcs {
+        dependencies.push(src.as_str().unwrap().to_string());
+    }
+
+    Ok(dependencies)
+}
+
 /// This module parses https://github.com/NixOS/nix/blob/7474a90db69813d051ab1bef35c7d0ab958d9ccd/src/libutil/logging.hh
 mod messages {
     use serde_repr::*;

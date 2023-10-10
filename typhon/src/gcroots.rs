@@ -36,6 +36,7 @@ impl From<nix::Error> for Error {
 
 allow_columns_to_appear_in_same_group_by_clause!(
     schema::jobs::build_out,
+    schema::jobs::build_drv,
     schema::evaluations::jobset_id
 );
 
@@ -45,19 +46,28 @@ async fn update_aux() -> Result<(), Error> {
     let mut gcroots: HashSet<String> = HashSet::new();
     let mut res_1 = schema::evaluations::table
         .inner_join(schema::jobs::table)
-        .group_by((schema::jobs::build_out, schema::evaluations::jobset_id))
+        .group_by((
+            schema::jobs::build_out,
+            schema::jobs::build_drv,
+            schema::evaluations::jobset_id,
+        ))
         .select((
             schema::jobs::build_out,
+            schema::jobs::build_drv,
             schema::evaluations::jobset_id,
             diesel::dsl::max(schema::evaluations::num),
         ))
-        .load::<(String, i32, Option<i64>)>(&mut *conn)?;
+        .load::<(String, String, i32, Option<i64>)>(&mut *conn)?;
     let mut res_2 = schema::projects::table
         .select(schema::projects::actions_path)
         .load::<Option<String>>(&mut *conn)?;
     drop(conn);
-    // TODO: insert build time dependencies
-    for (path, _, _) in res_1.drain(..) {
+
+    for (path, drv, _, _) in res_1.drain(..) {
+        for dep in nix::dependencies(&drv).await? {
+            gcroots.insert(dep);
+        }
+        gcroots.insert(drv);
         gcroots.insert(path);
     }
     for actions in res_2.drain(..) {
