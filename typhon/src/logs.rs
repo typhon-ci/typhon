@@ -6,7 +6,7 @@ pub mod live {
     use tokio::task::JoinHandle;
 
     #[derive(Debug)]
-    enum Message<Id> {
+    enum Msg<Id> {
         Reset {
             id: Id,
         },
@@ -24,7 +24,7 @@ pub mod live {
 
     #[derive(Debug)]
     pub struct Cache<Id> {
-        sender: mpsc::Sender<Message<Id>>,
+        sender: mpsc::Sender<Msg<Id>>,
         handle: Mutex<Option<JoinHandle<()>>>,
     }
 
@@ -39,10 +39,10 @@ pub mod live {
                 let mut state: HashMap<Id, (Vec<String>, Listeners)> = HashMap::new();
                 while let Some(msg) = receiver.recv().await {
                     match msg {
-                        Message::Reset { id } => {
+                        Msg::Reset { id } => {
                             state.remove(&id);
                         }
-                        Message::Line { id, line } => {
+                        Msg::Line { id, line } => {
                             if !state.contains_key(&id) {
                                 state.insert(id.clone(), (vec![], Vec::new()));
                             }
@@ -58,7 +58,7 @@ pub mod live {
                             }
                             *listeners = new_listeners;
                         }
-                        Message::Listen {
+                        Msg::Listen {
                             id,
                             lines_sender,
                             not_found_sender,
@@ -74,7 +74,7 @@ pub mod live {
                                 drop(lines_sender)
                             }
                         }
-                        Message::Shutdown => break,
+                        Msg::Shutdown => break,
                     }
                 }
             });
@@ -91,7 +91,7 @@ pub mod live {
             let (lines_sender, mut lines_receiver) = mpsc::channel(32);
             let (not_found_sender, not_found_receiver) = oneshot::channel();
             self.sender
-                .send(Message::Listen {
+                .send(Msg::Listen {
                     id: id.clone(),
                     lines_sender,
                     not_found_sender,
@@ -112,7 +112,7 @@ pub mod live {
 
         pub async fn send_line(&self, id: &Id, line: String) {
             self.sender
-                .send(Message::Line {
+                .send(Msg::Line {
                     id: id.clone(),
                     line,
                 })
@@ -122,7 +122,7 @@ pub mod live {
 
         pub async fn reset(&self, id: &Id) {
             self.sender
-                .send(Message::Reset { id: id.clone() })
+                .send(Msg::Reset { id: id.clone() })
                 .await
                 .unwrap()
         }
@@ -130,7 +130,7 @@ pub mod live {
         pub async fn shutdown(&self) {
             let handle = self.handle.lock().await.take();
             if let Some(handle) = handle {
-                if self.sender.send(Message::Shutdown).await.is_ok() {
+                if self.sender.send(Msg::Shutdown).await.is_ok() {
                     let _ = handle.await;
                 } else {
                     handle.abort();
