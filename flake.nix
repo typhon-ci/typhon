@@ -9,7 +9,7 @@
 
     flake-utils.url = "flake-utils";
 
-    nixpkgs.url = "nixpkgs/nixos-unstable";
+    nixpkgs.url = "nixpkgs/nixos-23.05";
 
     crane.url = "github:ipetkov/crane";
 
