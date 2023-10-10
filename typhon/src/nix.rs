@@ -589,7 +589,7 @@ pub mod build {
                             if let Some(waiters) = waiters.get_mut(&drv) {
                                 waiters.1 = waiters.1 - 1;
                                 if waiters.1 == 0 {
-                                    TASKS.cancel(&drv).await;
+                                    TASKS.cancel(drv).await;
                                 }
                             }
                         }
@@ -682,6 +682,6 @@ pub mod build {
         }
     }
 
-    static TASKS: Lazy<Tasks<DrvPath>> = Lazy::new(Tasks::new);
+    static TASKS: Lazy<Tasks<DrvPath, Output>> = Lazy::new(Tasks::new);
     pub static BUILDS: Lazy<Builder> = Lazy::new(Builder::new);
 }

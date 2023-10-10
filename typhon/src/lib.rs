@@ -93,10 +93,13 @@ pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
         webroot: args.webroot.clone(),
     }
 });
-pub static EVALUATIONS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static JOBS_BEGIN: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static JOBS_BUILD: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static JOBS_END: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static EVALUATIONS: Lazy<tasks::Tasks<i32, Result<nix::NewJobs, nix::Error>>> =
+    Lazy::new(tasks::Tasks::new);
+pub static JOBS_BEGIN: Lazy<tasks::Tasks<i32, Result<String, Error>>> =
+    Lazy::new(tasks::Tasks::new);
+pub static JOBS_BUILD: Lazy<tasks::Tasks<i32, Option<Result<nix::DrvOutputs, nix::Error>>>> =
+    Lazy::new(tasks::Tasks::new);
+pub static JOBS_END: Lazy<tasks::Tasks<i32, Result<String, Error>>> = Lazy::new(tasks::Tasks::new);
 pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
     use diesel::Connection as _;
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");

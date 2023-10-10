@@ -23,14 +23,13 @@ pub struct Job {
 }
 
 impl Job {
-    pub async fn cancel(&self) -> bool {
-        let a = JOBS_BEGIN.cancel(&self.job.id).await;
-        let b = JOBS_BUILD.cancel(&self.job.id).await;
-        let c = JOBS_END.cancel(&self.job.id).await;
+    pub async fn cancel(&self) {
+        JOBS_BEGIN.cancel(self.job.id).await;
+        JOBS_BUILD.cancel(self.job.id).await;
+        JOBS_END.cancel(self.job.id).await;
         nix::build::BUILDS
             .abort(nix::DrvPath::new(&self.job.build_drv))
             .await;
-        a || b || c
     }
 
     pub async fn delete(&self) -> Result<(), Error> {
@@ -44,9 +43,9 @@ impl Job {
         nix::build::BUILDS
             .abort(nix::DrvPath::new(&self.job.build_drv))
             .await;
-        JOBS_BEGIN.cancel(&self.job.id).await;
-        JOBS_BUILD.cancel(&self.job.id).await;
-        JOBS_END.cancel(&self.job.id).await;
+        JOBS_BEGIN.cancel(self.job.id).await;
+        JOBS_BUILD.cancel(self.job.id).await;
+        JOBS_END.cancel(self.job.id).await;
 
         let mut conn = connection().await;
         diesel::delete(schema::jobs::table.find(self.job.id)).execute(&mut *conn)?;
@@ -213,9 +212,7 @@ impl Job {
             drop(conn);
             log_event(Event::JobUpdated(self_2.handle())).await;
         };
-        JOBS_BEGIN
-            .run(self.job.id, task_begin, finish_begin)
-            .await?;
+        JOBS_BEGIN.run(self.job.id, task_begin, finish_begin).await;
 
         let (sender, receiver) = tokio::sync::oneshot::channel::<String>();
         let task_build = async move {
@@ -244,9 +241,7 @@ impl Job {
             drop(conn);
             log_event(Event::JobUpdated(self_4.handle())).await;
         };
-        JOBS_BUILD
-            .run(self.job.id, task_build, finish_build)
-            .await?;
+        JOBS_BUILD.run(self.job.id, task_build, finish_build).await;
 
         let task_end = async move {
             // wait for `begin` to finish
@@ -313,7 +308,7 @@ impl Job {
             drop(conn);
             log_event(Event::JobUpdated(self_6.handle())).await;
         };
-        JOBS_END.run(self.job.id, task_end, finish_end).await?;
+        JOBS_END.run(self.job.id, task_end, finish_end).await;
 
         Ok(())
     }

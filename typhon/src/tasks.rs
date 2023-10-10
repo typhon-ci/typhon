@@ -1,5 +1,8 @@
+use futures::future::BoxFuture;
+use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -15,115 +18,142 @@ impl std::fmt::Display for Error {
     }
 }
 
+type CallbackFuture<'a, T> = Box<dyn (FnOnce(T) -> BoxFuture<'a, ()>) + Send + Sync>;
+
+enum Msg<Id, T> {
+    Cancel(Id),
+    Finish(Id),
+    Run(
+        Id,
+        BoxFuture<'static, T>,
+        CallbackFuture<'static, Option<T>>,
+    ),
+    Shutdown,
+    Wait(Id, oneshot::Sender<()>),
+}
+
 #[derive(Debug)]
 struct TaskHandle {
     canceler: Option<oneshot::Sender<()>>,
+    handle: JoinHandle<()>,
     waiters: Vec<oneshot::Sender<()>>,
 }
 
 #[derive(Debug)]
-struct TasksUnwrapped<Id> {
-    handles: HashMap<Id, TaskHandle>,
-    shutdown: bool,
+pub struct Tasks<Id, T> {
+    handle: Mutex<Option<JoinHandle<()>>>,
+    sender: mpsc::Sender<Msg<Id, T>>,
 }
 
-#[derive(Debug)]
-pub struct Tasks<Id> {
-    tasks: Mutex<TasksUnwrapped<Id>>,
-}
-
-impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync> Tasks<Id> {
+impl<
+        Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static,
+        T: Send + 'static,
+    > Tasks<Id, T>
+{
     pub fn new() -> Self {
-        Tasks {
-            tasks: Mutex::new(TasksUnwrapped {
-                handles: HashMap::new(),
-                shutdown: false,
-            }),
-        }
+        let (sender, mut receiver) = mpsc::channel(256);
+        let sender_self = sender.clone();
+        let handle = tokio::spawn(async move {
+            let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();
+            while let Some(msg) = receiver.recv().await {
+                let sender_self = sender_self.clone();
+                match msg {
+                    Msg::Cancel(id) => {
+                        let _ = tasks
+                            .get_mut(&id)
+                            .map(|task| task.canceler.take().map(|send| send.send(())));
+                    }
+                    Msg::Finish(id) => {
+                        if let Some(task) = tasks.remove(&id) {
+                            let _ = task.handle.await;
+                            for send in task.waiters {
+                                let _ = send.send(());
+                            }
+                        }
+                    }
+                    Msg::Run(id, task, finish) => {
+                        let (send, recv) = oneshot::channel::<()>();
+                        let id_bis = id.clone();
+                        let handle = tokio::spawn(async move {
+                            let r = tokio::select! {
+                                _ = recv => None,
+                                r = task => Some(r),
+                            };
+                            finish(r).await;
+                            let _ = sender_self.send(Msg::Finish(id_bis)).await;
+                        });
+                        let task = TaskHandle {
+                            canceler: Some(send),
+                            handle,
+                            waiters: Vec::new(),
+                        };
+                        tasks.insert(id, task);
+                    }
+                    Msg::Shutdown => {
+                        let ids: Vec<_> = tasks.keys().cloned().collect();
+                        for id in ids.iter() {
+                            tasks
+                                .get_mut(&id)
+                                .map(|task| task.canceler.take().map(|sender| sender.send(())));
+                        }
+                        for id in ids {
+                            if let Some(mut task) = tasks.remove(&id) {
+                                let _ = task.handle.await;
+                                let _ = task.waiters.drain(..).map(|sender| sender.send(()));
+                            }
+                        }
+                        break;
+                    }
+                    Msg::Wait(id, sender) => match tasks.get_mut(&id) {
+                        Some(task) => {
+                            task.waiters.push(sender);
+                        }
+                        None => {
+                            let _ = sender.send(());
+                        }
+                    },
+                }
+            }
+        });
+        let handle = Mutex::new(Some(handle));
+        Self { handle, sender }
     }
 
     pub async fn wait(&self, id: &Id) -> () {
-        let mut tasks = self.tasks.lock().await;
-        let (send, recv) = oneshot::channel::<()>();
-        match tasks.handles.get_mut(&id) {
-            Some(task) => {
-                task.waiters.push(send);
-            }
-            None => {
-                let _ = send.send(());
-            }
-        }
-        drop(tasks);
-        let _ = recv.await;
+        let (sender, receiver) = oneshot::channel();
+        let _ = self.sender.send(Msg::Wait(id.clone(), sender)).await;
+        let _ = receiver.await;
     }
 
-    pub async fn is_running(&self, id: &Id) -> bool {
-        let tasks = self.tasks.lock().await;
-        tasks.handles.get(&id).is_some()
-    }
-
-    // TODO: `f` should be able to output an error
+    // TODO: `finish` should be able to output an error
     pub async fn run<
-        S: Send + 'static,
-        T: Future<Output = S> + Send + 'static,
+        O: Future<Output = T> + Send + 'static,
         U: Future<Output = ()> + Send + 'static,
-        F: FnOnce(Option<S>) -> U + Send + 'static,
+        F: (FnOnce(Option<T>) -> U) + Send + Sync + 'static,
     >(
-        &'static self,
+        &self,
         id: Id,
-        task: T,
-        f: F,
-    ) -> Result<(), Error> {
-        let mut tasks = self.tasks.lock().await;
-        if tasks.shutdown {
-            return Err(Error::ShuttingDown);
-        }
-        let (send, recv) = oneshot::channel::<()>();
-        let handle = TaskHandle {
-            canceler: Some(send),
-            waiters: Vec::new(),
-        };
-        tasks.handles.insert(id.clone(), handle);
-        drop(tasks);
-        tokio::spawn(async move {
-            let r = tokio::select! {
-                _ = recv => None,
-                r = task => Some(r),
-            };
-            f(r).await;
-            self.tasks.lock().await.handles.remove(&id).map(|handle| {
-                for send in handle.waiters {
-                    let _ = send.send(());
-                }
-            });
-        });
-        Ok(())
+        task: O,
+        finish: F,
+    ) {
+        let _ = self
+            .sender
+            .send(Msg::Run(
+                id,
+                Box::pin(task),
+                Box::new(|x| Box::pin(finish(x))),
+            ))
+            .await;
     }
 
-    pub async fn cancel(&self, id: &Id) -> bool {
-        self.tasks
-            .lock()
-            .await
-            .handles
-            .get_mut(&id)
-            .map(|task| task.canceler.take().map(|send| send.send(())))
-            .flatten()
-            .is_some()
+    pub async fn cancel(&self, id: Id) {
+        let _ = self.sender.send(Msg::Cancel(id)).await;
     }
 
     pub async fn shutdown(&'static self) {
-        let mut tasks = self.tasks.lock().await;
-        tasks.shutdown = true;
-        let ids: Vec<_> = tasks.handles.keys().cloned().collect();
-        drop(tasks);
-        let mut set = tokio::task::JoinSet::new();
-        for id in ids {
-            set.spawn({
-                let id = id.clone();
-                async move { self.wait(&id).await }
-            });
-            self.cancel(&id).await;
+        let _ = self.sender.send(Msg::Shutdown).await;
+        if let Some(handle) = self.handle.lock().await.take() {
+            let _ = handle.await;
         }
-        while let Some(_) = set.join_next().await {}
     }
 }

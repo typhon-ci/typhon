@@ -22,8 +22,8 @@ pub struct Evaluation {
 }
 
 impl Evaluation {
-    pub async fn cancel(&self) -> bool {
-        EVALUATIONS.cancel(&self.evaluation.id).await
+    pub async fn cancel(&self) {
+        EVALUATIONS.cancel(self.evaluation.id).await
     }
 
     pub async fn delete(&self) -> Result<(), Error> {
@@ -118,7 +118,7 @@ impl Evaluation {
         let self_2 = self.clone();
 
         let task = async move { nix::eval_jobs(&self_1.evaluation.url, self_1.jobset.flake).await };
-        let f = move |r: Option<Result<nix::NewJobs, nix::Error>>| async move {
+        let finish = move |r: Option<Result<nix::NewJobs, nix::Error>>| async move {
             // TODO: when logging, hide internal error messages?
             let status = match r {
                 Some(Ok(new_jobs)) => {
@@ -156,7 +156,7 @@ impl Evaluation {
 
             log_event(Event::EvaluationFinished(self_2.handle())).await;
         };
-        EVALUATIONS.run(self.evaluation.id, task, f).await?;
+        EVALUATIONS.run(self.evaluation.id, task, finish).await;
 
         Ok(())
     }
