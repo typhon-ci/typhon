@@ -230,7 +230,7 @@ impl Job {
                 Some(Err(_)) => "error", // TODO: log error
                 None => "canceled",
             };
-            sender.send(status.to_string()).unwrap_or_else(|_| panic!());
+            let _ = sender.send(status.to_string());
             let mut conn = connection().await;
             let _ = diesel::update(&self_4.job)
                 .set((
