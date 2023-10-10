@@ -8,6 +8,7 @@ use tokio::task::JoinHandle;
 pub enum Msg {
     Emit(Event),
     Listen(mpsc::Sender<Event>),
+    Shutdown,
 }
 
 pub struct EventLogger {
@@ -34,6 +35,7 @@ impl EventLogger {
                         senders = new_senders;
                     }
                     Listen(sender) => senders.push(sender),
+                    Shutdown => break,
                 }
             }
         });
@@ -58,6 +60,13 @@ impl EventLogger {
     }
 
     pub async fn shutdown(&self) {
-        let _ = self.handle.lock().await.take().map(|handle| handle.abort());
+        let handle = self.handle.lock().await.take();
+        if let Some(handle) = handle {
+            if self.sender.send(Msg::Shutdown).await.is_ok() {
+                let _ = handle.await;
+            } else {
+                handle.abort();
+            }
+        }
     }
 }

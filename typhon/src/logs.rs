@@ -19,6 +19,7 @@ pub mod live {
             lines_sender: mpsc::Sender<String>,
             not_found_sender: oneshot::Sender<bool>,
         },
+        Shutdown,
     }
 
     #[derive(Debug)]
@@ -73,6 +74,7 @@ pub mod live {
                                 drop(lines_sender)
                             }
                         }
+                        Message::Shutdown => break,
                     }
                 }
             });
@@ -126,7 +128,14 @@ pub mod live {
         }
 
         pub async fn shutdown(&self) {
-            let _ = self.handle.lock().await.take().map(|handle| handle.abort());
+            let handle = self.handle.lock().await.take();
+            if let Some(handle) = handle {
+                if self.sender.send(Message::Shutdown).await.is_ok() {
+                    let _ = handle.await;
+                } else {
+                    handle.abort();
+                }
+            }
         }
     }
 }

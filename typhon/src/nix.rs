@@ -671,12 +671,13 @@ pub mod build {
         }
 
         pub async fn shutdown(&self) {
-            if self.sender.send(Msg::Shutdown).await.is_ok() {
-                if let Some(handle) = self.handle.lock().await.take() {
+            let handle = self.handle.lock().await.take();
+            if let Some(handle) = handle {
+                if self.sender.send(Msg::Shutdown).await.is_ok() {
                     let _ = handle.await;
+                } else {
+                    handle.abort();
                 }
-            } else {
-                self.handle.lock().await.take().map(|handle| handle.abort());
             }
             TASKS.shutdown().await;
         }

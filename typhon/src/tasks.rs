@@ -151,9 +151,13 @@ impl<
     }
 
     pub async fn shutdown(&'static self) {
-        let _ = self.sender.send(Msg::Shutdown).await;
-        if let Some(handle) = self.handle.lock().await.take() {
-            let _ = handle.await;
+        let handle = self.handle.lock().await.take();
+        if let Some(handle) = handle {
+            if self.sender.send(Msg::Shutdown).await.is_ok() {
+                let _ = handle.await;
+            } else {
+                handle.abort();
+            }
         }
     }
 }
