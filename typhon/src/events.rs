@@ -1,48 +1,63 @@
 use typhon_types::Event;
 
 use futures_core::stream::Stream;
-use tokio::sync::mpsc::*;
+use tokio::sync::mpsc;
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
+
+pub enum Msg {
+    Emit(Event),
+    Listen(mpsc::Sender<Event>),
+}
 
 pub struct EventLogger {
-    senders: Vec<Sender<Event>>,
-    shutdown: bool,
+    sender: mpsc::Sender<Msg>,
+    handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl EventLogger {
     pub fn new() -> Self {
-        Self {
-            senders: Vec::new(),
-            shutdown: false,
-        }
-    }
-
-    pub async fn log(&mut self, e: Event) {
-        let mut senders: Vec<Sender<Event>> = Vec::new();
-        for sender in self.senders.drain(..) {
-            match sender.send(e.clone()).await {
-                Ok(()) => senders.push(sender),
-                Err(_) => (),
-            };
-        }
-        self.senders = senders;
-    }
-
-    pub fn listen(&mut self) -> Option<impl Stream<Item = Event>> {
-        if self.shutdown {
-            None
-        } else {
-            let (sender, mut receiver) = channel(256);
-            self.senders.push(sender);
-            Some(async_stream::stream! {
-                while let Some(e) = receiver.recv().await {
-                    yield e;
+        use Msg::*;
+        let (sender, mut receiver) = mpsc::channel(256);
+        let handle = tokio::spawn(async move {
+            let mut senders: Vec<mpsc::Sender<Event>> = Vec::new();
+            while let Some(msg) = receiver.recv().await {
+                match msg {
+                    Emit(event) => {
+                        let mut new_senders: Vec<mpsc::Sender<Event>> = Vec::new();
+                        for sender in senders.drain(..) {
+                            match sender.send(event.clone()).await {
+                                Ok(()) => new_senders.push(sender),
+                                Err(_) => (),
+                            }
+                        }
+                        senders = new_senders;
+                    }
+                    Listen(sender) => senders.push(sender),
                 }
-            })
+            }
+        });
+        Self {
+            sender,
+            handle: Mutex::new(Some(handle)),
         }
     }
 
-    pub fn shutdown(&mut self) {
-        self.shutdown = true;
-        self.senders.clear()
+    pub async fn log(&self, event: Event) {
+        let _ = self.sender.send(Msg::Emit(event)).await;
+    }
+
+    pub async fn listen(&self) -> Option<impl Stream<Item = Event>> {
+        let (sender, mut receiver) = mpsc::channel(256);
+        let _ = self.sender.send(Msg::Listen(sender)).await;
+        Some(async_stream::stream! {
+            while let Some(e) = receiver.recv().await {
+                yield e;
+            }
+        })
+    }
+
+    pub async fn shutdown(&self) {
+        let _ = self.handle.lock().await.take().map(|handle| handle.abort());
     }
 }

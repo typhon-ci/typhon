@@ -104,8 +104,7 @@ pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
         .unwrap_or_else(|e| panic!("Error connecting to {}, with error {:#?}", database_url, e));
     Connection::new(conn)
 });
-pub static EVENT_LOGGER: Lazy<Mutex<events::EventLogger>> =
-    Lazy::new(|| Mutex::new(events::EventLogger::new()));
+pub static EVENT_LOGGER: Lazy<events::EventLogger> = Lazy::new(events::EventLogger::new);
 pub static BUILD_LOGS: Lazy<logs::live::Cache<nix::DrvPath>> = Lazy::new(logs::live::Cache::new);
 pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);
 
@@ -272,15 +271,13 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
 
 pub async fn log_event(event: Event) {
     log::info!("event: {:?}", event);
-    EVENT_LOGGER.lock().await.log(event).await;
+    EVENT_LOGGER.log(event).await;
 }
 
 pub async fn shutdown() {
     eprintln!("Typhon is shutting down...");
     tokio::join!(
-        async {
-            EVENT_LOGGER.lock().await.shutdown();
-        },
+        EVENT_LOGGER.shutdown(),
         EVALUATIONS.shutdown(),
         JOBS_BUILD.shutdown(),
         JOBS_BEGIN.shutdown(),
