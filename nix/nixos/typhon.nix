@@ -122,9 +122,7 @@ in {
             inherit (cfg) webroot https;
             baseurl = "${cfg.domain}${cfg.webroot}/api";
           };
-          extraConfig = ''
-            error_page 404 =200 ${cfg.webroot}/index.html;
-          '';
+          tryFiles = "$uri $uri/ ${cfg.webroot}/index.html =404";
         };
       };
     };
