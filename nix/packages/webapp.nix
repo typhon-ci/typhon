@@ -39,13 +39,4 @@ in
       ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
       echo "build.public_url = \"WEBROOT\"" >> Trunk.toml
     '';
-    # we only need to remove references on *.wasm files
-    doNotRemoveReferencesToVendorDir = true;
-    installPhaseCommand = ''
-      cp -r typhon-webapp/dist $out
-      find "$out/" -name "*.wasm" -print0 | \
-        while read -d $'\0' file; do
-          removeReferencesToVendoredSources $file
-        done
-    '';
   }
