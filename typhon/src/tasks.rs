@@ -32,14 +32,12 @@ enum Msg<Id, T> {
     Wait(Id, oneshot::Sender<()>),
 }
 
-#[derive(Debug)]
 struct TaskHandle {
     canceler: Option<oneshot::Sender<()>>,
     handle: JoinHandle<()>,
     waiters: Vec<oneshot::Sender<()>>,
 }
 
-#[derive(Debug)]
 pub struct Tasks<Id, T> {
     handle: Mutex<Option<JoinHandle<()>>>,
     sender: mpsc::Sender<Msg<Id, T>>,
