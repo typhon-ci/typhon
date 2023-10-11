@@ -1,4 +1,3 @@
-use futures::future::BoxFuture;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
@@ -18,16 +17,10 @@ impl std::fmt::Display for Error {
     }
 }
 
-type CallbackFuture<'a, T> = Box<dyn (FnOnce(T) -> BoxFuture<'a, ()>) + Send + Sync>;
-
-enum Msg<Id, T> {
+enum Msg<Id> {
     Cancel(Id),
     Finish(Id),
-    Run(
-        Id,
-        BoxFuture<'static, T>,
-        CallbackFuture<'static, Option<T>>,
-    ),
+    Run(Id, oneshot::Sender<()>, JoinHandle<()>),
     Shutdown,
     Wait(Id, oneshot::Sender<()>),
 }
@@ -38,23 +31,17 @@ struct TaskHandle {
     waiters: Vec<oneshot::Sender<()>>,
 }
 
-pub struct Tasks<Id, T> {
+pub struct Tasks<Id> {
     handle: Mutex<Option<JoinHandle<()>>>,
-    sender: mpsc::Sender<Msg<Id, T>>,
+    sender: mpsc::Sender<Msg<Id>>,
 }
 
-impl<
-        Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static,
-        T: Send + 'static,
-    > Tasks<Id, T>
-{
+impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static> Tasks<Id> {
     pub fn new() -> Self {
         let (sender, mut receiver) = mpsc::channel(256);
-        let sender_self = sender.clone();
         let handle = tokio::spawn(async move {
             let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();
             while let Some(msg) = receiver.recv().await {
-                let sender_self = sender_self.clone();
                 match msg {
                     Msg::Cancel(id) => {
                         let _ = tasks
@@ -69,19 +56,9 @@ impl<
                             }
                         }
                     }
-                    Msg::Run(id, task, finish) => {
-                        let (send, recv) = oneshot::channel::<()>();
-                        let id_bis = id.clone();
-                        let handle = tokio::spawn(async move {
-                            let r = tokio::select! {
-                                _ = recv => None,
-                                r = task => Some(r),
-                            };
-                            finish(r).await;
-                            let _ = sender_self.send(Msg::Finish(id_bis)).await;
-                        });
+                    Msg::Run(id, sender, handle) => {
                         let task = TaskHandle {
-                            canceler: Some(send),
+                            canceler: Some(sender),
                             handle,
                             waiters: Vec::new(),
                         };
@@ -125,6 +102,7 @@ impl<
 
     // TODO: `finish` should be able to output an error
     pub async fn run<
+        T: Send + 'static,
         O: Future<Output = T> + Send + 'static,
         U: Future<Output = ()> + Send + 'static,
         F: (FnOnce(Option<T>) -> U) + Send + Sync + 'static,
@@ -134,14 +112,18 @@ impl<
         task: O,
         finish: F,
     ) {
-        let _ = self
-            .sender
-            .send(Msg::Run(
-                id,
-                Box::pin(task),
-                Box::new(|x| Box::pin(finish(x))),
-            ))
-            .await;
+        let (send, recv) = oneshot::channel::<()>();
+        let sender_self = self.sender.clone();
+        let id_bis = id.clone();
+        let handle = tokio::spawn(async move {
+            let r = tokio::select! {
+                _ = recv => None,
+                r = task => Some(r),
+            };
+            finish(r).await;
+            let _ = sender_self.send(Msg::Finish(id_bis)).await;
+        });
+        let _ = self.sender.send(Msg::Run(id, send, handle)).await;
     }
 
     pub async fn cancel(&self, id: Id) {

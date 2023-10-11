@@ -683,6 +683,6 @@ pub mod build {
         }
     }
 
-    static TASKS: Lazy<Tasks<DrvPath, Output>> = Lazy::new(Tasks::new);
+    static TASKS: Lazy<Tasks<DrvPath>> = Lazy::new(Tasks::new);
     pub static BUILDS: Lazy<Builder> = Lazy::new(Builder::new);
 }
