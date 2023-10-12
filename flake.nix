@@ -9,13 +9,11 @@
 
     flake-utils.url = "flake-utils";
 
-    nixpkgs.url = "nixpkgs/nixos-23.05";
+    nixpkgs.url = "nixpkgs/nixos-unstable";
 
     crane.url = "github:ipetkov/crane";
 
     rust-overlay.url = "github:oxalica/rust-overlay";
-
-    nix.url = "github:nixos/nix";
   };
 
   outputs = inputs: import ./nix/outputs.nix {sources = inputs;};

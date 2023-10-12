@@ -16,12 +16,12 @@ in rec {
     packages =
       rustPackages
       ++ builtins.attrValues {
+        inherit (pkgs.nixVersions) nix_2_18;
         inherit
           (pkgs)
           bubblewrap
           diesel-cli
           sqlite
-          nix
           ;
       };
     DATABASE_URL = "sqlite:typhon.sqlite";

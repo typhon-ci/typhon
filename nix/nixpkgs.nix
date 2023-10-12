@@ -6,6 +6,5 @@ import sources.nixpkgs {
   inherit system;
   overlays = [
     (import sources.rust-overlay)
-    sources.nix.overlays.default
   ];
 }

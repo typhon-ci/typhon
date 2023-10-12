@@ -17,7 +17,7 @@ in {
         runtimeInputs = [
           pkgs.curl
           pkgs.jq
-          pkgs.nix
+          pkgs.nixVersions.nix_2_18
         ];
         text = ''
           input=$(cat)

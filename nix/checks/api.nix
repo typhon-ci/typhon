@@ -61,6 +61,7 @@ in
         typhon
         typhon-api-client-test
         ;
+      inherit (pkgs.nixVersions) nix_2_18;
       inherit
         (pkgs)
         coreutils
@@ -68,7 +69,6 @@ in
         diesel-cli
         pkg-config
         sqlite
-        nix
         ;
     };
   }

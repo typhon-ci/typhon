@@ -9,6 +9,7 @@ pkgs.testers.nixosTest ({pkgs, ...}: {
 
   nodes = {
     typhon = {...}: {
+      nixpkgs.system = system;
       nix.settings.experimental-features = ["nix-command" "flakes"];
       imports = [typhon];
       services.typhon = {
