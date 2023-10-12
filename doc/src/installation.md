@@ -1,5 +1,10 @@
 # Installation
 
+## Nix requirements
+
+Typhon requires Nix >= 2.18 with experimental features "nix-command" and
+"flakes" enabled.
+
 ## NixOS
 
 At the moment the preferred way to install Typhon is on NixOS via the exposed
@@ -10,14 +15,15 @@ module.
 Here is a sample NixOS module that deploys a Typhon instance:
 
 ```nix
-{ ... }:
+{ pkgs, ... }:
 
 let typhon = builtins.getFlake "github:typhon-ci/typhon";
 in {
   imports = [ typhon.nixosModules.default ];
 
-  # enable flakes
+  # install Nix 2.18 with experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.package = pkgs.nixVersions.nix_2_18;
 
   # enable Typhon
   services.typhon = {
