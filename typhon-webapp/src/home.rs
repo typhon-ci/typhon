@@ -1,18 +1,16 @@
-use crate::{appurl::AppUrl, perform_request, view_error};
+use crate::perform_request;
+use crate::view_error;
 use seed::{prelude::*, *};
 use typhon_types::*;
+
+struct_urls!();
 
 #[derive(Clone, Default)]
 pub struct Model {
     error: Option<responses::ResponseError>,
     projects: Vec<(String, responses::ProjectMetadata)>,
     new_project: (String, String, bool),
-}
-
-impl From<Model> for AppUrl {
-    fn from(_: Model) -> AppUrl {
-        AppUrl::default()
-    }
+    base_url: Url,
 }
 
 #[derive(Debug, Clone)]
@@ -29,9 +27,14 @@ pub enum Msg {
     UpdateNewProjectFlake,
 }
 
-pub fn init(orders: &mut impl Orders<Msg>) -> Model {
+pub fn init(base_url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.send_msg(Msg::FetchProjects);
-    Model::default()
+    Model {
+        error: None,
+        projects: Vec::new(),
+        new_project: ("".to_string(), "".to_string(), false),
+        base_url,
+    }
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -91,14 +94,17 @@ fn view_home(model: &Model, admin: bool) -> Node<Msg> {
         h2!["Projects"],
         table![
             tr![th!["Id"], th!["Name"], th!["Description"],],
-            model.projects.iter().map(|(name, meta)| tr![
-                td![a![
-                    name,
-                    attrs! { At::Href => crate::Urls::project(&handles::project(name.into())) }
-                ]],
-                td![String::from(meta.title.clone())],
-                td![String::from(meta.description.clone())],
-            ])
+            model.projects.iter().map(|(name, meta)| {
+                let urls = crate::Urls::new(&model.base_url);
+                tr![
+                    td![a![
+                        name,
+                        attrs! { At::Href => urls.project(&handles::project(name.into())) }
+                    ]],
+                    td![String::from(meta.title.clone())],
+                    td![String::from(meta.description.clone())],
+                ]
+            })
         ],
         admin.then(|| {
             let empty = model.new_project == <_>::default();
@@ -157,6 +163,6 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
     model
         .error
         .as_ref()
-        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or_else(|| view_home(model, admin))
 }

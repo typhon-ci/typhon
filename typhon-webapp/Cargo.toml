@@ -19,7 +19,6 @@ gloo-console.workspace = true
 gloo-net.workspace = true
 gloo-storage.workspace = true
 gloo-utils.workspace = true
-once_cell.workspace = true
 seed.workspace = true
 serde-wasm-bindgen.workspace = true
 serde.workspace = true

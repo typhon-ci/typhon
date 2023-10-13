@@ -1,9 +1,14 @@
 use crate::drv_log;
-use crate::{appurl::AppUrl, perform_request, view_error, view_log, SETTINGS};
+use crate::perform_request;
+use crate::view_error;
+use crate::view_log;
+use crate::Settings;
 
 use typhon_types::*;
 
 use seed::{prelude::*, *};
+
+struct_urls!();
 
 pub struct Model {
     error: Option<responses::ResponseError>,
@@ -12,12 +17,7 @@ pub struct Model {
     log_begin: Option<String>,
     log_end: Option<String>,
     log: drv_log::Model,
-}
-
-impl Model {
-    pub fn app_url(&self) -> AppUrl {
-        Vec::<String>::from(self.handle.clone()).into()
-    }
+    base_url: Url,
 }
 
 #[derive(Clone, Debug)]
@@ -36,7 +36,7 @@ pub enum Msg {
     Noop,
 }
 
-pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
+pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
     orders.send_msg(Msg::FetchInfo);
     Model {
         error: None,
@@ -45,6 +45,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
         log_begin: None,
         log_end: None,
         log: drv_log::init(&mut orders.proxy(Msg::LogMsg)),
+        base_url,
     }
 }
 
@@ -122,6 +123,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 }
 
 fn view_job(model: &Model) -> Node<Msg> {
+    let urls_1 = crate::Urls::new(&model.base_url);
+    let urls_2 = crate::Urls::new(&model.base_url);
+    let urls_3 = crate::Urls::new(&model.base_url);
     div![
         h2![
             "Job",
@@ -129,21 +133,21 @@ fn view_job(model: &Model) -> Node<Msg> {
             a![
                 &model.handle.evaluation.jobset.project.name,
                 attrs! {
-                    At::Href => crate::Urls::project(&model.handle.evaluation.jobset.project),
+                    At::Href => urls_1.project(&model.handle.evaluation.jobset.project),
                 },
             ],
             ":",
             a![
                 &model.handle.evaluation.jobset.name,
                 attrs! {
-                    At::Href => crate::Urls::jobset(&model.handle.evaluation.jobset),
+                    At::Href => urls_2.jobset(&model.handle.evaluation.jobset),
                 },
             ],
             ":",
             a![
                 &model.handle.evaluation.num,
                 attrs! {
-                    At::Href => crate::Urls::evaluation(&model.handle.evaluation)
+                    At::Href => urls_3.evaluation(&model.handle.evaluation)
                 },
             ],
             ":",
@@ -159,7 +163,7 @@ fn view_job(model: &Model) -> Node<Msg> {
                 p![format!("Status (build): {}", info.build_status)],
                 p![format!("Status (end): {}", info.end_status)],
                 if info.dist {
-                    let api_url = SETTINGS.get().unwrap().api_server.url();
+                    let api_url = Settings::load().api_url;
                     let job = &model.handle.name;
                     let system = &model.handle.system;
                     let evaluation = &model.handle.evaluation.num;
@@ -200,7 +204,7 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
     model
         .error
         .as_ref()
-        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or(div![
             view_job(model),
             if admin { view_admin() } else { empty![] },

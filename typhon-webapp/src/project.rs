@@ -1,9 +1,12 @@
 use crate::editable_text;
-use crate::{appurl::AppUrl, perform_request, view_error, Urls};
+use crate::perform_request;
+use crate::view_error;
 
 use seed::{prelude::*, *};
 
 use typhon_types::*;
+
+struct_urls!();
 
 pub struct Model {
     error: Option<responses::ResponseError>,
@@ -11,12 +14,7 @@ pub struct Model {
     info: Option<responses::ProjectInfo>,
     declaration_url: editable_text::Model,
     declaration_flake: bool,
-}
-
-impl Model {
-    pub fn app_url(&self) -> AppUrl {
-        Vec::<String>::from(self.handle.clone()).into()
-    }
+    base_url: Url,
 }
 
 #[derive(Clone, Debug)]
@@ -34,7 +32,7 @@ pub enum Msg {
     MsgDeclarationUrl(editable_text::Msg),
 }
 
-pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
+pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
     orders.send_msg(Msg::FetchInfo);
 
     Model {
@@ -43,6 +41,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
         info: None,
         declaration_url: editable_text::init("".to_string()),
         declaration_flake: false,
+        base_url,
     }
 }
 
@@ -284,15 +283,18 @@ fn view_project(model: &Model, is_admin: bool) -> Node<Msg> {
                 ],
                 div![
                     h3!["Jobsets"],
-                    ul![info.jobsets.iter().map(|name| li![a![
-                        name,
-                        attrs! { At::Href => Urls::jobset(
-                            &handles::Jobset {
-                                project: model.handle.clone(),
-                                name: name.into(),
-                            }
-                        ) },
-                    ]])],
+                    ul![info.jobsets.iter().map(|name| {
+                        let urls = crate::Urls::new(model.base_url.clone());
+                        li![a![
+                            name,
+                            attrs! { At::Href => urls.jobset(
+                                &handles::Jobset {
+                                    project: model.handle.clone(),
+                                    name: name.into(),
+                                }
+                            ) },
+                        ]]
+                    })],
                 ],
             ],
         },
@@ -303,6 +305,6 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
     model
         .error
         .as_ref()
-        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or(div![view_project(model, admin),])
 }

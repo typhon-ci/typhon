@@ -19,20 +19,20 @@ in
   pkgs.callPackage (
     {
       webroot ? "",
-      baseurl ? "127.0.0.1:8000/api",
-      https ? false,
+      api_url ? "http://127.0.0.1:8000/api",
     }: let
-      settings = pkgs.writeTextFile {
-        name = "settings.json";
-        text = builtins.toJSON {inherit baseurl https;};
-      };
+      settings = builtins.toJSON {inherit api_url;};
     in
       pkgs.stdenv.mkDerivation {
         name = "typhon-webroot";
         src = webapp;
         buildPhase = ''
-          substituteInPlace ./index.html --replace "WEBROOT" "${webroot}/"
-          cp ${settings} settings.json
+          substituteInPlace ./index.html --replace \
+              'WEBROOT' \
+              '${webroot}/'
+          substituteInPlace ./index.html --replace \
+              '<script type="application/json" id="settings">null</script>' \
+              '<script type="application/json" id="settings">${settings}</script>'
           cp ${tarball} source.tar.gz
         '';
         installPhase = ''

@@ -1,4 +1,3 @@
-mod appurl;
 mod drv_log;
 mod editable_text;
 mod evaluation;
@@ -10,57 +9,40 @@ mod project;
 mod streams;
 mod timestamp;
 
-use appurl::AppUrl;
 use gloo_console::log;
 use gloo_net::http;
 use gloo_storage::LocalStorage;
 use gloo_storage::Storage;
-use once_cell::sync::OnceCell;
 use seed::{prelude::*, *};
 use serde::{Deserialize, Serialize};
 use typhon_types::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ApiServerSettings {
-    pub baseurl: String,
-    pub https: bool,
-}
-
-impl ApiServerSettings {
-    pub fn url(&self) -> String {
-        format!(
-            "{}://{}",
-            if self.https { "https" } else { "http" },
-            self.baseurl,
-        )
-    }
-}
-
-impl Default for ApiServerSettings {
-    fn default() -> Self {
-        Self {
-            baseurl: "127.0.0.1:8000/api".into(),
-            https: false,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
-    pub client_webroot: String,
-    pub api_server: ApiServerSettings,
+    pub api_url: String,
+}
+
+impl Settings {
+    pub fn load() -> Self {
+        serde_json::from_str::<Option<Self>>(
+            &document()
+                .query_selector("script[id='settings']")
+                .unwrap()
+                .unwrap()
+                .inner_html(),
+        )
+        .unwrap()
+        .unwrap_or_default()
+    }
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            client_webroot: "/".into(),
-            api_server: ApiServerSettings::default(),
+            api_url: "http://127.0.0.1:8000/api".into(),
         }
     }
 }
-
-pub static SETTINGS: OnceCell<Settings> = OnceCell::new();
 
 pub fn get_token() -> Option<String> {
     LocalStorage::get("typhon_token").ok()
@@ -77,9 +59,9 @@ pub fn reset_token() {
 pub async fn handle_request(
     request: &requests::Request,
 ) -> Result<responses::Response, responses::ResponseError> {
-    let settings = SETTINGS.get().unwrap();
+    let settings = Settings::load();
     let token = get_token();
-    let req = http::RequestBuilder::new(&settings.api_server.url()).method(http::Method::POST);
+    let req = http::RequestBuilder::new(&settings.api_url).method(http::Method::POST);
     let req = match token {
         None => req,
         Some(token) => req.header("token", &token),
@@ -126,41 +108,66 @@ macro_rules! perform_request {
 
 pub(crate) use perform_request;
 
-pub fn webroot_chunks() -> impl Iterator<Item = &'static str> {
-    SETTINGS
-        .get()
-        .unwrap()
-        .client_webroot
-        .split('/')
-        .filter(|chunk| !chunk.is_empty())
-}
-
 struct_urls!();
 impl<'a> Urls<'a> {
-    pub fn webroot() -> Url {
-        Url::new().set_path(webroot_chunks())
+    pub fn home_urls(self) -> home::Urls<'a> {
+        home::Urls::new(self.base_url())
     }
-    pub fn login() -> Url {
-        Urls::webroot().add_path_part("login")
+    pub fn home(self) -> Url {
+        self.home_urls().base_url()
     }
-    pub fn home() -> Url {
-        Urls::webroot()
+    pub fn project_urls(self, project: &handles::Project) -> project::Urls<'a> {
+        project::Urls::new(
+            self.base_url()
+                .add_path_part("projects")
+                .add_path_part(project.name.clone()),
+        )
     }
-    pub fn project(handle: &handles::Project) -> Url {
-        Urls::webroot()
-            .add_path_part("projects")
-            .add_path_part(&handle.name)
+    pub fn project(self, project: &handles::Project) -> Url {
+        self.project_urls(project).base_url()
     }
-    pub fn jobset(handle: &handles::Jobset) -> Url {
-        Urls::project(&handle.project).add_path_part(&handle.name)
+    pub fn jobset_urls(self, jobset: &handles::Jobset) -> jobset::Urls<'a> {
+        jobset::Urls::new(
+            self.base_url()
+                .add_path_part("projects")
+                .add_path_part(jobset.project.name.clone())
+                .add_path_part("jobsets")
+                .add_path_part(jobset.name.clone()),
+        )
     }
-    pub fn evaluation(handle: &handles::Evaluation) -> Url {
-        Urls::jobset(&handle.jobset).add_path_part(format!("{}", handle.num))
+    pub fn jobset(self, jobset: &handles::Jobset) -> Url {
+        self.jobset_urls(jobset).base_url()
     }
-    pub fn job(handle: &handles::Job) -> Url {
-        Urls::evaluation(&handle.evaluation)
-            .add_path_part(&handle.system)
-            .add_path_part(&handle.name)
+    pub fn evaluation_urls(self, evaluation: &handles::Evaluation) -> evaluation::Urls<'a> {
+        evaluation::Urls::new(
+            self.base_url()
+                .add_path_part("projects")
+                .add_path_part(evaluation.jobset.project.name.clone())
+                .add_path_part("jobsets")
+                .add_path_part(evaluation.jobset.name.clone())
+                .add_path_part("evaluations")
+                .add_path_part(evaluation.num.to_string()),
+        )
+    }
+    pub fn evaluation(self, evaluation: &handles::Evaluation) -> Url {
+        self.evaluation_urls(evaluation).base_url()
+    }
+    pub fn job_urls(self, job: &handles::Job) -> job::Urls<'a> {
+        job::Urls::new(
+            self.base_url()
+                .add_path_part("projects")
+                .add_path_part(job.evaluation.jobset.project.name.clone())
+                .add_path_part("jobsets")
+                .add_path_part(job.evaluation.jobset.name.clone())
+                .add_path_part("evaluations")
+                .add_path_part(job.evaluation.num.to_string())
+                .add_path_part("jobs")
+                .add_path_part(job.system.clone())
+                .add_path_part(job.name.clone()),
+        )
+    }
+    pub fn job(self, job: &handles::Job) -> Url {
+        self.job_urls(job).base_url()
     }
 }
 
@@ -175,79 +182,68 @@ pub enum Page {
 }
 
 impl Page {
-    pub fn app_url(&self) -> AppUrl {
-        match self {
-            Page::Login(m) => AppUrl::from("login") + m.app_url(),
-            Page::Home(_) => AppUrl::default(),
-            Page::Project(m) => AppUrl::from("projects") + m.app_url(),
-            Page::Jobset(m) => AppUrl::from("projects") + m.app_url(),
-            Page::Evaluation(m) => AppUrl::from("projects") + m.app_url(),
-            Page::Job(m) => AppUrl::from("projects") + m.app_url(),
-            Page::NotFound => AppUrl::from("404"),
-        }
-    }
-
-    fn from_chunks(chunks: Vec<&str>, orders: &mut impl Orders<Msg>) -> Page {
-        match chunks.as_slice() {
-            [] => Page::Home(home::init(&mut orders.proxy(Msg::HomeMsg))),
-            ["login"] => Page::Login(login::init(&mut orders.proxy(Msg::LoginMsg), None)),
+    fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Self {
+        let base_url = url.to_base_url();
+        let path_parts = url.remaining_path_parts();
+        match path_parts.as_slice() {
+            [] => Page::Home(home::init(base_url, &mut orders.proxy(Msg::HomeMsg))),
+            ["login"] => Page::Login(login::init(
+                base_url,
+                &mut orders.proxy(Msg::LoginMsg),
+                None,
+            )),
             ["projects", project] => Page::Project(project::init(
+                base_url,
                 &mut orders.proxy(Msg::ProjectMsg),
                 handles::project((*project).into()),
             )),
-            ["projects", project, jobset] => Page::Jobset(jobset::init(
+            ["projects", project, "jobsets", jobset] => Page::Jobset(jobset::init(
+                base_url,
                 &mut orders.proxy(Msg::JobsetMsg),
                 handles::jobset(((*project).into(), (*jobset).into())),
             )),
-            ["projects", project, jobset, evaluation] => evaluation
+            ["projects", project, "jobsets", jobset, "evaluations", evaluation] => evaluation
                 .parse::<i64>()
                 .map(|evaluation| {
                     Page::Evaluation(evaluation::init(
+                        base_url,
                         &mut orders.proxy(Msg::EvaluationMsg),
                         handles::evaluation(((*project).into(), (*jobset).into(), evaluation)),
                     ))
                 })
                 .unwrap_or(Page::NotFound),
-            ["projects", project, jobset, evaluation, system, job] => evaluation
-                .parse::<i64>()
-                .map(|evaluation| {
-                    Page::Job(job::init(
-                        &mut orders.proxy(Msg::JobMsg),
-                        handles::job((
-                            (*project).into(),
-                            (*jobset).into(),
-                            evaluation,
-                            (*system).into(),
-                            (*job).into(),
-                        )),
-                    ))
-                })
-                .unwrap_or(Page::NotFound),
+            ["projects", project, "jobsets", jobset, "evaluations", evaluation, "jobs", system, job] => {
+                evaluation
+                    .parse::<i64>()
+                    .map(|evaluation| {
+                        Page::Job(job::init(
+                            base_url,
+                            &mut orders.proxy(Msg::JobMsg),
+                            handles::job((
+                                (*project).into(),
+                                (*jobset).into(),
+                                evaluation,
+                                (*system).into(),
+                                (*job).into(),
+                            )),
+                        ))
+                    })
+                    .unwrap_or(Page::NotFound)
+            }
             _ => Page::NotFound,
         }
-    }
-
-    fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Self {
-        let webroot = webroot_chunks().collect::<Vec<_>>();
-        let path_parts = url.remaining_path_parts();
-        Page::from_chunks(
-            path_parts
-                .strip_prefix(webroot.as_slice())
-                .map(|slice| slice.to_vec())
-                .unwrap_or(webroot),
-            orders,
-        )
     }
 }
 
 pub struct Model {
+    base_url: Url,
     page: Page,
     admin: bool,
     events_handle: StreamHandle,
 }
 
 #[derive(Debug)]
-enum Msg {
+pub enum Msg {
     HomeMsg(home::Msg),
     LoginMsg(login::Msg),
     Login,
@@ -263,8 +259,8 @@ enum Msg {
 fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     use futures::stream::StreamExt;
     orders.subscribe(Msg::UrlChanged);
-    let settings = SETTINGS.get().unwrap();
-    let req = http::RequestBuilder::new(&format!("{}/events", settings.api_server.url()))
+    let settings = Settings::load();
+    let req = http::RequestBuilder::new(&format!("{}/events", settings.api_url))
         .method(http::Method::GET);
     let req = match get_token() {
         None => req,
@@ -284,31 +280,23 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
             Msg::EventsReceived(res)
         }));
     Model {
+        base_url: url.to_base_url(),
         page: Page::init(url, orders),
         admin: get_token().is_some(), // TODO
         events_handle,
     }
 }
 
-fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
-    update_aux(msg, model, orders);
-    let history = seed::browser::util::history();
-    let url = seed::Url::from(model.page.app_url()).to_string();
-    let prev = seed::browser::util::window().location().pathname().unwrap();
-    if url != prev {
-        log!(format!("url={url}, prev={prev}"));
-        let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&url));
-    }
-}
-fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match (msg, &mut *model) {
         (Msg::UrlChanged(subs::UrlChanged(url)), _) => {
             model.page = Page::init(url, orders);
         }
         (Msg::Login, _) => {
             model.page = Page::Login(login::init(
+                model.base_url.clone(),
                 &mut orders.proxy(Msg::LoginMsg),
-                Some(model.page.app_url()),
+                Some(Url::current()),
             ))
         }
         (
@@ -401,12 +389,17 @@ fn update_aux(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
-pub fn view_error<Ms: Clone + 'static>(err: &responses::ResponseError, msg_ignore: Ms) -> Node<Ms> {
+pub fn view_error<Ms: Clone + 'static>(
+    base_url: &Url,
+    err: &responses::ResponseError,
+    msg_ignore: Ms,
+) -> Node<Ms> {
+    let urls = Urls::new(base_url);
     div![
         h2!["Error"],
         p![format!("{}", err)],
         button!["Go back", ev(Ev::Click, |_| msg_ignore)],
-        a!["Home", attrs! { At::Href => Urls::home() }],
+        a!["Home", attrs! { At::Href => urls.home() }],
     ]
 }
 
@@ -414,7 +407,9 @@ pub fn view_log<Ms: Clone + 'static>(log: String) -> Node<Ms> {
     tt![log.split('\n').map(|p| { p![p.replace(" ", " ")] })]
 }
 
-fn header(model: &Model) -> Node<Msg> {
+fn header(base_url: &Url, model: &Model) -> Node<Msg> {
+    let urls_1 = Urls::new(base_url);
+    let urls_2 = Urls::new(base_url);
     header![
         main![
             a![
@@ -431,10 +426,10 @@ fn header(model: &Model) -> Node<Msg> {
 <path d=\"m10.83 4.7059c-0.47653-1.7784-2.3041-2.8336-4.0825-2.357-1.7784 0.47653-2.8336 2.3041-2.357 4.0825m1e-7 0c0.23793 0.88795 1.1533 1.4164 2.0413 1.1785 0.88795-0.23793 1.4164-1.1533 1.1785-2.0413-0.23793-0.88795-1.1533-1.4164-2.0413-1.1785-0.88795 0.23793-1.4164 1.1533-1.1785 2.0413zm-3.2198 0.86273c0.47652 1.7784 2.3041 2.8336 4.0825 2.357 1.7784-0.47653 2.8336-2.3041 2.357-4.0825\" fill=\"none\" stroke=\"#FFF\" stroke-linecap=\"round\" stroke-linejoin=\"bevel\" stroke-miterlimit=\"10\" stroke-width=\".6\"/>
 </svg>"],
                 span!["Typhon"],
-                attrs! { At::Href => Urls::home() }
+                attrs! { At::Href => urls_1.home() }
             ]
         ],
-        nav![a!["Home", attrs! { At::Href => Urls::home() }],],
+        nav![a!["Home", attrs! { At::Href => urls_2.home() }],],
         if model.admin {
             button!["Logout", ev(Ev::Click, |_| Msg::Logout)]
         } else {
@@ -451,7 +446,7 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
         raw!["
               <link href=\"https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css\" rel=\"stylesheet\">
              "],
-        header(model),
+        header(&model.base_url, model),
         main![
             match &model.page {
                 Page::NotFound => div!["not found!"],
@@ -482,8 +477,6 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
 }
 
 #[wasm_bindgen]
-pub fn app(settings: JsValue) {
-    let settings = serde_wasm_bindgen::from_value(settings).expect("failed to parse settings");
-    SETTINGS.set(settings).unwrap();
+pub fn app() {
     App::start("app", init, update, view);
 }

@@ -1,20 +1,18 @@
+use crate::perform_request;
 use crate::timestamp;
-use crate::{appurl::AppUrl, perform_request, view_error};
+use crate::view_error;
 
 use seed::{prelude::*, *};
 use typhon_types::*;
+
+struct_urls!();
 
 pub struct Model {
     error: Option<responses::ResponseError>,
     evaluations: Vec<(i64, timestamp::Model)>,
     handle: handles::Jobset,
     info: Option<responses::JobsetInfo>,
-}
-
-impl Model {
-    pub fn app_url(&self) -> AppUrl {
-        Vec::<String>::from(self.handle.clone()).into()
-    }
+    base_url: Url,
 }
 
 #[derive(Clone, Debug)]
@@ -31,7 +29,7 @@ pub enum Msg {
     TimestampMsg(i64, timestamp::Msg),
 }
 
-pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
+pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
     orders.send_msg(Msg::FetchEvaluations);
     orders.send_msg(Msg::FetchInfo);
     Model {
@@ -39,6 +37,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
         evaluations: Vec::new(),
         handle: handle.clone(),
         info: None,
+        base_url,
     }
 }
 
@@ -126,6 +125,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 }
 
 fn view_jobset(model: &Model) -> Node<Msg> {
+    let urls = crate::Urls::new(&model.base_url);
     div![
         h2![
             "Jobset",
@@ -133,7 +133,7 @@ fn view_jobset(model: &Model) -> Node<Msg> {
             a![
                 &model.handle.project.name,
                 attrs! {
-                    At::Href => crate::Urls::project(&model.handle.project),
+                    At::Href => urls.project(&model.handle.project),
                 },
             ],
             ":",
@@ -144,18 +144,21 @@ fn view_jobset(model: &Model) -> Node<Msg> {
             Some(info) => div![div![
                 format!("Flake: {}", info.url),
                 h3!["Evaluations"],
-                ul![model.evaluations.iter().map(|(num, time)| li![a![
-                    timestamp::view(time).map_msg({
-                        let num = num.clone();
-                        move |msg| Msg::TimestampMsg(num, msg)
-                    }),
-                    attrs! { At::Href => crate::Urls::evaluation(
-                        &handles::Evaluation{
-                            jobset: model.handle.clone(),
-                            num: *num,
-                        }
-                    ) },
-                ]]),]
+                ul![model.evaluations.iter().map(|(num, time)| {
+                    let urls = crate::Urls::new(&model.base_url);
+                    li![a![
+                        timestamp::view(time).map_msg({
+                            let num = num.clone();
+                            move |msg| Msg::TimestampMsg(num, msg)
+                        }),
+                        attrs! { At::Href => urls.evaluation(
+                            &handles::Evaluation{
+                                jobset: model.handle.clone(),
+                                num: *num,
+                            }
+                        )},
+                    ]]
+                }),]
             ]],
         },
     ]
@@ -176,7 +179,7 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
     model
         .error
         .as_ref()
-        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or(div![
             view_jobset(model),
             if admin { view_admin() } else { empty![] },

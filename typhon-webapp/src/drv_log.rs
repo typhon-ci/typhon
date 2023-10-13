@@ -21,7 +21,7 @@ pub fn init(_orders: &mut impl Orders<Msg>) -> Model {
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     use crate::get_token;
     use crate::streams;
-    use crate::SETTINGS;
+    use crate::Settings;
 
     use gloo_net::http;
 
@@ -31,10 +31,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.drv = Some(drv.clone());
             model.log = Vec::new();
 
-            let settings = SETTINGS.get().unwrap();
-            let req =
-                http::RequestBuilder::new(&format!("{}/drv-log{}", settings.api_server.url(), drv))
-                    .method(http::Method::GET);
+            let settings = Settings::load();
+            let req = http::RequestBuilder::new(&format!("{}/drv-log{}", settings.api_url, drv))
+                .method(http::Method::GET);
             let req = match get_token() {
                 None => req,
                 Some(token) => req.header(&"token", &token),

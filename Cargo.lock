@@ -3496,7 +3496,6 @@ dependencies = [
  "gloo-net",
  "gloo-storage",
  "gloo-utils 0.2.0",
- "once_cell",
  "seed",
  "serde",
  "serde-wasm-bindgen 0.4.5",

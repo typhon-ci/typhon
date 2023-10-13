@@ -26,16 +26,15 @@
     chown typhon:typhon ${gcrootsDir}
   '';
 
-  typhon-execstart = let
-    protocol =
-      if cfg.https
-      then "https"
-      else "http";
-  in
-    pkgs.writeShellScript "typhon-execstart" ''
-      cd ${cfg.home}
-      DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -w "${cfg.webroot}"
-    '';
+  protocol =
+    if cfg.https
+    then "https"
+    else "http";
+
+  typhon-execstart = pkgs.writeShellScript "typhon-execstart" ''
+    cd ${cfg.home}
+    DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -w "${cfg.webroot}"
+  '';
 in {
   options.services.typhon = {
     enable = mkEnableOption "typhon";
@@ -119,8 +118,8 @@ in {
           else cfg.webroot
         }" = {
           root = cfg.webapp.override {
-            inherit (cfg) webroot https;
-            baseurl = "${cfg.domain}${cfg.webroot}/api";
+            inherit (cfg) webroot;
+            api_url = "${protocol}://${cfg.domain}${cfg.webroot}/api";
           };
           tryFiles = "$uri $uri/ ${cfg.webroot}/index.html =404";
         };

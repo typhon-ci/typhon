@@ -1,4 +1,3 @@
-use crate::appurl::AppUrl;
 use crate::perform_request;
 
 use typhon_types::*;
@@ -8,14 +7,11 @@ use seed::{prelude::*, *};
 pub struct Model {
     error: bool,
     password: String,
-    previous_page_url: Option<AppUrl>,
+    previous_url: Option<Url>,
+    base_url: Url,
 }
 
-impl Model {
-    pub fn app_url(&self) -> AppUrl {
-        AppUrl::default()
-    }
-}
+struct_urls!();
 
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -26,18 +22,20 @@ pub enum Msg {
 }
 
 pub enum OutMsg {
-    Login(String, AppUrl),
+    Login(String, Url),
 }
 
-pub fn init(_orders: &mut impl Orders<Msg>, previous_page_url: Option<AppUrl>) -> Model {
+pub fn init(base_url: Url, _orders: &mut impl Orders<Msg>, previous_url: Option<Url>) -> Model {
     Model {
         error: false,
         password: "".into(),
-        previous_page_url,
+        previous_url,
+        base_url,
     }
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) -> Option<OutMsg> {
+    let urls = crate::Urls::new(model.base_url.clone());
     match msg {
         Msg::Enter => {
             let req = requests::Request::Login(model.password.clone());
@@ -51,7 +49,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) -> Opt
         }
         Msg::LoggedIn { token } => Some(OutMsg::Login(
             token,
-            model.previous_page_url.clone().unwrap_or("".into()),
+            model.previous_url.clone().unwrap_or(urls.home()),
         )),
         Msg::Error => {
             model.password = "".into();

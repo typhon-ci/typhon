@@ -37,6 +37,6 @@ in
     trunkIndexPath = "typhon-webapp/index.html";
     preBuild = ''
       ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
-      echo "build.public_url = \"WEBROOT\"" >> Trunk.toml
+      echo 'build.public_url = "WEBROOT"' >> Trunk.toml
     '';
   }

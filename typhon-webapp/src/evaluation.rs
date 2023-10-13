@@ -1,18 +1,16 @@
-use crate::{appurl::AppUrl, perform_request, view_error};
+use crate::perform_request;
+use crate::view_error;
 use seed::{prelude::*, *};
 use typhon_types::*;
+
+struct_urls!();
 
 pub struct Model {
     error: Option<responses::ResponseError>,
     handle: handles::Evaluation,
     info: Option<responses::EvaluationInfo>,
     log: Option<String>,
-}
-
-impl Model {
-    pub fn app_url(&self) -> AppUrl {
-        Vec::<String>::from(self.handle.clone()).into()
-    }
+    base_url: Url,
 }
 
 #[derive(Clone, Debug)]
@@ -28,13 +26,14 @@ pub enum Msg {
     Noop,
 }
 
-pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Evaluation) -> Model {
+pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Evaluation) -> Model {
     orders.send_msg(Msg::FetchInfo);
     Model {
         error: None,
         handle: handle.clone(),
         info: None,
         log: None,
+        base_url,
     }
 }
 
@@ -93,6 +92,8 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 }
 
 fn view_evaluation(model: &Model) -> Node<Msg> {
+    let urls_1 = crate::Urls::new(&model.base_url);
+    let urls_2 = crate::Urls::new(&model.base_url);
     div![
         h2![
             "Evaluation",
@@ -100,14 +101,14 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
             a![
                 &model.handle.jobset.project.name,
                 attrs! {
-                    At::Href => crate::Urls::project(&model.handle.jobset.project),
+                    At::Href => urls_1.project(&model.handle.jobset.project),
                 },
             ],
             ":",
             a![
                 &model.handle.jobset.name,
                 attrs! {
-                    At::Href => crate::Urls::jobset(&model.handle.jobset),
+                    At::Href => urls_2.jobset(&model.handle.jobset),
                 },
             ],
             ":",
@@ -125,19 +126,22 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
                 if info.status == "success" {
                     div![
                         h3!["Jobs"],
-                        ul![info.jobs.iter().map(|job| li![a![
-                            job.system.clone(),
-                            " / ",
-                            job.name.clone(),
-                            attrs! {
-                                At::Href => crate::Urls::job(
-                                    &handles::Job {
-                                        evaluation: model.handle.clone(),
-                                        system: job.system.clone(),
-                                        name: job.name.clone(),
-                                    })
-                            }
-                        ]])]
+                        ul![info.jobs.iter().map(|job| {
+                            let urls = crate::Urls::new(&model.base_url);
+                            li![a![
+                                job.system.clone(),
+                                " / ",
+                                job.name.clone(),
+                                attrs! {
+                                    At::Href => urls.job(
+                                        &handles::Job {
+                                            evaluation: model.handle.clone(),
+                                            system: job.system.clone(),
+                                            name: job.name.clone(),
+                                        })
+                                }
+                            ]]
+                        })]
                     ]
                 } else {
                     empty![]
@@ -162,7 +166,7 @@ pub fn view(model: &Model, admin: bool) -> Node<Msg> {
     model
         .error
         .as_ref()
-        .map(|err| view_error(err, Msg::ErrorIgnored))
+        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or(div![
             view_evaluation(model),
             if admin { view_admin() } else { empty![] },
