@@ -1,4 +1,5 @@
 mod appurl;
+mod drv_log;
 mod editable_text;
 mod evaluation;
 mod home;

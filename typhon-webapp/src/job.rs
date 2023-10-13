@@ -1,10 +1,8 @@
-use crate::get_token;
-use crate::streams;
+use crate::drv_log;
 use crate::{appurl::AppUrl, perform_request, view_error, view_log, SETTINGS};
 
 use typhon_types::*;
 
-use gloo_net::http;
 use seed::{prelude::*, *};
 
 pub struct Model {
@@ -13,7 +11,7 @@ pub struct Model {
     info: Option<responses::JobInfo>,
     log_begin: Option<String>,
     log_end: Option<String>,
-    log: Vec<String>,
+    log: drv_log::Model,
 }
 
 impl Model {
@@ -34,8 +32,8 @@ pub enum Msg {
     GetInfo(responses::JobInfo),
     GetLogBegin(Option<String>),
     GetLogEnd(Option<String>),
+    LogMsg(drv_log::Msg),
     Noop,
-    LogChunk(String),
 }
 
 pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
@@ -46,7 +44,7 @@ pub fn init(orders: &mut impl Orders<Msg>, handle: handles::Job) -> Model {
         info: None,
         log_begin: None,
         log_end: None,
-        log: vec![],
+        log: drv_log::init(&mut orders.proxy(Msg::LogMsg)),
     }
 }
 
@@ -109,21 +107,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 orders.send_msg(Msg::FetchLogEnd);
             }
             let drv = info.build_drv.clone();
-            let settings = SETTINGS.get().unwrap();
-            let req = http::RequestBuilder::new(&format!(
-                "{}/drv-log{}",
-                settings.api_server.url(),
-                &drv
-            ))
-            .method(http::Method::GET);
-            let req = match get_token() {
-                None => req,
-                Some(token) => req.header(&"token", &token),
-            };
-            let req = req.build().unwrap();
-            orders
-                .proxy(|chunk: String| Msg::LogChunk(chunk))
-                .stream(streams::fetch_as_stream(req));
+            orders.send_msg(Msg::LogMsg(drv_log::Msg::Load(drv)));
             model.info = Some(info);
         }
         Msg::GetLogBegin(log) => {
@@ -132,8 +116,8 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::GetLogEnd(log) => {
             model.log_end = log;
         }
+        Msg::LogMsg(msg) => drv_log::update(msg, &mut model.log, &mut orders.proxy(Msg::LogMsg)),
         Msg::Noop => (),
-        Msg::LogChunk(chunk) => model.log.push(chunk),
     }
 }
 
@@ -193,15 +177,7 @@ fn view_job(model: &Model) -> Node<Msg> {
                 }
             ],
         },
-        code![
-            &model
-                .log
-                .join("\n")
-                .split("\n")
-                .map(|line| div![line])
-                .collect::<Vec<_>>(),
-            style![St::Background => "#EEFFFFFF"]
-        ],
+        drv_log::view(&model.log).map_msg(Msg::LogMsg),
         match &model.log_begin {
             None => empty![],
             Some(log) => div![h3!["Log (begin)"], view_log(log.clone()),],
