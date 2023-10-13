@@ -17,14 +17,10 @@ jobs:
       with:
         name: typhon
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-    - name: Build typhon
-      run: nix build -L
-    - name: Build typhon-webapp
-      run: nix build -L .#typhon-webapp
-    - name: Run API tests
-      run: nix build -L .#checks.x86_64-linux.api
-    - name: Check formatting
-      run: nix build -L .#checks.x86_64-linux.formatted
+    - run: nix build -L
+    - run: nix build -L .#typhon-webapp
+    - run: nix build -L .#checks.x86_64-linux.api
+    - run: nix build -L .#checks.x86_64-linux.formatted
   legacy:
     runs-on: ubuntu-latest
     steps:
@@ -34,11 +30,7 @@ jobs:
       with:
         name: typhon
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-    - name: Build typhon
-      run: nix-build nix/packages -A typhon
-    - name: Build typhon-webapp
-      run: nix-build nix/packages -A typhon-webapp
-    - name: Run API tests
-      run: nix-build nix/checks -A api
-    - name: Check formatting
-      run: nix-build nix/checks -A formatted
+    - run: nix-build nix/packages -A typhon
+    - run: nix-build nix/packages -A typhon-webapp
+    - run: nix-build nix/checks -A api
+    - run: nix-build nix/checks -A formatted
