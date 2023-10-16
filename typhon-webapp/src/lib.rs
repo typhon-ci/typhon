@@ -411,24 +411,11 @@ fn header(base_url: &Url, model: &Model) -> Node<Msg> {
     let urls_1 = Urls::new(base_url);
     let urls_2 = Urls::new(base_url);
     header![
-        main![
-            a![
-                raw!["<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<svg width=\"12pt\" height=\"12pt\" version=\"1.1\" viewBox=\"0 0 12 12\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:cc=\"http://creativecommons.org/ns#\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">
-<metadata>
-<rdf:RDF>
-<cc:Work rdf:about=\"\">
-<dc:format>image/svg+xml</dc:format>
-<dc:type rdf:resource=\"http://purl.org/dc/dcmitype/StillImage\"/>
-</cc:Work>
-</rdf:RDF>
-</metadata>
-<path d=\"m10.83 4.7059c-0.47653-1.7784-2.3041-2.8336-4.0825-2.357-1.7784 0.47653-2.8336 2.3041-2.357 4.0825m1e-7 0c0.23793 0.88795 1.1533 1.4164 2.0413 1.1785 0.88795-0.23793 1.4164-1.1533 1.1785-2.0413-0.23793-0.88795-1.1533-1.4164-2.0413-1.1785-0.88795 0.23793-1.4164 1.1533-1.1785 2.0413zm-3.2198 0.86273c0.47652 1.7784 2.3041 2.8336 4.0825 2.357 1.7784-0.47653 2.8336-2.3041 2.357-4.0825\" fill=\"none\" stroke=\"#FFF\" stroke-linecap=\"round\" stroke-linejoin=\"bevel\" stroke-miterlimit=\"10\" stroke-width=\".6\"/>
-</svg>"],
-                span!["Typhon"],
-                attrs! { At::Href => urls_1.home() }
-            ]
-        ],
+        main![a![
+            raw![std::str::from_utf8(include_bytes!("./logo.svg")).unwrap()],
+            span!["Typhon"],
+            attrs! { At::Href => urls_1.home() }
+        ]],
         nav![a!["Home", attrs! { At::Href => urls_2.home() }],],
         if model.admin {
             button!["Logout", ev(Ev::Click, |_| Msg::Logout)]
