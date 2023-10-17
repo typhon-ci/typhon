@@ -430,9 +430,7 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
     let _ = model.events_handle;
 
     nodes![
-        raw!["
-              <link href=\"https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css\" rel=\"stylesheet\">
-             "],
+        raw!["<link href=\"/remixicon/fonts/remixicon.css\" rel=\"stylesheet\" />"],
         header(&model.base_url, model),
         main![
             match &model.page {

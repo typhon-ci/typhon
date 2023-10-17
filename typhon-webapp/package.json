@@ -5,6 +5,7 @@
   "license": "AGPL-3.0",
   "dependencies": {
     "@fontsource/roboto": "^4.5.8",
-    "@fontsource/roboto-mono": "^4.5.10"
+    "@fontsource/roboto-mono": "^4.5.10",
+    "remixicon": "^3.5.0"
   }
 }
