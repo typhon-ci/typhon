@@ -5,7 +5,7 @@
       inherit system;
     },
   system ? builtins.currentSystem,
-  nodejs ? pkgs."nodejs-14_x",
+  nodejs ? pkgs."nodejs_14",
 }: let
   nodeEnv = import ./node-env.nix {
     inherit (pkgs) stdenv lib python2 runCommand writeTextFile writeShellScript;

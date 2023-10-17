@@ -27,19 +27,29 @@
         sha512 = "KrJdmkqz6DszT2wV/bbhXef4r0hV3B0vw2mAqei8A2kRnvq+gcJLmmIeQ94vu9VEXrUQzos5M9lH1TAAXpRphw==";
       };
     };
+    "remixicon-3.5.0" = {
+      name = "remixicon";
+      packageName = "remixicon";
+      version = "3.5.0";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/remixicon/-/remixicon-3.5.0.tgz";
+        sha512 = "wNzWGKf4frb3tEmgvP5shry0n1OdTjjEk9RHLuRuAhfA50bvEdpKH1XWNUYrHUSjAQQkkdyIm+lf4mOuysIKTQ==";
+      };
+    };
   };
   args = {
     name = "typhon-webapp";
     packageName = "typhon-webapp";
-    version = "1.0.0";
+    version = "0.0.1";
     src = ./..;
     dependencies = [
       sources."@fontsource/roboto-4.5.8"
       sources."@fontsource/roboto-mono-4.5.10"
+      sources."remixicon-3.5.0"
     ];
     buildInputs = globalBuildInputs;
     meta = {
-      license = "MIT";
+      license = "AGPL-3.0";
     };
     production = true;
     bypassCache = true;
