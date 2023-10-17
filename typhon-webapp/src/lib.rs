@@ -435,7 +435,8 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
         main![
             match &model.page {
                 Page::NotFound => div!["not found!"],
-                Page::Home(home_model) => home::view(&home_model, model.admin).map_msg(Msg::HomeMsg),
+                Page::Home(home_model) =>
+                    home::view(&home_model, model.admin).map_msg(Msg::HomeMsg),
                 Page::Login(login_model) => login::view(&login_model).map_msg(Msg::LoginMsg),
                 Page::Project(project_model) => {
                     project::view(&project_model, model.admin).map_msg(Msg::ProjectMsg)
@@ -447,17 +448,17 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
                     evaluation::view(&evaluation_model, model.admin).map_msg(Msg::EvaluationMsg)
                 }
                 Page::Job(job_model) => job::view(&job_model, model.admin).map_msg(Msg::JobMsg),
-            }, C![
-                match &model.page {
-                    Page::NotFound => "not-found",
-                    Page::Home(_) => "home",
-                    Page::Login(_) => "login",
-                    Page::Project(_) => "project",
-                    Page::Jobset(_) => "jobset",
-                    Page::Evaluation(_) => "evaluation",
-                    Page::Job(_) => "job",
-                }
-            ]],
+            },
+            C![match &model.page {
+                Page::NotFound => "not-found",
+                Page::Home(_) => "home",
+                Page::Login(_) => "login",
+                Page::Project(_) => "project",
+                Page::Jobset(_) => "jobset",
+                Page::Evaluation(_) => "evaluation",
+                Page::Job(_) => "job",
+            }]
+        ],
     ]
 }
 
