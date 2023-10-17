@@ -53,7 +53,7 @@
     };
     production = true;
     bypassCache = true;
-    reconstructLock = true;
+    reconstructLock = false;
   };
 in {
   args = args;
