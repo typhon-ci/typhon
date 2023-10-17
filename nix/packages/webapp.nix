@@ -25,7 +25,7 @@
   };
 
   nodeDependencies =
-    (pkgs.callPackage ../../typhon-webapp/npm-nix {}).nodeDependencies;
+    (pkgs.callPackage webapp/npm-nix {}).nodeDependencies;
 in
   craneLib.buildTrunkPackage {
     inherit

@@ -41,7 +41,7 @@
     name = "typhon-webapp";
     packageName = "typhon-webapp";
     version = "0.0.1";
-    src = ./..;
+    src = ../../../../typhon-webapp;
     dependencies = [
       sources."@fontsource/roboto-4.5.8"
       sources."@fontsource/roboto-mono-4.5.10"
