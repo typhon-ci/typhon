@@ -1,6 +1,7 @@
 use crate::perform_request;
 use crate::view_error;
 use crate::widgets::editable_text;
+use crate::widgets::evaluation_list;
 
 use seed::{prelude::*, *};
 
@@ -14,6 +15,7 @@ pub struct Model {
     info: Option<responses::ProjectInfo>,
     declaration_url: editable_text::Model,
     declaration_flake: bool,
+    evaluation_list: evaluation_list::Model,
     base_url: Url,
 }
 
@@ -30,6 +32,7 @@ pub enum Msg {
     Refresh,
     UpdateJobsets,
     MsgDeclarationUrl(editable_text::Msg),
+    MsgEvaluationList(evaluation_list::Msg),
 }
 
 pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Project) -> Model {
@@ -41,6 +44,13 @@ pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Proje
         info: None,
         declaration_url: editable_text::init("".to_string()),
         declaration_flake: false,
+        evaluation_list: evaluation_list::init(
+            &base_url,
+            &mut orders.proxy(Msg::MsgEvaluationList),
+            Some(handle.name),
+            None,
+            1,
+        ),
         base_url,
     }
 }
@@ -137,6 +147,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
+        Msg::MsgEvaluationList(msg) => evaluation_list::update(
+            msg,
+            &mut model.evaluation_list,
+            &mut orders.proxy(Msg::MsgEvaluationList),
+        ),
     }
 }
 
@@ -295,6 +310,10 @@ fn view_project(model: &Model, is_admin: bool) -> Node<Msg> {
                             ) },
                         ]]
                     })],
+                ],
+                div![
+                    h3!["Evaluations"],
+                    evaluation_list::view(&model.evaluation_list).map_msg(Msg::MsgEvaluationList),
                 ],
             ],
         },

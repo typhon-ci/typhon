@@ -1,15 +1,18 @@
 use crate::perform_request;
 use crate::view_error;
-use seed::{prelude::*, *};
+use crate::widgets::evaluation_list;
+
 use typhon_types::*;
+
+use seed::{prelude::*, *};
 
 struct_urls!();
 
-#[derive(Clone, Default)]
 pub struct Model {
     error: Option<responses::ResponseError>,
     projects: Vec<(String, responses::ProjectMetadata)>,
     new_project: (String, String, bool),
+    evaluation_list: evaluation_list::Model,
     base_url: Url,
 }
 
@@ -25,6 +28,7 @@ pub enum Msg {
     UpdateNewProjectName(String),
     UpdateNewProjectUrl(String),
     UpdateNewProjectFlake,
+    MsgEvaluationList(evaluation_list::Msg),
 }
 
 pub fn init(base_url: Url, orders: &mut impl Orders<Msg>) -> Model {
@@ -33,6 +37,13 @@ pub fn init(base_url: Url, orders: &mut impl Orders<Msg>) -> Model {
         error: None,
         projects: Vec::new(),
         new_project: ("".to_string(), "".to_string(), false),
+        evaluation_list: evaluation_list::init(
+            &base_url,
+            &mut orders.proxy(Msg::MsgEvaluationList),
+            None,
+            None,
+            1,
+        ),
         base_url,
     }
 }
@@ -86,6 +97,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::UpdateNewProjectFlake => {
             model.new_project.2 = !model.new_project.2;
         }
+        Msg::MsgEvaluationList(msg) => evaluation_list::update(
+            msg,
+            &mut model.evaluation_list,
+            &mut orders.proxy(Msg::MsgEvaluationList),
+        ),
     }
 }
 
@@ -155,7 +171,11 @@ fn view_home(model: &Model, admin: bool) -> Node<Msg> {
                     C!["add-project"],
                 ],
             ]
-        })
+        }),
+        div![
+            h2!["Evaluations"],
+            evaluation_list::view(&model.evaluation_list).map_msg(Msg::MsgEvaluationList),
+        ],
     ]
 }
 
