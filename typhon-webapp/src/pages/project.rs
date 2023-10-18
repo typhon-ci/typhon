@@ -1,6 +1,6 @@
-use crate::editable_text;
 use crate::perform_request;
 use crate::view_error;
+use crate::widgets::editable_text;
 
 use seed::{prelude::*, *};
 

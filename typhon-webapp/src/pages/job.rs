@@ -1,7 +1,7 @@
-use crate::drv_log;
 use crate::perform_request;
 use crate::view_error;
 use crate::view_log;
+use crate::widgets::drv_log;
 use crate::Settings;
 
 use typhon_types::*;

@@ -1,6 +1,6 @@
 use crate::perform_request;
-use crate::timestamp;
 use crate::view_error;
+use crate::widgets::timestamp;
 
 use seed::{prelude::*, *};
 use typhon_types::*;

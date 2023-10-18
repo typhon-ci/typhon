@@ -1,13 +1,10 @@
-mod drv_log;
-mod editable_text;
-mod evaluation;
-mod home;
-mod job;
-mod jobset;
-mod login;
-mod project;
+mod pages;
 mod streams;
-mod timestamp;
+mod widgets;
+
+use pages::*;
+
+use typhon_types::*;
 
 use gloo_console::log;
 use gloo_net::http;
@@ -15,7 +12,6 @@ use gloo_storage::LocalStorage;
 use gloo_storage::Storage;
 use seed::{prelude::*, *};
 use serde::{Deserialize, Serialize};
-use typhon_types::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
@@ -412,7 +408,7 @@ fn header(base_url: &Url, model: &Model) -> Node<Msg> {
     let urls_2 = Urls::new(base_url);
     header![
         main![a![
-            raw![std::str::from_utf8(include_bytes!("./logo.svg")).unwrap()],
+            raw![std::str::from_utf8(include_bytes!("../assets/logo.svg")).unwrap()],
             span!["Typhon"],
             attrs! { At::Href => urls_1.home() }
         ]],
