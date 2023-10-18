@@ -1,6 +1,6 @@
 use crate::perform_request;
 use crate::view_error;
-use crate::widgets::timestamp;
+use crate::widgets::evaluation_list;
 
 use seed::{prelude::*, *};
 use typhon_types::*;
@@ -9,7 +9,7 @@ struct_urls!();
 
 pub struct Model {
     error: Option<responses::ResponseError>,
-    evaluations: Vec<(i64, timestamp::Model)>,
+    evaluation_list: evaluation_list::Model,
     handle: handles::Jobset,
     info: Option<responses::JobsetInfo>,
     base_url: Url,
@@ -20,21 +20,24 @@ pub enum Msg {
     Error(responses::ResponseError),
     ErrorIgnored,
     Evaluate(bool),
+    MsgEvaluationList(evaluation_list::Msg),
     Event(Event),
-    FetchEvaluations,
     FetchInfo,
-    GetEvaluations(Vec<(handles::Evaluation, i64)>),
     GetInfo(responses::JobsetInfo),
     Noop,
-    TimestampMsg(i64, timestamp::Msg),
 }
 
 pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Jobset) -> Model {
-    orders.send_msg(Msg::FetchEvaluations);
     orders.send_msg(Msg::FetchInfo);
     Model {
         error: None,
-        evaluations: Vec::new(),
+        evaluation_list: evaluation_list::init(
+            &base_url,
+            &mut orders.proxy(Msg::MsgEvaluationList),
+            Some(handle.project.name.clone()),
+            Some(handle.name.clone()),
+            1,
+        ),
         handle: handle.clone(),
         info: None,
         base_url,
@@ -59,23 +62,19 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
-        Msg::Event(_) => {
-            orders.send_msg(Msg::FetchEvaluations);
-            orders.send_msg(Msg::FetchInfo);
+        Msg::MsgEvaluationList(msg) => {
+            evaluation_list::update(
+                msg,
+                &mut model.evaluation_list,
+                &mut orders.proxy(Msg::MsgEvaluationList),
+            );
         }
-        Msg::FetchEvaluations => {
-            let handle = model.handle.clone();
-            let req = requests::Request::ListEvaluations(requests::EvaluationSearch {
-                project_name: Some(handle.project.name),
-                jobset_name: Some(handle.name),
-                offset: 0,
-                limit: 10,
-            });
-            perform_request!(
-                orders,
-                req,
-                responses::Response::ListEvaluations(evaluations) => Msg::GetEvaluations(evaluations),
-                Msg::Error,
+        Msg::Event(event) => {
+            orders.send_msg(Msg::FetchInfo);
+            evaluation_list::update(
+                evaluation_list::Msg::Event(event),
+                &mut model.evaluation_list,
+                &mut orders.proxy(Msg::MsgEvaluationList),
             );
         }
         Msg::FetchInfo => {
@@ -88,39 +87,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::Error,
             );
         }
-        Msg::GetEvaluations(evaluations) => {
-            model.evaluations = evaluations
-                .iter()
-                .map(|(handle, time)| {
-                    let num = handle.num.clone();
-                    (
-                        num.clone(),
-                        timestamp::init(
-                            &mut orders.proxy(move |msg| Msg::TimestampMsg(num, msg)),
-                            time,
-                        ),
-                    )
-                })
-                .collect();
-        }
         Msg::GetInfo(info) => {
             model.info = Some(info);
         }
         Msg::Noop => (),
-        Msg::TimestampMsg(id, msg) => {
-            model
-                .evaluations
-                .iter_mut()
-                .find(|(id1, _)| *id1 == id)
-                .map(|(_, ref mut m)| {
-                    let id = id.clone();
-                    timestamp::update(
-                        msg,
-                        m,
-                        &mut orders.proxy(move |msg| Msg::TimestampMsg(id, msg)),
-                    )
-                });
-        }
     }
 }
 
@@ -144,21 +114,7 @@ fn view_jobset(model: &Model) -> Node<Msg> {
             Some(info) => div![div![
                 format!("Flake: {}", info.url),
                 h3!["Evaluations"],
-                ul![model.evaluations.iter().map(|(num, time)| {
-                    let urls = crate::Urls::new(&model.base_url);
-                    li![a![
-                        timestamp::view(time).map_msg({
-                            let num = num.clone();
-                            move |msg| Msg::TimestampMsg(num, msg)
-                        }),
-                        attrs! { At::Href => urls.evaluation(
-                            &handles::Evaluation{
-                                jobset: model.handle.clone(),
-                                num: *num,
-                            }
-                        )},
-                    ]]
-                }),]
+                evaluation_list::view(&model.evaluation_list).map_msg(Msg::MsgEvaluationList),
             ]],
         },
     ]
