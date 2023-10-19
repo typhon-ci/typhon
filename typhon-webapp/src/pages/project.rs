@@ -245,14 +245,14 @@ fn view_project(model: &Model, is_admin: bool) -> Node<Msg> {
                 div![
                     C!["labels"],
                     show_info_block(
-                        "Flake URI",
+                        "Flake URL",
                         "declaration",
                         editable_text_view(&model.declaration_url, Box::new(|s| code![s.clone()]))
                             .map_msg(Msg::MsgDeclarationUrl),
                         Some(div![])
                     ),
                     show_info_block(
-                        "Locked flake URI",
+                        "Locked flake URL",
                         "locked-declaration",
                         code![if info.url_locked.clone() == "" {
                             "-".into()
