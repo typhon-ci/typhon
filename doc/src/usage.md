@@ -11,7 +11,7 @@ URL is `$typhon_url` (you must have https enabled).
 ## Creating a new Typhon project
 
 Log in to your Typhon instance and create a new project, with an identifier
-`$id` (typically `$id == $project`). Set the declaration to use the flake URI
+`$id` (typically `$id == $project`). Set the declaration to use the flake URL
 `github:$user/$config`. Once the project is created, a public key is associated
 to it, let's call it `$pk`.
 
