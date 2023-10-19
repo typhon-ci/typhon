@@ -1,3 +1,4 @@
+pub mod drv;
 pub mod evaluation;
 pub mod home;
 pub mod job;

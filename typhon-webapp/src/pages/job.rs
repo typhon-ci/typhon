@@ -1,7 +1,6 @@
 use crate::perform_request;
 use crate::view_error;
 use crate::view_log;
-use crate::widgets::drv_log;
 use crate::Settings;
 
 use typhon_types::*;
@@ -16,7 +15,6 @@ pub struct Model {
     info: Option<responses::JobInfo>,
     log_begin: Option<String>,
     log_end: Option<String>,
-    log: drv_log::Model,
     base_url: Url,
 }
 
@@ -32,7 +30,6 @@ pub enum Msg {
     GetInfo(responses::JobInfo),
     GetLogBegin(Option<String>),
     GetLogEnd(Option<String>),
-    LogMsg(drv_log::Msg),
     Noop,
 }
 
@@ -44,7 +41,6 @@ pub fn init(base_url: Url, orders: &mut impl Orders<Msg>, handle: handles::Job) 
         info: None,
         log_begin: None,
         log_end: None,
-        log: drv_log::init(&mut orders.proxy(Msg::LogMsg)),
         base_url,
     }
 }
@@ -107,8 +103,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             if info.end_status != "pending" {
                 orders.send_msg(Msg::FetchLogEnd);
             }
-            let drv = info.build_drv.clone();
-            orders.send_msg(Msg::LogMsg(drv_log::Msg::Load(drv)));
             model.info = Some(info);
         }
         Msg::GetLogBegin(log) => {
@@ -117,7 +111,6 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::GetLogEnd(log) => {
             model.log_end = log;
         }
-        Msg::LogMsg(msg) => drv_log::update(msg, &mut model.log, &mut orders.proxy(Msg::LogMsg)),
         Msg::Noop => (),
     }
 }
@@ -126,6 +119,7 @@ fn view_job(model: &Model) -> Node<Msg> {
     let urls_1 = crate::Urls::new(&model.base_url);
     let urls_2 = crate::Urls::new(&model.base_url);
     let urls_3 = crate::Urls::new(&model.base_url);
+    let urls_4 = crate::Urls::new(&model.base_url);
     div![
         h2![
             "Job",
@@ -158,7 +152,13 @@ fn view_job(model: &Model) -> Node<Msg> {
         match &model.info {
             None => div!["loading..."],
             Some(info) => div![
-                p![format!("Drv: {}", info.build_drv)],
+                p![
+                    format!("Derivation: "),
+                    a![
+                        &info.build_drv,
+                        attrs! { At::Href => urls_4.drv(&info.build_drv) },
+                    ],
+                ],
                 p![format!("Status (begin): {}", info.begin_status)],
                 p![format!("Status (build): {}", info.build_status)],
                 p![format!("Status (end): {}", info.end_status)],
@@ -181,7 +181,6 @@ fn view_job(model: &Model) -> Node<Msg> {
                 }
             ],
         },
-        drv_log::view(&model.log).map_msg(Msg::LogMsg),
         match &model.log_begin {
             None => empty![],
             Some(log) => div![h3!["Log (begin)"], view_log(log.clone()),],

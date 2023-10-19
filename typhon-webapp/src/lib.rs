@@ -165,6 +165,17 @@ impl<'a> Urls<'a> {
     pub fn job(self, job: &handles::Job) -> Url {
         self.job_urls(job).base_url()
     }
+    pub fn drv_urls(self, drv: &String) -> drv::Urls<'a> {
+        let mut base_url = self.base_url().add_path_part("drv");
+        let path = drv.split("/");
+        for part in path {
+            base_url = base_url.add_path_part(part);
+        }
+        drv::Urls::new(base_url)
+    }
+    pub fn drv(self, drv: &String) -> Url {
+        self.drv_urls(drv).base_url()
+    }
 }
 
 pub enum Page {
@@ -174,6 +185,7 @@ pub enum Page {
     Jobset(jobset::Model),
     Evaluation(evaluation::Model),
     Job(job::Model),
+    Drv(drv::Model),
     NotFound,
 }
 
@@ -226,6 +238,13 @@ impl Page {
                     })
                     .unwrap_or(Page::NotFound)
             }
+            ["drv", ..] => {
+                let mut drv = String::new();
+                for part in path_parts.as_slice()[1..].iter() {
+                    drv += &format!("/{}", part);
+                }
+                Page::Drv(drv::init(base_url, &mut orders.proxy(Msg::DrvMsg), &drv))
+            }
             _ => Page::NotFound,
         }
     }
@@ -248,6 +267,7 @@ pub enum Msg {
     JobsetMsg(jobset::Msg),
     EvaluationMsg(evaluation::Msg),
     JobMsg(job::Msg),
+    DrvMsg(drv::Msg),
     UrlChanged(subs::UrlChanged),
     EventsReceived(Vec<Event>),
 }
@@ -348,6 +368,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 ..
             },
         ) => job::update(msg, job_model, &mut orders.proxy(Msg::JobMsg)),
+        (
+            Msg::DrvMsg(msg),
+            Model {
+                page: Page::Drv(drv_model),
+                ..
+            },
+        ) => drv::update(msg, drv_model, &mut orders.proxy(Msg::DrvMsg)),
         (Msg::EventsReceived(mut events), _) => {
             for event in events.drain(..) {
                 log!(format!("event: {:?}", event));
@@ -444,6 +471,7 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
                     evaluation::view(&evaluation_model, model.admin).map_msg(Msg::EvaluationMsg)
                 }
                 Page::Job(job_model) => job::view(&job_model, model.admin).map_msg(Msg::JobMsg),
+                Page::Drv(drv_model) => drv::view(&drv_model).map_msg(Msg::DrvMsg),
             },
             C![match &model.page {
                 Page::NotFound => "not-found",
@@ -453,6 +481,7 @@ fn view(model: &Model) -> impl IntoNodes<Msg> {
                 Page::Jobset(_) => "jobset",
                 Page::Evaluation(_) => "evaluation",
                 Page::Job(_) => "job",
+                Page::Drv(_) => "drv",
             }]
         ],
     ]
