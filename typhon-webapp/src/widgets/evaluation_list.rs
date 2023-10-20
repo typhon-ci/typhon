@@ -104,24 +104,25 @@ pub fn view(model: &Model) -> Node<Msg> {
         view_error(&model.base_url, err, Msg::ErrorIgnored)
     } else {
         div![
-            ul![model
-                .evaluations
-                .iter()
-                .enumerate()
-                .map(|(i, (handle, time))| {
-                    let urls = crate::Urls::new(&model.base_url);
-                    li![
-                        a![
-                            handle.to_string(),
-                            attrs! { At::Href => urls.evaluation(
-                                handle
-                            )},
-                        ],
-                        " (",
-                        timestamp::view(time).map_msg(move |msg| Msg::TimestampMsg(i, msg)),
-                        ")",
-                    ]
-                }),],
+            table![
+                tr![th!["Handle"], th!["Time"],],
+                model
+                    .evaluations
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (handle, time))| {
+                        let urls = crate::Urls::new(&model.base_url);
+                        tr![
+                            td![a![
+                                handle.to_string(),
+                                attrs! { At::Href => urls.evaluation(handle) }
+                            ]],
+                            td![
+                                timestamp::view(time).map_msg(move |msg| Msg::TimestampMsg(i, msg)),
+                            ],
+                        ]
+                    })
+            ],
             button![
                 "<",
                 ev(Ev::Click, {
