@@ -61,11 +61,6 @@ impl Jobset {
                 .filter(schema::evaluations::url.eq(&url))
                 .first::<models::Evaluation>(conn)
                 .optional()?;
-            let max = schema::evaluations::table
-                .filter(schema::evaluations::jobset_id.eq(self.jobset.id))
-                .select(diesel::dsl::max(schema::evaluations::num))
-                .first::<Option<i64>>(conn)?
-                .unwrap_or(0);
 
             // continue if the evaluation is forced
             if let Some(eval) = preexisting_eval {
@@ -75,6 +70,11 @@ impl Jobset {
             }
 
             // create a new evaluation
+            let max = schema::evaluations::table
+                .filter(schema::evaluations::jobset_id.eq(self.jobset.id))
+                .select(diesel::dsl::max(schema::evaluations::num))
+                .first::<Option<i64>>(conn)?
+                .unwrap_or(0);
             let num = max + 1;
             let status = "pending".to_string();
             let time_created = crate::time::now();
