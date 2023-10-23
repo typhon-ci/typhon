@@ -62,6 +62,7 @@ impl Jobset {
                 .first::<models::Evaluation>(conn)
                 .optional()?;
             let max = schema::evaluations::table
+                .filter(schema::evaluations::jobset_id.eq(self.jobset.id))
                 .select(diesel::dsl::max(schema::evaluations::num))
                 .first::<Option<i64>>(conn)?
                 .unwrap_or(0);
