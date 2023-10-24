@@ -30,7 +30,7 @@ in {
 
         echo null | jq --argjson body "$body" '[]
           | if $body.created or $body.deleted then . + [{"command":"UpdateJobsets"}] else . end
-          | if $body.deleted | not then . + [{"command":"EvaluateJobset","jobset":$body.ref|split("/")|.[2]}] else . end
+          | if $body.deleted | not then . + [{"command":"EvaluateJobset","name":$body.ref|split("/")|.[2]}] else . end
           | .'
       '';
     });
