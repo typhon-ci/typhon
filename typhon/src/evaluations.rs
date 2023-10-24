@@ -227,7 +227,7 @@ impl Evaluation {
             query = query.filter(schema::jobsets::name.eq(name));
         }
         query = query
-            .order(schema::evaluations::num.desc())
+            .order(schema::evaluations::time_created.desc())
             .offset(search.offset as i64)
             .limit(search.limit as i64);
         let mut evaluations =
