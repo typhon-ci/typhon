@@ -13,4 +13,6 @@ in {
   packages = lib.eachSystem (system: import ./packages {inherit sources system;});
 
   nixosModules.default = import ./nixos/typhon.nix {inherit sources;};
+
+  typhonJobs = import ./jobs.nix {inherit sources;};
 }
