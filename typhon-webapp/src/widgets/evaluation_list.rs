@@ -1,5 +1,4 @@
-use crate::perform_request;
-use crate::view_error;
+use crate::requests::perform_request;
 use crate::widgets::timestamp;
 
 use seed::{prelude::*, *};
@@ -100,8 +99,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 }
 
 pub fn view(model: &Model) -> Node<Msg> {
+    use crate::views;
+
     if let Some(err) = &model.error {
-        view_error(&model.base_url, err, Msg::ErrorIgnored)
+        views::error::view(&model.base_url, err, Msg::ErrorIgnored)
     } else {
         div![
             table![

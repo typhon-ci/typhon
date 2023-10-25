@@ -9,7 +9,7 @@ pub struct Model {
     log: drv_log::Model,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     MsgLog(drv_log::Msg),
 }

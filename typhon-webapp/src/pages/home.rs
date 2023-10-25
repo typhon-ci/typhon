@@ -1,5 +1,4 @@
-use crate::perform_request;
-use crate::view_error;
+use crate::requests::perform_request;
 use crate::widgets::evaluation_list;
 
 use typhon_types::*;
@@ -180,9 +179,11 @@ fn view_home(model: &Model, admin: bool) -> Node<Msg> {
 }
 
 pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+    use crate::views;
+
     model
         .error
         .as_ref()
-        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
+        .map(|err| views::error::view(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or_else(|| view_home(model, admin))
 }

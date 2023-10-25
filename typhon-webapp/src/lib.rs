@@ -1,5 +1,9 @@
 mod pages;
+mod requests;
+mod secrets;
+mod settings;
 mod streams;
+mod views;
 mod widgets;
 
 use pages::*;
@@ -8,101 +12,7 @@ use typhon_types::*;
 
 use gloo_console::log;
 use gloo_net::http;
-use gloo_storage::LocalStorage;
-use gloo_storage::Storage;
 use seed::{prelude::*, *};
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Settings {
-    pub api_url: String,
-}
-
-impl Settings {
-    pub fn load() -> Self {
-        serde_json::from_str::<Option<Self>>(
-            &document()
-                .query_selector("script[id='settings']")
-                .unwrap()
-                .unwrap()
-                .inner_html(),
-        )
-        .unwrap()
-        .unwrap_or_default()
-    }
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            api_url: "http://127.0.0.1:8000/api".into(),
-        }
-    }
-}
-
-pub fn get_token() -> Option<String> {
-    LocalStorage::get("typhon_token").ok()
-}
-
-pub fn set_token(token: &String) {
-    LocalStorage::set("typhon_token", &token).unwrap()
-}
-
-pub fn reset_token() {
-    LocalStorage::delete("typhon_token")
-}
-
-pub async fn handle_request(
-    request: &requests::Request,
-) -> Result<responses::Response, responses::ResponseError> {
-    let settings = Settings::load();
-    let token = get_token();
-    let req = http::RequestBuilder::new(&settings.api_url).method(http::Method::POST);
-    let req = match token {
-        None => req,
-        Some(token) => req.header("token", &token),
-    };
-    req.json(request)
-        .unwrap()
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
-}
-
-pub fn perform_request_aux<Ms: 'static, MsO: 'static>(
-    orders: &mut impl Orders<MsO>,
-    req: requests::Request,
-    succ: impl FnOnce(responses::Response) -> Ms + 'static,
-    err: impl FnOnce(responses::ResponseError) -> Ms + 'static,
-) {
-    orders.perform_cmd(async move { handle_request(&req).await.map(succ).unwrap_or_else(err) });
-}
-
-macro_rules! perform_request {
-    ($orders: expr , $req: expr , $pat: pat => $body: expr , $err: expr $(,)?) => {
-        let req = $req.clone();
-        crate::perform_request_aux(
-            $orders,
-            $req,
-            move |rsp| match rsp {
-                $pat => $body,
-                rsp => {
-                    gloo_console::log!(format!(
-                        "perform_request: unexpected response {:#?} to request {:#?}",
-                        rsp, req
-                    ));
-                    $err(responses::ResponseError::InternalError)
-                }
-            },
-            $err,
-        )
-    };
-}
-
-pub(crate) use perform_request;
 
 struct_urls!();
 impl<'a> Urls<'a> {
@@ -178,7 +88,7 @@ impl<'a> Urls<'a> {
     }
 }
 
-pub enum Page {
+enum Page {
     Login(login::Model),
     Home(home::Model),
     Project(project::Model),
@@ -257,7 +167,7 @@ pub struct Model {
     events_handle: StreamHandle,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     HomeMsg(home::Msg),
     LoginMsg(login::Msg),
@@ -275,10 +185,10 @@ pub enum Msg {
 fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     use futures::stream::StreamExt;
     orders.subscribe(Msg::UrlChanged);
-    let settings = Settings::load();
+    let settings = settings::Settings::load();
     let req = http::RequestBuilder::new(&format!("{}/events", settings.api_url))
         .method(http::Method::GET);
-    let req = match get_token() {
+    let req = match secrets::get_token() {
         None => req,
         Some(token) => req.header(&"token", &token),
     };
@@ -298,12 +208,12 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     Model {
         base_url: url.to_base_url(),
         page: Page::init(url, orders),
-        admin: get_token().is_some(), // TODO
+        admin: secrets::get_token().is_some(), // TODO
         events_handle,
     }
 }
 
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match (msg, &mut *model) {
         (Msg::UrlChanged(subs::UrlChanged(url)), _) => {
             model.page = Page::init(url, orders);
@@ -323,14 +233,14 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             },
         ) => match login::update(msg, login_model, &mut orders.proxy(Msg::LoginMsg)) {
             Some(login::OutMsg::Login(pw, url)) => {
-                set_token(&pw); // TODO
+                secrets::set_token(&pw); // TODO
                 model.admin = true;
                 model.page = Page::init(url.into(), orders);
             }
             None => {}
         },
         (Msg::Logout, _) => {
-            reset_token(); // TODO
+            secrets::reset_token(); // TODO
             model.admin = false;
         }
         (
@@ -412,49 +322,13 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
-pub fn view_error<Ms: Clone + 'static>(
-    base_url: &Url,
-    err: &responses::ResponseError,
-    msg_ignore: Ms,
-) -> Node<Ms> {
-    let urls = Urls::new(base_url);
-    div![
-        h2!["Error"],
-        p![format!("{}", err)],
-        button!["Go back", ev(Ev::Click, |_| msg_ignore)],
-        a!["Home", attrs! { At::Href => urls.home() }],
-    ]
-}
-
-pub fn view_log<Ms: Clone + 'static>(log: String) -> Node<Ms> {
-    tt![log.split('\n').map(|p| { p![p.replace(" ", " ")] })]
-}
-
-fn header(base_url: &Url, model: &Model) -> Node<Msg> {
-    let urls_1 = Urls::new(base_url);
-    let urls_2 = Urls::new(base_url);
-    header![
-        main![a![
-            raw![std::str::from_utf8(include_bytes!("../assets/logo.svg")).unwrap()],
-            span!["Typhon"],
-            attrs! { At::Href => urls_1.home() }
-        ]],
-        nav![a!["Home", attrs! { At::Href => urls_2.home() }],],
-        if model.admin {
-            button!["Logout", ev(Ev::Click, |_| Msg::Logout)]
-        } else {
-            button![a!["Login", ev(Ev::Click, |_| Msg::Login)]]
-        },
-    ]
-}
-
 fn view(model: &Model) -> impl IntoNodes<Msg> {
     // the stream is canceled on the handle drop
     let _ = model.events_handle;
 
     nodes![
         raw!["<link href=\"/remixicon/fonts/remixicon.css\" rel=\"stylesheet\" />"],
-        header(&model.base_url, model),
+        views::header::view(&model.base_url, model.admin, Msg::Login, Msg::Logout),
         main![
             match &model.page {
                 Page::NotFound => div!["not found!"],

@@ -1,7 +1,8 @@
-use crate::perform_request;
-use crate::view_error;
-use seed::{prelude::*, *};
+use crate::requests::perform_request;
+
 use typhon_types::*;
+
+use seed::{prelude::*, *};
 
 struct_urls!();
 
@@ -163,10 +164,12 @@ fn view_admin() -> Node<Msg> {
 }
 
 pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+    use crate::views;
+
     model
         .error
         .as_ref()
-        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
+        .map(|err| views::error::view(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or(div![
             view_evaluation(model),
             if admin { view_admin() } else { empty![] },

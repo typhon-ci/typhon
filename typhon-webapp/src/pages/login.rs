@@ -1,4 +1,4 @@
-use crate::perform_request;
+use crate::requests::perform_request;
 
 use typhon_types::*;
 

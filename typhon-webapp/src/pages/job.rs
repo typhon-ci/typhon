@@ -1,7 +1,5 @@
-use crate::perform_request;
-use crate::view_error;
-use crate::view_log;
-use crate::Settings;
+use crate::requests::perform_request;
+use crate::settings::Settings;
 
 use typhon_types::*;
 
@@ -116,6 +114,8 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 }
 
 fn view_job(model: &Model) -> Node<Msg> {
+    use crate::views;
+
     let urls_1 = crate::Urls::new(&model.base_url);
     let urls_2 = crate::Urls::new(&model.base_url);
     let urls_3 = crate::Urls::new(&model.base_url);
@@ -183,11 +183,11 @@ fn view_job(model: &Model) -> Node<Msg> {
         },
         match &model.log_begin {
             None => empty![],
-            Some(log) => div![h3!["Log (begin)"], view_log(log.clone()),],
+            Some(log) => div![h3!["Log (begin)"], views::log::view(log.clone()),],
         },
         match &model.log_end {
             None => empty![],
-            Some(log) => div![h3!["Log (end)"], view_log(log.clone()),],
+            Some(log) => div![h3!["Log (end)"], views::log::view(log.clone()),],
         },
     ]
 }
@@ -200,10 +200,12 @@ fn view_admin() -> Node<Msg> {
 }
 
 pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+    use crate::views;
+
     model
         .error
         .as_ref()
-        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
+        .map(|err| views::error::view(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or(div![
             view_job(model),
             if admin { view_admin() } else { empty![] },

@@ -1,5 +1,4 @@
-use crate::perform_request;
-use crate::view_error;
+use crate::requests::perform_request;
 use crate::widgets::evaluation_list;
 
 use seed::{prelude::*, *};
@@ -132,10 +131,12 @@ fn view_admin() -> Node<Msg> {
 }
 
 pub fn view(model: &Model, admin: bool) -> Node<Msg> {
+    use crate::views;
+
     model
         .error
         .as_ref()
-        .map(|err| view_error(&model.base_url, err, Msg::ErrorIgnored))
+        .map(|err| views::error::view(&model.base_url, err, Msg::ErrorIgnored))
         .unwrap_or(div![
             view_jobset(model),
             if admin { view_admin() } else { empty![] },
