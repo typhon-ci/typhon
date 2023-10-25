@@ -16,6 +16,8 @@
 
   cargoToml = ../../typhon-webapp/Cargo.toml;
 
+  cargoLock = ../../Cargo.lock;
+
   RUSTFLAGS = "--cfg=web_sys_unstable_apis";
 
   cargoArtifacts = craneLib.buildDepsOnly {
@@ -26,8 +28,8 @@
 
   nodeDependencies =
     (pkgs.callPackage webapp/npm-nix {}).nodeDependencies;
-in
-  craneLib.buildTrunkPackage {
+
+  trunkPackage = craneLib.buildTrunkPackage {
     inherit
       src
       cargoToml
@@ -38,5 +40,31 @@ in
     preBuild = ''
       ln -s ${nodeDependencies}/lib/node_modules typhon-webapp/node_modules
       echo 'build.public_url = "WEBROOT"' >> Trunk.toml
+    '';
+
+    doNotRemoveReferencesToVendorDir = true;
+  };
+
+  cleanWasm = pkgs.stdenv.mkDerivation {
+    name = "typhon-webapp-clean-wasm";
+    src = trunkPackage;
+    nativeBuildInputs = [craneLib.removeReferencesToVendoredSourcesHook];
+    cargoVendorDir = craneLib.vendorCargoDeps {inherit cargoLock;};
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out
+      cp *.wasm $out
+      runHook postInstall
+    '';
+  };
+
+  crateName = craneLib.crateNameFromCargoToml {inherit cargoToml;};
+in
+  pkgs.stdenv.mkDerivation {
+    inherit (crateName) pname version;
+    src = trunkPackage;
+    installPhase = ''
+      cp -r . $out
+      cp ${cleanWasm}/* $out
     '';
   }
