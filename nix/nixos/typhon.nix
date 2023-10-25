@@ -46,7 +46,7 @@ in {
     webapp = mkOption {
       type = types.package;
       description = "Which webapp to use for the Typhon instance";
-      default = typhonPackages.typhon-webroot;
+      default = typhonPackages.typhon-webapp;
     };
     home = mkOption {
       type = types.str;
