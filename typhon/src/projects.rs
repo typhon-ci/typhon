@@ -160,10 +160,10 @@ impl Project {
         struct TyphonProject {
             actions: Option<HashMap<String, String>>,
             #[serde(default)]
-            metadata: ProjectMetadata,
+            meta: ProjectMetadata,
         }
 
-        let TyphonProject { actions, metadata } = serde_json::from_value(
+        let TyphonProject { actions, meta } = serde_json::from_value(
             nix::eval(&url_locked, &"typhonProject", self.project.flake).await?,
         )
         .expect("TODO");
@@ -182,9 +182,9 @@ impl Project {
         diesel::update(&self.project)
             .set((
                 schema::projects::actions_path.eq(actions_path),
-                schema::projects::description.eq(metadata.description),
-                schema::projects::homepage.eq(metadata.homepage),
-                schema::projects::title.eq(metadata.title),
+                schema::projects::description.eq(meta.description),
+                schema::projects::homepage.eq(meta.homepage),
+                schema::projects::title.eq(meta.title),
                 schema::projects::url_locked.eq(url_locked),
             ))
             .execute(&mut *conn)?;
