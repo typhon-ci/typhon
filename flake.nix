@@ -7,6 +7,8 @@
       flake = false;
     };
 
+    flake-schemas.url = "github:determinatesystems/flake-schemas";
+
     flake-utils.url = "flake-utils";
 
     nixpkgs.url = "nixpkgs/nixos-unstable";

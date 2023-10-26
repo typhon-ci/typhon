@@ -10,6 +10,7 @@
       ./github
       ./mkGitJobsets.nix
       ./mkProject.nix
+      ./schemas.nix
       ./systems.nix
     ]
     self;

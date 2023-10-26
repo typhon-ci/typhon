@@ -15,4 +15,6 @@ in {
   nixosModules.default = import ./nixos/typhon.nix {inherit sources;};
 
   typhonJobs = import ./jobs.nix {inherit sources;};
+
+  schemas = import ./schemas.nix {inherit sources systems;};
 }
