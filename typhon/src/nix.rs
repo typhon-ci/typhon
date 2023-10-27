@@ -242,19 +242,6 @@ impl DrvPath {
     pub fn new(path: &str) -> Self {
         Self { path: path.into() }
     }
-
-    pub fn hash(&self) -> String {
-        fn hash_of_nix_store_path(path: &str) -> &str {
-            // TODO: make this portable for any store path
-            path.strip_prefix("/nix/store/")
-                .expect("todo: hard-coded store location /nix/store/")
-        }
-        hash_of_nix_store_path(&self.path)
-            .split('-')
-            .next()
-            .expect("Bad nix store path")
-            .into()
-    }
 }
 
 impl From<DrvPath> for String {
