@@ -82,17 +82,23 @@ impl Evaluation {
 
     pub async fn info(&self) -> Result<responses::EvaluationInfo, Error> {
         use typhon_types::responses::JobSystemName;
-        let mut conn = connection().await;
-        let jobs = schema::jobs::table
-            .filter(schema::jobs::evaluation_id.eq(self.evaluation.id))
-            .load::<models::Job>(&mut *conn)?
-            .iter()
-            .map(|job| JobSystemName {
-                system: job.system.clone(),
-                name: job.name.clone(),
-            })
-            .collect();
-        drop(conn);
+        let jobs = if self.evaluation.status == "success" {
+            let mut conn = connection().await;
+            let jobs = schema::jobs::table
+                .filter(schema::jobs::evaluation_id.eq(self.evaluation.id))
+                .load::<models::Job>(&mut *conn)?;
+            drop(conn);
+            Some(
+                jobs.iter()
+                    .map(|job| JobSystemName {
+                        system: job.system.clone(),
+                        name: job.name.clone(),
+                    })
+                    .collect(),
+            )
+        } else {
+            None
+        };
         Ok(responses::EvaluationInfo {
             actions_path: self.evaluation.actions_path.clone(),
             flake: self.jobset.flake,

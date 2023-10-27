@@ -246,7 +246,7 @@ pub mod responses {
     pub struct EvaluationInfo {
         pub actions_path: Option<String>,
         pub flake: bool,
-        pub jobs: Vec<JobSystemName>,
+        pub jobs: Option<Vec<JobSystemName>>,
         pub status: String,
         pub time_created: i64,
         pub time_finished: Option<i64>,

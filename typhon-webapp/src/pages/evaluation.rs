@@ -124,10 +124,10 @@ fn view_evaluation(model: &Model) -> Node<Msg> {
                     "Actions path: {}",
                     info.actions_path.clone().unwrap_or("".into())
                 )],
-                if info.status == "success" {
+                if let Some(jobs) = &info.jobs {
                     div![
                         h3!["Jobs"],
-                        ul![info.jobs.iter().map(|job| {
+                        ul![jobs.iter().map(|job| {
                             let urls = crate::Urls::new(&model.base_url);
                             li![a![
                                 job.system.clone(),
