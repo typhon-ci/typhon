@@ -559,7 +559,7 @@ pub mod build {
             .arg(format!("{}^*", drv))
             .sync_stderr()
             .await?;
-        Ok(!output.contains("built"))
+        Ok(!output.contains(&drv.to_string()))
     }
 
     type Output = Result<super::DrvOutputs, super::Error>;
