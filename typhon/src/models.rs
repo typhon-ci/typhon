@@ -47,13 +47,15 @@ pub struct NewJobset<'a> {
 
 #[derive(Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = evaluations)]
-#[diesel(belongs_to(Jobset))]
+#[diesel(belongs_to(Project))]
 pub struct Evaluation {
     pub actions_path: Option<String>,
+    pub flake: bool,
     pub id: i32,
-    pub jobset_id: i32,
+    pub jobset_name: String,
     pub log_id: i32,
     pub num: i64,
+    pub project_id: i32,
     pub status: String,
     pub time_created: i64,
     pub time_finished: Option<i64>,
@@ -64,9 +66,11 @@ pub struct Evaluation {
 #[diesel(table_name = evaluations)]
 pub struct NewEvaluation<'a> {
     pub actions_path: Option<&'a str>,
-    pub jobset_id: i32,
+    pub flake: bool,
+    pub jobset_name: &'a str,
     pub log_id: i32,
     pub num: i64,
+    pub project_id: i32,
     pub status: &'a str,
     pub time_created: i64,
     pub url: &'a str,

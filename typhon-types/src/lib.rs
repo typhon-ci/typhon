@@ -23,7 +23,7 @@ pub mod handles {
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Evaluation {
-        pub jobset: Jobset,
+        pub project: Project,
         pub num: i64,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ pub mod handles {
     impl_display!(Evaluation);
     impl From<Evaluation> for Vec<String> {
         fn from(x: Evaluation) -> Self {
-            [x.jobset.into(), vec![format!("{}", x.num)]].concat()
+            [x.project.into(), vec![format!("{}", x.num)]].concat()
         }
     }
     impl_display!(Job);
@@ -102,17 +102,15 @@ pub mod handles {
             name,
         }
     }
-    pub fn evaluation((project, jobset, num): (String, String, i64)) -> Evaluation {
+    pub fn evaluation((project, num): (String, i64)) -> Evaluation {
         Evaluation {
-            jobset: selfmod::jobset((project, jobset)),
+            project: selfmod::project(project),
             num,
         }
     }
-    pub fn job(
-        (project, jobset, evaluation, system, name): (String, String, i64, String, String),
-    ) -> Job {
+    pub fn job((project, evaluation, system, name): (String, i64, String, String)) -> Job {
         Job {
-            evaluation: selfmod::evaluation((project, jobset, evaluation)),
+            evaluation: selfmod::evaluation((project, evaluation)),
             system,
             name,
         }
@@ -247,6 +245,7 @@ pub mod responses {
         pub actions_path: Option<String>,
         pub flake: bool,
         pub jobs: Option<Vec<JobSystemName>>,
+        pub jobset_name: String,
         pub status: String,
         pub time_created: i64,
         pub time_finished: Option<i64>,

@@ -37,7 +37,7 @@ impl From<nix::Error> for Error {
 allow_columns_to_appear_in_same_group_by_clause!(
     schema::jobs::build_out,
     schema::jobs::build_drv,
-    schema::evaluations::jobset_id
+    schema::jobsets::name,
 );
 
 async fn update_aux() -> Result<(), Error> {
@@ -46,18 +46,21 @@ async fn update_aux() -> Result<(), Error> {
     let mut gcroots: HashSet<String> = HashSet::new();
     let mut res_1 = schema::evaluations::table
         .inner_join(schema::jobs::table)
+        .inner_join(
+            schema::jobsets::table.on(schema::evaluations::jobset_name.eq(schema::jobsets::name)),
+        )
         .group_by((
             schema::jobs::build_out,
             schema::jobs::build_drv,
-            schema::evaluations::jobset_id,
+            schema::jobsets::name,
         ))
         .select((
             schema::jobs::build_out,
             schema::jobs::build_drv,
-            schema::evaluations::jobset_id,
+            schema::jobsets::name,
             diesel::dsl::max(schema::evaluations::num),
         ))
-        .load::<(String, String, i32, Option<i64>)>(&mut *conn)?;
+        .load::<(String, String, String, Option<i64>)>(&mut *conn)?;
     let mut res_2 = schema::projects::table
         .select(schema::projects::actions_path)
         .load::<Option<String>>(&mut *conn)?;

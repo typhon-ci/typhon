@@ -49,9 +49,9 @@ pkgs.testers.nixosTest ({pkgs, ...}: {
         typhon.succeed("${curl} -X POST ${url}/projects/test/jobsets/main/evaluate")
 
     with subtest("Get evaluation info"):
-        typhon.succeed("${curl} ${url}/projects/test/jobsets/main/evaluations/1")
+        typhon.succeed("${curl} ${url}/projects/test/evaluations/1")
 
     with subtest("Query non-existing evaluation"):
-        typhon.fail("${curl} ${url}/projects/test/jobsets/main/evaluations/2")
+        typhon.fail("${curl} ${url}/projects/test/evaluations/2")
   '';
 })

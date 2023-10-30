@@ -26,23 +26,6 @@ pub struct JobsetDecl {
 impl Jobset {
     pub async fn delete(&self) -> Result<(), Error> {
         let mut conn = connection().await;
-        let evaluations: Vec<evaluations::Evaluation> = schema::evaluations::table
-            .filter(schema::evaluations::jobset_id.eq(&self.jobset.id))
-            .load::<models::Evaluation>(&mut *conn)?
-            .drain(..)
-            .map(|evaluation| evaluations::Evaluation {
-                evaluation,
-                jobset: self.jobset.clone(),
-                project: self.project.clone(),
-            })
-            .collect();
-        drop(conn);
-
-        for evaluation in evaluations.iter() {
-            evaluation.delete().await?;
-        }
-
-        let mut conn = connection().await;
         diesel::delete(schema::jobsets::table.find(&self.jobset.id)).execute(&mut *conn)?;
         drop(conn);
 
@@ -57,7 +40,7 @@ impl Jobset {
         let evaluation = conn.transaction::<models::Evaluation, Error, _>(|conn| {
             // check for an existing evaluation
             let preexisting_eval = schema::evaluations::table
-                .filter(schema::evaluations::jobset_id.eq(self.jobset.id))
+                .filter(schema::evaluations::jobset_name.eq(&self.jobset.name))
                 .filter(schema::evaluations::url.eq(&url))
                 .first::<models::Evaluation>(conn)
                 .optional()?;
@@ -71,7 +54,7 @@ impl Jobset {
 
             // create a new evaluation
             let max = schema::evaluations::table
-                .filter(schema::evaluations::jobset_id.eq(self.jobset.id))
+                .filter(schema::evaluations::project_id.eq(self.project.id))
                 .select(diesel::dsl::max(schema::evaluations::num))
                 .first::<Option<i64>>(conn)?
                 .unwrap_or(0);
@@ -84,9 +67,11 @@ impl Jobset {
                 .get_result::<models::Log>(conn)?;
             let new_evaluation = models::NewEvaluation {
                 actions_path: self.project.actions_path.as_ref().map(|s| s.as_str()),
-                jobset_id: self.jobset.id,
+                flake: self.jobset.flake,
+                jobset_name: &self.jobset.name,
                 log_id: log.id,
                 num,
+                project_id: self.project.id,
                 status: &status,
                 time_created,
                 url: &url,
@@ -104,7 +89,6 @@ impl Jobset {
 
         let evaluation = evaluations::Evaluation {
             project: self.project.clone(),
-            jobset: self.jobset.clone(),
             evaluation,
         };
         log_event(Event::EvaluationNew(evaluation.handle())).await;
@@ -135,7 +119,7 @@ impl Jobset {
     pub async fn info(&self) -> Result<responses::JobsetInfo, Error> {
         let mut conn = connection().await;
         let last_evaluation = schema::evaluations::table
-            .filter(schema::evaluations::jobset_id.eq(self.jobset.id))
+            .filter(schema::evaluations::jobset_name.eq(&self.jobset.name))
             .first::<models::Evaluation>(&mut *conn)
             .optional()?
             .map(|eval| (eval.num, eval.time_created));

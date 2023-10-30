@@ -18,7 +18,6 @@ use std::path::Path;
 pub struct Job {
     pub job: models::Job,
     pub evaluation: models::Evaluation,
-    pub jobset: models::Jobset,
     pub project: models::Project,
 }
 
@@ -46,13 +45,9 @@ impl Job {
 
     pub async fn get(handle: &handles::Job) -> Result<Self, Error> {
         let mut conn = connection().await;
-        let (job, (evaluation, (jobset, project))) = schema::jobs::table
-            .inner_join(
-                schema::evaluations::table
-                    .inner_join(schema::jobsets::table.inner_join(schema::projects::table)),
-            )
-            .filter(schema::projects::name.eq(&handle.evaluation.jobset.project.name))
-            .filter(schema::jobsets::name.eq(&handle.evaluation.jobset.name))
+        let (job, (evaluation, project)) = schema::jobs::table
+            .inner_join(schema::evaluations::table.inner_join(schema::projects::table))
+            .filter(schema::projects::name.eq(&handle.evaluation.project.name))
             .filter(schema::evaluations::num.eq(&handle.evaluation.num))
             .filter(schema::jobs::system.eq(&handle.system))
             .filter(schema::jobs::name.eq(&handle.name))
@@ -62,7 +57,6 @@ impl Job {
         Ok(Self {
             job,
             evaluation,
-            jobset,
             project,
         })
     }
@@ -70,7 +64,6 @@ impl Job {
     pub fn handle(&self) -> handles::Job {
         handles::job((
             self.project.name.clone(),
-            self.jobset.name.clone(),
             self.evaluation.num,
             self.job.system.clone(),
             self.job.name.clone(),
@@ -118,9 +111,9 @@ impl Job {
         Ok(json!({
             "drv": self.job.build_drv,
             "evaluation": self.evaluation.num,
-            "flake": self.jobset.flake,
+            "flake": self.evaluation.flake,
             "job": self.job.name,
-            "jobset": self.jobset.name,
+            "jobset": self.evaluation.jobset_name,
             "out": self.job.build_out,
             "project": self.project.name,
             "status": status,

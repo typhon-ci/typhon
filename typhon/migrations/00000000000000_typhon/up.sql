@@ -23,15 +23,17 @@ CREATE TABLE jobsets (
 
 CREATE TABLE evaluations (
     actions_path TEXT,
+    flake BOOL NOT NULL,
     id INTEGER NOT NULL PRIMARY KEY,
-    jobset_id INTEGER NOT NULL REFERENCES jobsets (id),
+    jobset_name TEXT NOT NULL,
     log_id INTEGER NOT NULL REFERENCES logs (id),
     num BIGINT NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES projects (id),
     status TEXT NOT NULL CHECK (status in ('pending', 'success', 'error', 'canceled')),
     time_created BIGINT NOT NULL,
     time_finished BIGINT,
     url TEXT NOT NULL,
-    UNIQUE (jobset_id, num)
+    UNIQUE (project_id, num)
 );
 
 CREATE TABLE jobs (

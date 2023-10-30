@@ -124,43 +124,43 @@ r!(
             Jobset::Info,
         );
 
-    evaluation_cancel(path: web::Path<(String,String,i64)>) =>
+    evaluation_cancel(path: web::Path<(String,i64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Cancel,
         );
 
-    evaluation_info(path: web::Path<(String,String,i64)>) =>
+    evaluation_info(path: web::Path<(String,i64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Info,
         );
 
-    evaluation_log(path: web::Path<(String,String,i64)>) =>
+    evaluation_log(path: web::Path<(String,i64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Log,
         );
 
-    job_cancel(path: web::Path<(String,String,i64,String,String)>) =>
+    job_cancel(path: web::Path<(String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Cancel,
         );
 
-    job_info(path: web::Path<(String,String,i64,String,String)>) =>
+    job_info(path: web::Path<(String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Info,
         );
 
-    job_log_begin(path: web::Path<(String,String,i64,String,String)>) =>
+    job_log_begin(path: web::Path<(String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::LogBegin,
         );
 
-    job_log_end(path: web::Path<(String,String,i64,String,String)>) =>
+    job_log_end(path: web::Path<(String,i64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::LogEnd,
@@ -172,10 +172,10 @@ r!(
 
 async fn dist(
     user: User,
-    path: web::Path<(String, String, i64, String, String, String)>,
+    path: web::Path<(String, i64, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
-    let (project, jobset, evaluation, system, job, path) = path.into_inner();
-    let handle = handles::job((project, jobset, evaluation, system, job));
+    let (project, evaluation, system, job, path) = path.into_inner();
+    let handle = handles::job((project, evaluation, system, job));
     let req = Request::Job(handle, Job::Info);
     let rsp = handle_request(user, req)
         .await
@@ -306,20 +306,20 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .service(
                         web::scope("/jobsets/{jobset}")
                             .route("", web::get().to(jobset_info))
-                            .route("/evaluate", web::post().to(jobset_evaluate))
+                            .route("/evaluate", web::post().to(jobset_evaluate)),
+                    )
+                    .service(
+                        web::scope("/evaluations/{evaluation}")
+                            .route("", web::get().to(evaluation_info))
+                            .route("/cancel", web::post().to(evaluation_cancel))
+                            .route("/log", web::get().to(evaluation_log))
                             .service(
-                                web::scope("/evaluations/{evaluation}")
-                                    .route("", web::get().to(evaluation_info))
-                                    .route("/cancel", web::post().to(evaluation_cancel))
-                                    .route("/log", web::get().to(evaluation_log))
-                                    .service(
-                                        web::scope("/jobs/{system}/{job}")
-                                            .route("", web::get().to(job_info))
-                                            .route("/cancel", web::post().to(job_cancel))
-                                            .route("/logs/begin", web::get().to(job_log_begin))
-                                            .route("/logs/end", web::get().to(job_log_end))
-                                            .route("/dist/{path:.*}", web::get().to(dist)),
-                                    ),
+                                web::scope("/jobs/{system}/{job}")
+                                    .route("", web::get().to(job_info))
+                                    .route("/cancel", web::post().to(job_cancel))
+                                    .route("/logs/begin", web::get().to(job_log_begin))
+                                    .route("/logs/end", web::get().to(job_log_end))
+                                    .route("/dist/{path:.*}", web::get().to(dist)),
                             ),
                     ),
             )

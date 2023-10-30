@@ -17,7 +17,6 @@ use diesel::prelude::*;
 #[derive(Clone)]
 pub struct Evaluation {
     pub evaluation: models::Evaluation,
-    pub jobset: models::Jobset,
     pub project: models::Project,
 }
 
@@ -37,7 +36,6 @@ impl Evaluation {
             .map(|job| jobs::Job {
                 job,
                 evaluation: self.evaluation.clone(),
-                jobset: self.jobset.clone(),
                 project: self.project.clone(),
             })
             .collect();
@@ -57,27 +55,21 @@ impl Evaluation {
 
     pub async fn get(handle: &handles::Evaluation) -> Result<Self, Error> {
         let mut conn = connection().await;
-        let (evaluation, (jobset, project)) = schema::evaluations::table
-            .inner_join(schema::jobsets::table.inner_join(schema::projects::table))
-            .filter(schema::projects::name.eq(&handle.jobset.project.name))
-            .filter(schema::jobsets::name.eq(&handle.jobset.name))
+        let (evaluation, project) = schema::evaluations::table
+            .inner_join(schema::projects::table)
+            .filter(schema::projects::name.eq(&handle.project.name))
             .filter(schema::evaluations::num.eq(&handle.num))
             .first(&mut *conn)
             .optional()?
             .ok_or(Error::EvaluationNotFound(handle.clone()))?;
         Ok(Self {
             evaluation,
-            jobset,
             project,
         })
     }
 
     pub fn handle(&self) -> handles::Evaluation {
-        handles::evaluation((
-            self.project.name.clone(),
-            self.jobset.name.clone(),
-            self.evaluation.num,
-        ))
+        handles::evaluation((self.project.name.clone(), self.evaluation.num))
     }
 
     pub async fn info(&self) -> Result<responses::EvaluationInfo, Error> {
@@ -101,8 +93,9 @@ impl Evaluation {
         };
         Ok(responses::EvaluationInfo {
             actions_path: self.evaluation.actions_path.clone(),
-            flake: self.jobset.flake,
+            flake: self.evaluation.flake,
             jobs,
+            jobset_name: self.evaluation.jobset_name.clone(),
             status: self.evaluation.status.clone(),
             time_created: self.evaluation.time_created,
             time_finished: self.evaluation.time_finished,
@@ -123,7 +116,8 @@ impl Evaluation {
         let self_1 = self.clone();
         let self_2 = self.clone();
 
-        let task = async move { nix::eval_jobs(&self_1.evaluation.url, self_1.jobset.flake).await };
+        let task =
+            async move { nix::eval_jobs(&self_1.evaluation.url, self_1.evaluation.flake).await };
         let finish = move |r: Option<Result<nix::NewJobs, nix::Error>>| async move {
             // TODO: when logging, hide internal error messages?
             let status = match r {
@@ -203,7 +197,6 @@ impl Evaluation {
                         .get_result(conn)?;
                     Ok(jobs::Job {
                         project: self.project.clone(),
-                        jobset: self.jobset.clone(),
                         evaluation: self.evaluation.clone(),
                         job,
                     })
@@ -224,25 +217,24 @@ impl Evaluation {
     ) -> Result<Vec<(handles::Evaluation, i64)>, Error> {
         let mut conn = connection().await;
         let mut query = schema::evaluations::table
-            .inner_join(schema::jobsets::table.inner_join(schema::projects::table))
+            .inner_join(schema::projects::table)
             .into_boxed();
         if let Some(name) = &search.project_name {
             query = query.filter(schema::projects::name.eq(name));
         }
         if let Some(name) = &search.jobset_name {
-            query = query.filter(schema::jobsets::name.eq(name));
+            query = query.filter(schema::evaluations::jobset_name.eq(name));
         }
         query = query
             .order(schema::evaluations::time_created.desc())
             .offset(search.offset as i64)
             .limit(search.limit as i64);
-        let mut evaluations =
-            query.load::<(models::Evaluation, (models::Jobset, models::Project))>(&mut *conn)?;
+        let mut evaluations = query.load::<(models::Evaluation, models::Project)>(&mut *conn)?;
         drop(conn);
         let mut res = Vec::new();
-        for (evaluation, (jobset, project)) in evaluations.drain(..) {
+        for (evaluation, project) in evaluations.drain(..) {
             res.push((
-                handles::evaluation((project.name, jobset.name, evaluation.num)),
+                handles::evaluation((project.name, evaluation.num)),
                 evaluation.time_created,
             ));
         }

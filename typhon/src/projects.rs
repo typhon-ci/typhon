@@ -1,6 +1,7 @@
 use crate::actions;
 use crate::connection;
 use crate::error::Error;
+use crate::evaluations;
 use crate::gcroots;
 use crate::jobsets;
 use crate::models;
@@ -77,10 +78,22 @@ impl Project {
                 project: self.project.clone(),
             })
             .collect();
+        let evaluations: Vec<evaluations::Evaluation> = schema::evaluations::table
+            .load::<models::Evaluation>(&mut *conn)?
+            .drain(..)
+            .map(|evaluation| evaluations::Evaluation {
+                evaluation,
+                project: self.project.clone(),
+            })
+            .collect();
         drop(conn);
 
         for jobset in jobsets.iter() {
             jobset.delete().await?;
+        }
+
+        for evaluation in evaluations.iter() {
+            evaluation.delete().await?;
         }
 
         let mut conn = connection().await;

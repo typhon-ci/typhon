@@ -3,10 +3,12 @@
 diesel::table! {
     evaluations (id) {
         actions_path -> Nullable<Text>,
+        flake -> Bool,
         id -> Integer,
-        jobset_id -> Integer,
+        jobset_name -> Text,
         log_id -> Integer,
         num -> BigInt,
+        project_id -> Integer,
         status -> Text,
         time_created -> BigInt,
         time_finished -> Nullable<BigInt>,
@@ -70,8 +72,8 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(evaluations -> jobsets (jobset_id));
 diesel::joinable!(evaluations -> logs (log_id));
+diesel::joinable!(evaluations -> projects (project_id));
 diesel::joinable!(jobs -> evaluations (evaluation_id));
 diesel::joinable!(jobsets -> projects (project_id));
 
