@@ -36,19 +36,9 @@ impl Job {
         self.cancel().await;
 
         let mut conn = connection().await;
+        diesel::delete(schema::jobs::table.find(self.job.id)).execute(&mut *conn)?;
         diesel::delete(schema::logs::table.find(&self.job.begin_log_id)).execute(&mut *conn)?;
         diesel::delete(schema::logs::table.find(&self.job.end_log_id)).execute(&mut *conn)?;
-        drop(conn);
-
-        nix::build::BUILDS
-            .abort(nix::DrvPath::new(&self.job.build_drv))
-            .await;
-        JOBS_BEGIN.cancel(self.job.id).await;
-        JOBS_BUILD.cancel(self.job.id).await;
-        JOBS_END.cancel(self.job.id).await;
-
-        let mut conn = connection().await;
-        diesel::delete(schema::jobs::table.find(self.job.id)).execute(&mut *conn)?;
         drop(conn);
 
         Ok(())

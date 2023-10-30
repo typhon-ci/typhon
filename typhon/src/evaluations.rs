@@ -41,7 +41,6 @@ impl Evaluation {
                 project: self.project.clone(),
             })
             .collect();
-        diesel::delete(schema::logs::table.find(&self.evaluation.log_id)).execute(&mut *conn)?;
         drop(conn);
 
         for job in jobs.iter() {
@@ -50,6 +49,7 @@ impl Evaluation {
 
         let mut conn = connection().await;
         diesel::delete(schema::evaluations::table.find(&self.evaluation.id)).execute(&mut *conn)?;
+        diesel::delete(schema::logs::table.find(&self.evaluation.log_id)).execute(&mut *conn)?;
         drop(conn);
 
         Ok(())
