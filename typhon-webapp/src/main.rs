@@ -1,3 +1,5 @@
+use leptos::*;
+
 pub fn main() {
-    typhon_webapp::app()
+    leptos::mount_to_body(|| view! { <p>"Hello world!"</p> })
 }

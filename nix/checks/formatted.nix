@@ -10,10 +10,12 @@ pkgs.stdenv.mkDerivation {
   nativeBuildInputs = [
     pkgs.alejandra
     rust.rustToolchain
+    pkgs.leptosfmt
   ];
   buildPhase = ''
     alejandra -c .
     cargo fmt --check
+    leptosfmt --check .
   '';
   installPhase = "touch $out";
 }

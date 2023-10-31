@@ -34,7 +34,7 @@ in rec {
       rustPackages
       ++ builtins.attrValues {
         inherit (pkgs.nodePackages) sass;
-        inherit (pkgs) trunk nodejs;
+        inherit (pkgs) trunk nodejs leptosfmt;
       };
     RUSTFLAGS = "--cfg=web_sys_unstable_apis";
   };

@@ -8,7 +8,7 @@ pub struct Settings {
 impl Settings {
     pub fn load() -> Self {
         serde_json::from_str::<Option<Self>>(
-            &seed::document()
+            &leptos::document()
                 .query_selector("script[id='settings']")
                 .unwrap()
                 .unwrap()

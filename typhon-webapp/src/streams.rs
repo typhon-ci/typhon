@@ -1,8 +1,6 @@
 use futures_core::stream::Stream;
 use gloo_net::http;
 use gloo_utils::format::JsValueSerdeExt;
-use seed::prelude::js_sys::Promise;
-use seed::prelude::*;
 
 #[wasm_bindgen(inline_js = "export async function read_chunk_by_chunk(reader) {
     let next = async () => {
