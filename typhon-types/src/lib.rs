@@ -24,7 +24,7 @@ pub mod handles {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Evaluation {
         pub project: Project,
-        pub num: i64,
+        pub num: u64,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Job {
@@ -33,10 +33,25 @@ pub mod handles {
         pub name: String,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct Run {
+        pub job: Job,
+        pub num: u64,
+    }
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct Build {
+        pub drv: String,
+        pub num: u64,
+    }
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct Action {
+        pub project: Project,
+        pub num: u64,
+    }
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Log {
-        Begin(Job),
-        End(Job),
-        Eval(Evaluation),
+        Action(Action),
+        Build(Build),
+        Evaluation(Evaluation),
     }
 
     macro_rules! impl_display {
@@ -63,7 +78,7 @@ pub mod handles {
     impl_display!(Evaluation);
     impl From<Evaluation> for Vec<String> {
         fn from(x: Evaluation) -> Self {
-            [x.project.into(), vec![format!("{}", x.num)]].concat()
+            [x.project.into(), vec![x.num.to_string()]].concat()
         }
     }
     impl_display!(Job);
@@ -72,21 +87,39 @@ pub mod handles {
             [x.evaluation.into(), vec![x.system, x.name]].concat()
         }
     }
+    impl_display!(Run);
+    impl From<Run> for Vec<String> {
+        fn from(x: Run) -> Self {
+            [x.job.into(), vec![x.num.to_string()]].concat()
+        }
+    }
+    impl_display!(Build);
+    impl From<Build> for Vec<String> {
+        fn from(x: Build) -> Self {
+            vec![x.drv, x.num.to_string()]
+        }
+    }
+    impl_display!(Action);
+    impl From<Action> for Vec<String> {
+        fn from(x: Action) -> Self {
+            [x.project.into(), vec![x.num.to_string()]].concat()
+        }
+    }
     impl_display!(Log);
     impl From<Log> for Vec<String> {
         fn from(x: Log) -> Self {
             use Log::*;
             vec![
                 match x {
-                    Begin(_) => "begin",
-                    End(_) => "end",
-                    Eval(_) => "eval",
+                    Action(_) => "begin",
+                    Build(_) => "end",
+                    Evaluation(_) => "eval",
                 }
                 .into(),
                 match x {
-                    Begin(h) => h.to_string(),
-                    End(h) => h.to_string(),
-                    Eval(h) => h.to_string(),
+                    Action(h) => h.to_string(),
+                    Build(h) => h.to_string(),
+                    Evaluation(h) => h.to_string(),
                 },
             ]
         }
@@ -102,30 +135,118 @@ pub mod handles {
             name,
         }
     }
-    pub fn evaluation((project, num): (String, i64)) -> Evaluation {
+    pub fn evaluation((project, num): (String, u64)) -> Evaluation {
         Evaluation {
             project: selfmod::project(project),
             num,
         }
     }
-    pub fn job((project, evaluation, system, name): (String, i64, String, String)) -> Job {
+    pub fn job((project, evaluation, system, name): (String, u64, String, String)) -> Job {
         Job {
             evaluation: selfmod::evaluation((project, evaluation)),
             system,
             name,
         }
     }
+    pub fn run((project, evaluation, system, job, num): (String, u64, String, String, u64)) -> Run {
+        Run {
+            job: selfmod::job((project, evaluation, system, job)),
+            num,
+        }
+    }
+    pub fn build((drv, num): (String, u64)) -> Build {
+        Build { drv, num }
+    }
+    pub fn action((project, num): (String, u64)) -> Action {
+        Action {
+            project: selfmod::project(project),
+            num,
+        }
+    }
+}
+pub mod data {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum TaskStatusKind {
+        #[default]
+        Pending,
+        Success,
+        Error,
+        Canceled,
+    }
+    impl TaskStatusKind {
+        pub fn from_i32(i: i32) -> Self {
+            match i {
+                0 => Self::Pending,
+                1 => Self::Success,
+                2 => Self::Error,
+                3 => Self::Canceled,
+                _ => panic!(),
+            }
+        }
+        pub fn to_i32(&self) -> i32 {
+            match self {
+                Self::Pending => 0,
+                Self::Success => 1,
+                Self::Error => 2,
+                Self::Canceled => 3,
+            }
+        }
+    }
+    impl std::fmt::Display for TaskStatusKind {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match self {
+                Self::Pending => write!(f, "pending"),
+                Self::Success => write!(f, "success"),
+                Self::Error => write!(f, "error"),
+                Self::Canceled => write!(f, "canceled"),
+            }
+        }
+    }
 }
 
 pub mod requests {
+    use crate::data::TaskStatusKind;
     use crate::handles;
+
     use serde::{Deserialize, Serialize};
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationSearch {
         pub jobset_name: Option<String>,
         pub limit: u8,
-        pub offset: i32,
+        pub offset: u32,
+        pub project_name: Option<String>,
+        pub status: Option<TaskStatusKind>,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct BuildSearch {
+        pub drv: Option<String>,
+        pub limit: u8,
+        pub offset: u32,
+        pub status: Option<TaskStatusKind>,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct ActionSearch {
+        // TODO: allow searching actions by job
+        pub limit: u8,
+        pub name: Option<String>,
+        pub offset: u32,
+        pub project_name: Option<String>,
+        pub status: Option<TaskStatusKind>,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct RunSearch {
+        pub evaluation_num: Option<u64>,
+        pub job_name: Option<String>,
+        pub job_system: Option<String>,
+        pub jobset_name: Option<String>,
+        pub limit: u8,
+        pub offset: u32,
         pub project_name: Option<String>,
     }
 
@@ -160,21 +281,42 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Job {
+        Info,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum Build {
+        Info,
+        Log,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum Action {
+        Info,
+        Log,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum Run {
         Cancel,
         Info,
-        LogBegin,
-        LogEnd,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Request {
         ListEvaluations(EvaluationSearch),
+        ListBuilds(BuildSearch),
+        ListActions(ActionSearch),
+        ListRuns(RunSearch),
         ListProjects,
         CreateProject { name: String, decl: ProjectDecl },
         Project(handles::Project, Project),
         Jobset(handles::Jobset, Jobset),
         Evaluation(handles::Evaluation, Evaluation),
         Job(handles::Job, Job),
+        Build(handles::Build, Build),
+        Action(handles::Action, Action),
+        Run(handles::Run, Run),
         Login(String),
     }
 
@@ -182,6 +324,9 @@ pub mod requests {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
                 Request::ListEvaluations(_) => write!(f, "Search through evaluations"),
+                Request::ListBuilds(_) => write!(f, "Search through builds"),
+                Request::ListActions(_) => write!(f, "Search through actions"),
+                Request::ListRuns(_) => write!(f, "Search through runs"),
                 Request::ListProjects => write!(f, "List projects"),
                 Request::CreateProject { name, decl } => {
                     write!(
@@ -196,6 +341,9 @@ pub mod requests {
                 Request::Jobset(h, req) => write!(f, "{:?} for jobset {}", req, h),
                 Request::Evaluation(h, req) => write!(f, "{:?} for evaluation {}", req, h),
                 Request::Job(h, req) => write!(f, "{:?} for job {}", req, h),
+                Request::Build(h, req) => write!(f, "{:?} for build {}", req, h),
+                Request::Action(h, req) => write!(f, "{:?} for action {}", req, h),
+                Request::Run(h, req) => write!(f, "{:?} for run {}", req, h),
                 Request::Login(_) => write!(f, "Log in"),
             }
         }
@@ -203,8 +351,59 @@ pub mod requests {
 }
 
 pub mod responses {
+    use crate::data::TaskStatusKind;
     use crate::handles;
+
     use serde::{Deserialize, Serialize};
+
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum TaskStatus {
+        Pending(Option<u64>),
+        Success(u64, u64),
+        Error(u64, u64),
+        Canceled(Option<(u64, u64)>),
+    }
+    impl TaskStatus {
+        pub fn kind(&self) -> TaskStatusKind {
+            match self {
+                Self::Pending(_) => TaskStatusKind::Pending,
+                Self::Success(_, _) => TaskStatusKind::Success,
+                Self::Error(_, _) => TaskStatusKind::Error,
+                Self::Canceled(_) => TaskStatusKind::Canceled,
+            }
+        }
+        pub fn from_data(kind: i32, time_started: Option<i64>, time_finished: Option<i64>) -> Self {
+            match TaskStatusKind::from_i32(kind) {
+                TaskStatusKind::Pending => Self::Pending(time_started.map(|i| i as u64)),
+                TaskStatusKind::Success => {
+                    Self::Success(time_started.unwrap() as u64, time_finished.unwrap() as u64)
+                }
+                TaskStatusKind::Error => {
+                    Self::Error(time_started.unwrap() as u64, time_finished.unwrap() as u64)
+                }
+                TaskStatusKind::Canceled => Self::Canceled(
+                    time_started
+                        .map(|time_started| (time_started as u64, time_finished.unwrap() as u64)),
+                ),
+            }
+        }
+        pub fn to_data(&self) -> (i32, Option<i64>, Option<i64>) {
+            let kind = self.kind().to_i32();
+            match *self {
+                TaskStatus::Pending(time_started) => (kind, time_started.map(|i| i as i64), None),
+                TaskStatus::Success(time_started, time_finished) => {
+                    (kind, Some(time_started as i64), Some(time_finished as i64))
+                }
+                TaskStatus::Error(time_started, time_finished) => {
+                    (kind, Some(time_started as i64), Some(time_finished as i64))
+                }
+                TaskStatus::Canceled(None) => (kind, None, None),
+                TaskStatus::Canceled(Some((time_started, time_finished))) => {
+                    (kind, Some(time_started as i64), Some(time_finished as i64))
+                }
+            }
+        }
+    }
 
     #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectMetadata {
@@ -221,6 +420,7 @@ pub mod responses {
         pub actions_path: Option<String>,
         pub flake: bool,
         pub jobsets: Vec<String>,
+        pub last_refresh: Option<TaskStatus>,
         pub metadata: ProjectMetadata,
         pub public_key: String,
         pub url: String,
@@ -229,7 +429,6 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobsetInfo {
-        pub last_evaluation: Option<(i64, i64)>,
         pub flake: bool,
         pub url: String,
     }
@@ -246,41 +445,55 @@ pub mod responses {
         pub flake: bool,
         pub jobs: Option<Vec<JobSystemName>>,
         pub jobset_name: String,
-        pub status: String,
-        pub time_created: i64,
-        pub time_finished: Option<i64>,
+        pub status: TaskStatus,
+        pub time_created: u64,
         pub url: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobInfo {
-        pub begin_status: String,
-        pub begin_time_finished: Option<i64>,
-        pub begin_time_started: Option<i64>,
-        pub build_drv: String,
-        pub build_out: String,
-        pub build_status: String,
-        pub build_time_finished: Option<i64>,
-        pub build_time_started: Option<i64>,
         pub dist: bool,
-        pub end_status: String,
-        pub end_time_finished: Option<i64>,
-        pub end_time_started: Option<i64>,
+        pub drv: String,
+        pub out: String,
         pub system: String,
-        pub time_created: i64,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct BuildInfo {
+        pub drv: String,
+        pub status: TaskStatus,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct ActionInfo {
+        pub input: String,
+        pub path: String,
+        pub status: TaskStatus,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct RunInfo {
+        pub begin: Option<handles::Action>,
+        pub build: Option<handles::Build>,
+        pub end: Option<handles::Action>,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Response {
         Ok,
-        ListEvaluations(Vec<(handles::Evaluation, i64)>),
+        ListEvaluations(Vec<(handles::Evaluation, u64)>),
+        ListBuilds(Vec<(handles::Build, u64)>),
+        ListActions(Vec<(handles::Action, u64)>),
+        ListRuns(Vec<(handles::Run, u64)>),
         ListProjects(Vec<(String, ProjectMetadata)>),
         ProjectInfo(ProjectInfo),
-        ProjectUpdateJobsets(Vec<String>),
         JobsetEvaluate(crate::handles::Evaluation),
         JobsetInfo(JobsetInfo),
         EvaluationInfo(EvaluationInfo),
         JobInfo(JobInfo),
+        BuildInfo(BuildInfo),
+        ActionInfo(ActionInfo),
+        RunInfo(RunInfo),
         Log(Option<String>),
         Login { token: String },
     }
@@ -311,5 +524,9 @@ pub enum Event {
     ProjectUpdated(handles::Project),
     EvaluationNew(handles::Evaluation),
     EvaluationFinished(handles::Evaluation),
-    JobUpdated(handles::Job),
+    BuildNew(String, handles::Build),
+    BuildFinished(String, handles::Build),
+    RunNew(handles::Run),
+    RunUpdated(handles::Run),
+    ActionUpdated(handles::Action),
 }

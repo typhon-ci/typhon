@@ -35,8 +35,8 @@ impl From<nix::Error> for Error {
 }
 
 allow_columns_to_appear_in_same_group_by_clause!(
-    schema::jobs::build_out,
-    schema::jobs::build_drv,
+    schema::jobs::out,
+    schema::jobs::drv,
     schema::jobsets::name,
 );
 
@@ -49,14 +49,10 @@ async fn update_aux() -> Result<(), Error> {
         .inner_join(
             schema::jobsets::table.on(schema::evaluations::jobset_name.eq(schema::jobsets::name)),
         )
-        .group_by((
-            schema::jobs::build_out,
-            schema::jobs::build_drv,
-            schema::jobsets::name,
-        ))
+        .group_by((schema::jobs::out, schema::jobs::drv, schema::jobsets::name))
         .select((
-            schema::jobs::build_out,
-            schema::jobs::build_drv,
+            schema::jobs::out,
+            schema::jobs::drv,
             schema::jobsets::name,
             diesel::dsl::max(schema::evaluations::num),
         ))

@@ -1,8 +1,9 @@
 use crate::actions::webhooks;
+use crate::error;
 use crate::projects;
 use crate::requests::*;
 use crate::{handle_request, handles, Response, ResponseError, User};
-use crate::{BUILD_LOGS, EVENT_LOGGER, SETTINGS};
+use crate::{EVENT_LOGGER, LOGS, SETTINGS};
 
 use actix_cors::Cors;
 use actix_files::NamedFile;
@@ -15,6 +16,12 @@ use std::collections::HashMap;
 struct ResponseWrapper(crate::Response);
 #[derive(Debug)]
 struct ResponseErrorWrapper(crate::ResponseError);
+
+impl From<error::Error> for ResponseErrorWrapper {
+    fn from(e: error::Error) -> ResponseErrorWrapper {
+        ResponseErrorWrapper(e.into())
+    }
+}
 
 impl std::fmt::Display for ResponseErrorWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -29,13 +36,18 @@ impl Responder for ResponseWrapper {
         match self.0 {
             Ok => web::Json(true).respond_to(req),
             ListEvaluations(payload) => web::Json(payload).respond_to(req),
+            ListBuilds(payload) => web::Json(payload).respond_to(req),
+            ListActions(payload) => web::Json(payload).respond_to(req),
+            ListRuns(payload) => web::Json(payload).respond_to(req),
             ListProjects(payload) => web::Json(payload).respond_to(req),
             ProjectInfo(payload) => web::Json(payload).respond_to(req),
-            ProjectUpdateJobsets(payload) => web::Json(payload).respond_to(req),
             JobsetInfo(payload) => web::Json(payload).respond_to(req),
             JobsetEvaluate(payload) => web::Json(payload).respond_to(req),
             EvaluationInfo(payload) => web::Json(payload).respond_to(req),
             JobInfo(payload) => web::Json(payload).respond_to(req),
+            BuildInfo(payload) => web::Json(payload).respond_to(req),
+            ActionInfo(payload) => web::Json(payload).respond_to(req),
+            RunInfo(payload) => web::Json(payload).respond_to(req),
             Log(payload) => web::Json(payload).respond_to(req),
             Login { token } => web::Json(token).respond_to(req),
         }
@@ -124,46 +136,64 @@ r!(
             Jobset::Info,
         );
 
-    evaluation_cancel(path: web::Path<(String,i64)>) =>
+    evaluation_cancel(path: web::Path<(String,u64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Cancel,
         );
 
-    evaluation_info(path: web::Path<(String,i64)>) =>
+    evaluation_info(path: web::Path<(String,u64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Info,
         );
 
-    evaluation_log(path: web::Path<(String,i64)>) =>
+    evaluation_log(path: web::Path<(String,u64)>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Log,
         );
 
-    job_cancel(path: web::Path<(String,i64,String,String)>) =>
-        Request::Job(
-            handles::job(path.into_inner()),
-            Job::Cancel,
-        );
-
-    job_info(path: web::Path<(String,i64,String,String)>) =>
+    job_info(path: web::Path<(String,u64,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Info,
         );
 
-    job_log_begin(path: web::Path<(String,i64,String,String)>) =>
-        Request::Job(
-            handles::job(path.into_inner()),
-            Job::LogBegin,
+    run_cancel(path: web::Path<(String,u64,String,String,u64)>) =>
+        Request::Run(
+            handles::run(path.into_inner()),
+            Run::Cancel,
         );
 
-    job_log_end(path: web::Path<(String,i64,String,String)>) =>
-        Request::Job(
-            handles::job(path.into_inner()),
-            Job::LogEnd,
+    run_info(path: web::Path<(String,u64,String,String,u64)>) =>
+        Request::Run(
+            handles::run(path.into_inner()),
+            Run::Info,
+        );
+
+    build_info(path: web::Path<(String,u64)>) =>
+        Request::Build(
+            handles::build(path.into_inner()),
+            Build::Info,
+        );
+
+    build_log(path: web::Path<(String,u64)>) =>
+        Request::Build(
+            handles::build(path.into_inner()),
+            Build::Log,
+        );
+
+    action_info(path: web::Path<(String,u64)>) =>
+        Request::Action(
+            handles::action(path.into_inner()),
+            Action::Info,
+        );
+
+    action_log(path: web::Path<(String,u64)>) =>
+        Request::Action(
+            handles::action(path.into_inner()),
+            Action::Log,
         );
 
     login(body: web::Json<String>) =>
@@ -172,7 +202,7 @@ r!(
 
 async fn dist(
     user: User,
-    path: web::Path<(String, i64, String, String, String)>,
+    path: web::Path<(String, u64, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
     let (project, evaluation, system, job, path) = path.into_inner();
     let handle = handles::job((project, evaluation, system, job));
@@ -185,7 +215,7 @@ async fn dist(
         _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
     }?;
     if info.dist {
-        Ok(NamedFile::open_async(format!("{}/{}", info.build_out, path)).await)
+        Ok(NamedFile::open_async(format!("{}/{}", info.out, path)).await)
     } else {
         Err(ResponseErrorWrapper(ResponseError::BadRequest(
             "typhonDist is not set".into(),
@@ -193,24 +223,39 @@ async fn dist(
     }
 }
 
-/// Serves the log in live for derivation [path].
-async fn drv_log(path: web::Path<String>) -> Option<HttpResponse> {
-    use crate::nix;
+async fn live_log(task_id: i32) -> Option<HttpResponse> {
     use futures::stream::StreamExt;
-    let path = path.into_inner().to_string();
-    let drv = nix::DrvPath::new(&path);
-    match BUILD_LOGS.listen(&drv).await {
+    match LOGS.listen(&task_id).await {
         Some(stream) => {
             let stream = stream.map(|x: String| {
                 Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
             });
             Some(HttpResponse::Ok().streaming(stream))
         }
-        None => match nix::log(path).await {
-            Ok(log) => Some(HttpResponse::Ok().body(web::Bytes::from(log))),
-            Err(_) => None,
-        },
+        None => None,
     }
+}
+
+async fn build_live_log(
+    path: web::Path<(String, u64)>,
+) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
+    use crate::builds;
+
+    let handle = handles::build(path.into_inner());
+    let build = builds::Build::get(&handle).await?;
+    let id = build.task.task.id;
+    Ok(live_log(id).await)
+}
+
+async fn action_live_log(
+    path: web::Path<(String, u64)>,
+) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
+    use crate::actions;
+
+    let handle = handles::action(path.into_inner());
+    let action = actions::Action::get(&handle).await?;
+    let id = action.task.task.id;
+    Ok(live_log(id).await)
 }
 
 async fn raw_request(
@@ -289,10 +334,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope(&format!("{}/api", SETTINGS.webroot))
             .route("", web::post().to(raw_request))
-            .route("/evaluations", web::post().to(list_evaluations))
             .route("/events", web::get().to(events))
+            .route("/evaluations", web::post().to(list_evaluations))
             .route("/projects", web::get().to(list_projects))
-            .route("/drv-log{path:.*}", web::get().to(drv_log))
+            .service(
+                web::scope("/builds/{drv}/{num}")
+                    .route("", web::get().to(build_info))
+                    .route("/log", web::get().to(build_log))
+                    .route("/live_log", web::get().to(build_live_log)),
+            )
             .service(
                 web::scope("/projects/{project}")
                     .route("", web::get().to(project_info))
@@ -316,11 +366,19 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                             .service(
                                 web::scope("/jobs/{system}/{job}")
                                     .route("", web::get().to(job_info))
-                                    .route("/cancel", web::post().to(job_cancel))
-                                    .route("/logs/begin", web::get().to(job_log_begin))
-                                    .route("/logs/end", web::get().to(job_log_end))
-                                    .route("/dist/{path:.*}", web::get().to(dist)),
+                                    .route("/dist/{path:.*}", web::get().to(dist))
+                                    .service(
+                                        web::scope("/runs/{run}")
+                                            .route("", web::get().to(run_info))
+                                            .route("/cancel", web::post().to(run_cancel)),
+                                    ),
                             ),
+                    )
+                    .service(
+                        web::scope("/actions/{action}")
+                            .route("", web::get().to(action_info))
+                            .route("/log", web::get().to(action_log))
+                            .route("/live_log", web::get().to(action_live_log)),
                     ),
             )
             .route("/login", web::post().to(login))

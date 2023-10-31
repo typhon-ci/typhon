@@ -5,6 +5,7 @@ CREATE TABLE projects (
     homepage TEXT DEFAULT '' NOT NULL,
     id INTEGER NOT NULL PRIMARY KEY,
     key TEXT NOT NULL,
+    last_refresh_task_id INTEGER REFERENCES tasks (id),
     name TEXT NOT NULL,
     title TEXT DEFAULT '' NOT NULL,
     url TEXT DEFAULT '' NOT NULL,
@@ -26,37 +27,63 @@ CREATE TABLE evaluations (
     flake BOOL NOT NULL,
     id INTEGER NOT NULL PRIMARY KEY,
     jobset_name TEXT NOT NULL,
-    log_id INTEGER NOT NULL REFERENCES logs (id),
     num BIGINT NOT NULL,
     project_id INTEGER NOT NULL REFERENCES projects (id),
-    status TEXT NOT NULL CHECK (status in ('pending', 'success', 'error', 'canceled')),
+    task_id INTEGER NOT NULL REFERENCES tasks (id),
     time_created BIGINT NOT NULL,
-    time_finished BIGINT,
     url TEXT NOT NULL,
     UNIQUE (project_id, num)
 );
 
 CREATE TABLE jobs (
-    begin_log_id INTEGER NOT NULL REFERENCES logs (id),
-    begin_status TEXT NOT NULL CHECK (begin_status in ('pending', 'success', 'error', 'canceled')),
-    begin_time_finished BIGINT,
-    begin_time_started BIGINT,
-    build_drv TEXT NOT NULL,
-    build_out TEXT NOT NULL,
-    build_status TEXT NOT NULL CHECK (build_status in ('pending', 'success', 'error', 'canceled')),
-    build_time_finished BIGINT,
-    build_time_started BIGINT,
     dist BOOL NOT NULL,
-    end_log_id INTEGER NOT NULL REFERENCES logs (id),
-    end_status TEXT NOT NULL CHECK (end_status in ('pending', 'success', 'error', 'canceled')),
-    end_time_finished BIGINT,
-    end_time_started BIGINT,
+    drv TEXT NOT NULL,
     evaluation_id INTEGER NOT NULL REFERENCES evaluations (id),
     id INTEGER NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
+    out TEXT NOT NULL,
     system TEXT NOT NULL,
-    time_created BIGINT NOT NULL,
     UNIQUE (evaluation_id, system, name)
+);
+
+CREATE TABLE runs (
+    begin_id INTEGER REFERENCES actions (id),
+    build_id INTEGER REFERENCES builds (id),
+    end_id INTEGER REFERENCES actions (id),
+    id INTEGER NOT NULL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs (id),
+    num BIGINT NOT NULL,
+    time_created BIGINT NOT NULL,
+    UNIQUE (job_id, num)
+);
+
+CREATE TABLE builds (
+    drv TEXT NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY,
+    num BIGINT NOT NULL,
+    task_id INTEGER NOT NULL REFERENCES tasks (id),
+    time_created BIGINT NOT NULL,
+    UNIQUE (drv, num)
+);
+
+CREATE TABLE actions (
+    id INTEGER NOT NULL PRIMARY KEY,
+    input TEXT NOT NULL,
+    name TEXT NOT NULL,
+    num BIGINT NOT NULL,
+    path TEXT NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES projects (id),
+    task_id INTEGER NOT NULL REFERENCES tasks (id),
+    time_created BIGINT NOT NULL,
+    UNIQUE (project_id, num)
+);
+
+CREATE TABLE tasks (
+    id INTEGER NOT NULL PRIMARY KEY,
+    log_id INTEGER NOT NULL REFERENCES logs (id),
+    status INTEGER NOT NULL,
+    time_finished BIGINT,
+    time_started BIGINT
 );
 
 CREATE TABLE logs (

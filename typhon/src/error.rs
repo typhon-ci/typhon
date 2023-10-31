@@ -7,6 +7,9 @@ use crate::task_manager;
 pub enum Error {
     AccessDenied,
     ActionError(actions::Error),
+    ActionNotFound(handles::Action),
+    BuildNotFound(handles::Build),
+    RunNotFound(handles::Run),
     BadJobsetDecl(String),
     EvaluationNotFound(handles::Evaluation),
     IllegalProjectHandle(handles::Project),
@@ -41,6 +44,9 @@ impl std::fmt::Display for Error {
         match self {
             AccessDenied => write!(f, "Access denied"),
             ActionError(e) => write!(f, "Action error: {}", e),
+            ActionNotFound(h) => write!(f, "Action not found: {}", h),
+            BuildNotFound(h) => write!(f, "Build not found: {}", h),
+            RunNotFound(h) => write!(f, "Run not found: {}", h),
             BadJobsetDecl(s) => write!(f, "Bad jobset declaration: {}", s),
             IllegalProjectHandle(handle) => {
                 write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contain dashes [-] or underscores [_].", handle.name)
@@ -102,9 +108,13 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | UnexpectedDatabaseError(_)
             | TaskError(_)
             | Todo => InternalError,
-            EvaluationNotFound(_) | JobNotFound(_) | JobsetNotFound(_) | ProjectNotFound(_) => {
-                ResourceNotFound(format!("{}", self))
-            }
+            EvaluationNotFound(_)
+            | JobNotFound(_)
+            | JobsetNotFound(_)
+            | ProjectNotFound(_)
+            | ActionNotFound(_)
+            | BuildNotFound(_)
+            | RunNotFound(_) => ResourceNotFound(format!("{}", self)),
             AccessDenied
             | ActionError(_)
             | BadJobsetDecl(_)

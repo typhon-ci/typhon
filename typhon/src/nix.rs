@@ -1,11 +1,10 @@
-use crate::BUILD_LOGS;
-
 use async_trait::async_trait;
 use serde_json::Value;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::AsyncReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
+use tokio::sync::mpsc;
 
 use std::{collections::HashMap, ffi::OsStr, process::Stdio};
 
@@ -101,32 +100,35 @@ impl CommandExtTrait for Command {
     }
 }
 
-async fn handle_logs(buffer: BufReader<tokio::process::ChildStderr>) {
+async fn handle_logs(
+    path: &DrvPath,
+    buffer: BufReader<tokio::process::ChildStderr>,
+    sender: mpsc::Sender<String>,
+) {
     let mut lines = buffer.lines();
     use messages::*;
-    let mut state: HashMap<Id, String> = HashMap::new();
+    let mut drv_id: Option<Id> = None;
     while let Some(line) = lines.next_line().await.unwrap() {
         if let Some(Message { id, body }) = parse(line) {
-            match (body, state.get(&id).map(|s| DrvPath::new(s.as_str()))) {
-                (MessageBody::Start { drv }, _) => {
-                    BUILD_LOGS.reset(&DrvPath::new(&drv)).await;
-                    if let Some(_) = state.insert(id, drv) {
-                        panic!()
+            match body {
+                MessageBody::Start { drv } => {
+                    if *path == DrvPath::new(&drv) {
+                        drv_id = Some(id);
                     }
                 }
-                (MessageBody::Stop, Some(drv)) => {
-                    BUILD_LOGS.reset(&drv).await;
-                    state.remove(&id);
+                MessageBody::Phase { phase } => {
+                    if drv_id == Some(id) {
+                        let line = format!(
+                            "@nix {} \"action\": \"setPhase\", \"phase\": \"{}\" {}",
+                            "{", "}", phase
+                        );
+                        let _ = sender.send(line).await;
+                    }
                 }
-                (MessageBody::Phase { phase }, Some(drv)) => {
-                    let msg = format!(
-                        "@nix {} \"action\": \"setPhase\", \"phase\": \"{}\" {}",
-                        "{", "}", phase
-                    );
-                    BUILD_LOGS.send_line(&drv, msg).await;
-                }
-                (MessageBody::BuildLogLine { line }, Some(drv)) => {
-                    BUILD_LOGS.send_line(&drv, line).await;
+                MessageBody::BuildLogLine { line } => {
+                    if drv_id == Some(id) {
+                        let _ = sender.send(line).await;
+                    }
                 }
                 _ => (),
             }
@@ -135,7 +137,7 @@ async fn handle_logs(buffer: BufReader<tokio::process::ChildStderr>) {
 }
 
 /// Runs `nix build` on a derivation path
-pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
+pub async fn build(path: &DrvPath, sender: mpsc::Sender<String>) -> Result<DrvOutputs, Error> {
     let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
         .arg(format!("{}^*", path))
         .stdin(Stdio::inherit())
@@ -143,7 +145,7 @@ pub async fn build(path: &DrvPath) -> Result<DrvOutputs, Error> {
         .stderr(Stdio::piped())
         .spawn()
         .expect(RUNNING_NIX_FAILED);
-    handle_logs(BufReader::new(child.stderr.take().unwrap())).await;
+    handle_logs(path, BufReader::new(child.stderr.take().unwrap()), sender).await;
     let mut stdout = String::new();
     child
         .stdout
@@ -398,10 +400,6 @@ pub async fn lock(url: &String) -> Result<String, Error> {
     .sync_stdout()
     .await?;
     Ok(output)
-}
-
-pub async fn log(drv: String) -> Result<String, Error> {
-    Command::nix(["log"]).arg(drv).sync_stdout().await
 }
 
 pub async fn dependencies(drv: &String) -> Result<Vec<String>, Error> {

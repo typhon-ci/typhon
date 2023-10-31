@@ -1,8 +1,16 @@
+use crate::builds;
+use crate::connection;
 use crate::error::Error;
+use crate::models;
 use crate::nix;
 use crate::nix::DrvPath;
-use crate::task_manager::TaskManager;
+use crate::schema;
+use crate::tasks;
+use crate::time::now;
 
+use typhon_types::data::TaskStatusKind;
+
+use diesel::prelude::*;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -16,6 +24,7 @@ type Output = Option<Option<()>>;
 
 pub struct BuildHandle {
     pub abort: oneshot::Sender<()>,
+    pub id: i32,
     pub wait: oneshot::Receiver<Output>,
 }
 
@@ -34,6 +43,7 @@ enum Msg {
 }
 
 struct Build {
+    build: builds::Build,
     senders: Vec<oneshot::Sender<Output>>,
     active_waiters: usize,
 }
@@ -57,10 +67,35 @@ impl State {
         sender: &mpsc::Sender<Msg>,
         abort_receiver: oneshot::Receiver<()>,
         res_sender: oneshot::Sender<Output>,
-    ) {
+    ) -> Result<i32, Error> {
+        let mut conn = connection().await;
+        let (build, task) = conn.transaction::<(models::Build, tasks::Task), Error, _>(|conn| {
+            let max = schema::builds::table
+                .filter(schema::builds::drv.eq(drv.to_string()))
+                .select(diesel::dsl::max(schema::builds::num))
+                .first::<Option<i64>>(conn)?
+                .unwrap_or(0);
+            let num = max + 1;
+            let task = tasks::Task::new(conn)?;
+            let new_build = models::NewBuild {
+                drv: &drv.to_string(),
+                num,
+                task_id: task.task.id,
+                time_created: now() as i64,
+            };
+            let build = diesel::insert_into(schema::builds::table)
+                .values(&new_build)
+                .get_result::<models::Build>(conn)?;
+
+            Ok((build, task))
+        })?;
+        drop(conn);
+        let build = builds::Build { build, task };
+
         self.builds.insert(
             drv.clone(),
             Build {
+                build: build.clone(),
                 senders: vec![res_sender],
                 active_waiters: 1,
             },
@@ -76,22 +111,33 @@ impl State {
         let run = {
             let drv = drv.clone();
             let sender = sender.clone();
-            run_build(drv, sender)
+            move |sender_log| run_build(drv, sender, sender_log)
         };
         let finish = {
             let drv = drv.clone();
             let sender = sender.clone();
             |res| finish_build(drv, sender, res)
         };
-        let _ = TASKS.run(drv, run, finish).await;
+        build.task.run(run, finish).await?;
+
+        Ok(build.build.id)
     }
 }
 
-async fn finish_build(drv: DrvPath, sender: mpsc::Sender<Msg>, res: Output) {
-    let _ = sender.send(Msg::Finished(drv, res)).await;
+async fn finish_build(drv: DrvPath, sender: mpsc::Sender<Msg>, res: Output) -> TaskStatusKind {
+    let _ = sender.send(Msg::Finished(drv, res.clone())).await;
+    match res {
+        Some(Some(())) => TaskStatusKind::Success,
+        Some(None) => TaskStatusKind::Error,
+        None => TaskStatusKind::Canceled,
+    }
 }
 
-async fn run_build(drv: DrvPath, sender: mpsc::Sender<Msg>) -> Option<()> {
+async fn run_build(
+    drv: DrvPath,
+    sender: mpsc::Sender<Msg>,
+    sender_log: mpsc::Sender<String>,
+) -> Option<()> {
     if nix::is_cached(&drv).await == Ok(false) {
         let json: serde_json::Value = nix::derivation_json(&nix::Expr::Path(drv.to_string()))
             .await
@@ -117,7 +163,7 @@ async fn run_build(drv: DrvPath, sender: mpsc::Sender<Msg>) -> Option<()> {
             }
         }
     }
-    let _ = nix::build(&drv).await.ok()?;
+    let _ = nix::build(&drv, sender_log).await.ok()?;
     Some(())
 }
 
@@ -137,30 +183,45 @@ async fn main_thread(
                 if let Some(build) = state.builds.get_mut(&drv) {
                     build.active_waiters = build.active_waiters - 1;
                     if build.active_waiters == 0 {
-                        TASKS.cancel(drv).await;
+                        build.build.task.cancel().await;
                     }
                 }
             }
             Msg::Build(drv, handle_sender) => {
                 let (abort_sender, abort_receiver) = oneshot::channel();
                 let (res_sender, res_receiver) = oneshot::channel();
+                let id = if let Some(build) = state.builds.get_mut(&drv) {
+                    build.senders.push(res_sender);
+                    build.active_waiters = build.active_waiters + 1;
+                    build.build.build.id
+                } else {
+                    let maybe_build: Option<builds::Build> = builds::Build::last(&drv).await?;
+                    match maybe_build {
+                        Some(build) => {
+                            if build.task.status().kind() == TaskStatusKind::Success
+                                && nix::is_built(&drv).await?
+                            {
+                                let _ = res_sender.send(Some(Some(())));
+                                build.build.id
+                            } else {
+                                state
+                                    .new_build(drv, &sender, abort_receiver, res_sender)
+                                    .await?
+                            }
+                        }
+                        None => {
+                            state
+                                .new_build(drv, &sender, abort_receiver, res_sender)
+                                .await?
+                        }
+                    }
+                };
                 let handle = BuildHandle {
                     abort: abort_sender,
+                    id,
                     wait: res_receiver,
                 };
                 let _ = handle_sender.send(handle);
-                if let Some(build) = state.builds.get_mut(&drv) {
-                    build.senders.push(res_sender);
-                    build.active_waiters = build.active_waiters + 1;
-                } else {
-                    if nix::is_built(&drv).await? {
-                        let _ = res_sender.send(Some(Some(())));
-                    } else {
-                        state
-                            .new_build(drv, &sender, abort_receiver, res_sender)
-                            .await;
-                    }
-                }
             }
             Msg::Finished(drv, res) => {
                 if let Some(build) = state.builds.remove(&drv) {
@@ -173,8 +234,8 @@ async fn main_thread(
         }
     }
     state.join_set.abort_all();
-    TASKS.shutdown().await;
     for (_, build) in state.builds {
+        build.build.task.cancel().await;
         for sender in build.senders {
             let _ = sender.send(None);
         }
@@ -223,5 +284,4 @@ impl Builder {
     }
 }
 
-static TASKS: Lazy<TaskManager<DrvPath>> = Lazy::new(TaskManager::new);
 pub static BUILDS: Lazy<Builder> = Lazy::new(Builder::new);

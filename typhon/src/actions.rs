@@ -1,10 +1,22 @@
+use crate::connection;
+use crate::error;
+use crate::models;
+use crate::projects;
+use crate::schema;
+use crate::tasks;
+
+use typhon_types::data::TaskStatusKind;
+use typhon_types::*;
+
+use diesel::prelude::*;
 use serde_json::{json, Value};
 use std::fs::File;
+use std::future::Future;
 use std::io::Read;
 use std::iter;
 use std::process::Stdio;
 use std::str::FromStr;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::mpsc;
 
 #[derive(Debug)]
 pub enum Error {
@@ -49,15 +61,22 @@ mod sandboxed_command {
     }
 }
 
-pub async fn run(
-    key: &String,
-    script_path: &String,
-    secrets_path: &String,
+async fn action(
+    project: &projects::Project,
+    path: &String,
+    name: &String,
     input: &Value,
-) -> Result<(String, String), Error> {
-    let key = age::x25519::Identity::from_str(key).map_err(|_| Error::InvalidKey)?;
+    sender: mpsc::Sender<String>,
+) -> Result<String, Error> {
+    use tokio::io::AsyncBufReadExt;
+    use tokio::io::AsyncReadExt;
+    use tokio::io::AsyncWriteExt;
+    use tokio::io::BufReader;
 
-    let decrypted = File::open(&secrets_path)
+    let key =
+        age::x25519::Identity::from_str(&project.project.key).map_err(|_| Error::InvalidKey)?;
+
+    let decrypted = File::open(&format!("{}/secrets", path))
         .map(|encrypted| {
             let decryptor =
                 match age::Decryptor::new(&encrypted).map_err(|_| Error::InvalidSecrets)? {
@@ -86,7 +105,7 @@ pub async fn run(
 
     // TODO: use `--json-status-fd` to distinguish between fail from action VS fail from bwrap
     let mut child = sandboxed_command::new()
-        .arg(&script_path)
+        .arg(&format!("{}/{}", path, name))
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
@@ -94,25 +113,143 @@ pub async fn run(
         .expect("command bwrap failed to start");
     let mut stdin = child.stdin.take().ok_or(Error::Unexpected)?;
     let mut stdout = child.stdout.take().ok_or(Error::Unexpected)?;
-    let mut stderr = child.stderr.take().ok_or(Error::Unexpected)?;
+    let stderr = child.stderr.take().ok_or(Error::Unexpected)?;
     stdin
         .write(action_input.to_string().as_bytes())
         .await
         .map_err(|_| Error::Unexpected)?;
     drop(stdin); // send EOF
 
+    let buffer = BufReader::new(stderr);
+    let mut lines = buffer.lines();
+    while let Some(line) = lines.next_line().await.unwrap() {
+        let _ = sender.send(line).await;
+    }
+
     let mut res = String::new();
     stdout
         .read_to_string(&mut res)
         .await
         .map_err(|_| Error::NonUtf8)?;
-    let mut log = String::new();
-    stderr
-        .read_to_string(&mut log)
-        .await
-        .map_err(|_| Error::NonUtf8)?;
 
-    Ok((res, log))
+    Ok(res)
+}
+
+#[derive(Clone)]
+pub struct Action {
+    pub project: models::Project,
+    pub action: models::Action,
+    pub task: tasks::Task,
+}
+
+impl Action {
+    pub async fn get(handle: &handles::Action) -> Result<Self, error::Error> {
+        let mut conn = connection().await;
+        let (action, project, task) = schema::actions::table
+            .inner_join(schema::projects::table)
+            .inner_join(schema::tasks::table)
+            .filter(schema::projects::name.eq(&handle.project.name))
+            .filter(schema::actions::num.eq(handle.num as i64))
+            .first(&mut *conn)
+            .optional()?
+            .ok_or(error::Error::ActionNotFound(handle.clone()))?;
+        Ok(Self {
+            task: tasks::Task { task },
+            action,
+            project,
+        })
+    }
+
+    pub fn handle(&self) -> handles::Action {
+        handles::action((self.project.name.clone(), self.action.num as u64))
+    }
+
+    pub fn info(&self) -> responses::ActionInfo {
+        responses::ActionInfo {
+            input: self.action.input.clone(),
+            path: self.action.path.clone(),
+            status: self.task.status(),
+        }
+    }
+
+    pub async fn log(&self) -> Result<Option<String>, error::Error> {
+        self.task.log().await
+    }
+
+    pub async fn search(
+        search: &requests::ActionSearch,
+    ) -> Result<Vec<(handles::Action, u64)>, error::Error> {
+        let mut conn = connection().await;
+        let mut query = schema::actions::table
+            .inner_join(schema::projects::table)
+            .inner_join(schema::tasks::table)
+            .into_boxed();
+        if let Some(name) = &search.project_name {
+            query = query.filter(schema::projects::name.eq(name));
+        }
+        if let Some(status) = search.status {
+            query = query.filter(schema::tasks::status.eq(status.to_i32()));
+        }
+        query = query
+            .order(schema::actions::time_created.desc())
+            .offset(search.offset as i64)
+            .limit(search.limit as i64);
+        let mut actions =
+            query.load::<(models::Action, models::Project, models::Task)>(&mut *conn)?;
+        drop(conn);
+        let mut res = Vec::new();
+        for (action, project, _) in actions.drain(..) {
+            res.push((
+                handles::action((project.name, action.num as u64)),
+                action.time_created as u64,
+            ));
+        }
+        Ok(res)
+    }
+
+    pub async fn spawn<
+        U: Future<Output = TaskStatusKind> + Send + 'static,
+        G: (FnOnce(Option<String>) -> U) + Send + Sync + 'static,
+    >(
+        &self,
+        finish: G,
+    ) -> Result<(), error::Error> {
+        let run = {
+            let self_ = self.clone();
+            move |sender| async move {
+                action(
+                    &projects::Project {
+                        refresh_task: None, // FIXME?
+                        project: self_.project.clone(),
+                    },
+                    &self_.action.path,
+                    &self_.action.name,
+                    &Value::from_str(&self_.action.input).unwrap(),
+                    sender,
+                )
+                .await
+                .map_err(|e| e.into())
+            }
+        };
+
+        let finish = move |res: Option<Result<String, error::Error>>| async move {
+            match res {
+                Some(Err(_)) => {
+                    let _ = finish(None).await;
+                    TaskStatusKind::Error
+                }
+                Some(Ok(stdout)) => finish(Some(stdout)).await,
+                None => {
+                    let _ = finish(None).await;
+                    TaskStatusKind::Canceled
+                }
+            }
+        };
+
+        self.task.run(run, finish).await?;
+
+        Ok(())
+    }
 }
 
 pub mod webhooks {

@@ -27,3 +27,4 @@ sha256.workspace = true
 stderrlog.workspace = true
 substring.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true

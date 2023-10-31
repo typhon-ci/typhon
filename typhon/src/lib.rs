@@ -1,4 +1,5 @@
 mod actions;
+mod builds;
 mod error;
 mod evaluations;
 mod events;
@@ -8,7 +9,9 @@ mod jobsets;
 mod models;
 mod nix;
 mod projects;
+mod runs;
 mod schema;
+mod tasks;
 mod time;
 
 pub mod api;
@@ -20,11 +23,14 @@ pub use typhon_types::{
     handles, requests, responses, responses::Response, responses::ResponseError, Event,
 };
 
+use actions::Action;
+use builds::Build;
 use error::Error;
 use evaluations::Evaluation;
 use jobs::Job;
 use jobsets::Jobset;
 use projects::Project;
+use runs::Run;
 use task_manager::TaskManager;
 
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
@@ -95,10 +101,9 @@ pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
         webroot: args.webroot.clone(),
     }
 });
-pub static EVALUATIONS: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
-pub static JOBS_BEGIN: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
-pub static JOBS_BUILD: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
-pub static JOBS_END: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
+pub static RUNS: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
+pub static TASKS: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
+pub static LOGS: Lazy<logs::live::Cache<i32>> = Lazy::new(logs::live::Cache::new);
 pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
     use diesel::Connection as _;
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -107,7 +112,6 @@ pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
     Connection::new(conn)
 });
 pub static EVENT_LOGGER: Lazy<events::EventLogger> = Lazy::new(events::EventLogger::new);
-pub static BUILD_LOGS: Lazy<logs::live::Cache<nix::DrvPath>> = Lazy::new(logs::live::Cache::new);
 pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);
 
 pub async fn connection<'a>() -> tokio::sync::MutexGuard<'a, SqliteConnection> {
@@ -154,13 +158,19 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
     match req {
         Request::ListEvaluations(_)
         | Request::ListProjects
+        | Request::ListRuns(_)
+        | Request::ListBuilds(_)
+        | Request::ListActions(_)
         | Request::Project(_, Project::Info)
         | Request::Jobset(_, Jobset::Info)
         | Request::Evaluation(_, Evaluation::Info)
         | Request::Evaluation(_, Evaluation::Log)
         | Request::Job(_, Job::Info)
-        | Request::Job(_, Job::LogBegin)
-        | Request::Job(_, Job::LogEnd)
+        | Request::Run(_, Run::Info)
+        | Request::Build(_, Build::Info)
+        | Request::Build(_, Build::Log)
+        | Request::Action(_, Action::Info)
+        | Request::Action(_, Action::Log)
         | Request::Login(_) => true,
         _ => user.is_admin(),
     }
@@ -172,6 +182,13 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
             requests::Request::ListEvaluations(search) => {
                 Response::ListEvaluations(Evaluation::search(search).await?)
             }
+            requests::Request::ListBuilds(search) => {
+                Response::ListBuilds(Build::search(search).await?)
+            }
+            requests::Request::ListActions(search) => {
+                Response::ListActions(Action::search(search).await?)
+            }
+            requests::Request::ListRuns(search) => Response::ListRuns(Run::search(search).await?),
             requests::Request::ListProjects => Response::ListProjects(Project::list().await?),
             requests::Request::CreateProject { name, decl } => {
                 Project::create(name, decl).await?;
@@ -198,8 +215,8 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         Response::Ok
                     }
                     requests::Project::UpdateJobsets => {
-                        let jobsets = project.update_jobsets().await?;
-                        Response::ProjectUpdateJobsets(jobsets)
+                        project.update_jobsets().await?;
+                        Response::Ok
                     }
                 }
             }
@@ -210,7 +227,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                         let evaluation_handle = jobset.evaluate(*force).await?;
                         Response::JobsetEvaluate(evaluation_handle)
                     }
-                    requests::Jobset::Info => Response::JobsetInfo(jobset.info().await?),
+                    requests::Jobset::Info => Response::JobsetInfo(jobset.info()),
                 }
             }
             requests::Request::Evaluation(evaluation_handle, req) => {
@@ -229,13 +246,31 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
             requests::Request::Job(job_handle, req) => {
                 let job = Job::get(&job_handle).await?;
                 match req {
-                    requests::Job::Cancel => {
-                        job.cancel().await;
+                    requests::Job::Info => Response::JobInfo(job.info()),
+                }
+            }
+            requests::Request::Build(build_handle, req) => {
+                let build = Build::get(&build_handle).await?;
+                match req {
+                    requests::Build::Info => Response::BuildInfo(build.info()),
+                    requests::Build::Log => Response::Log(build.log().await?),
+                }
+            }
+            requests::Request::Action(action_handle, req) => {
+                let action = Action::get(&action_handle).await?;
+                match req {
+                    requests::Action::Info => Response::ActionInfo(action.info()),
+                    requests::Action::Log => Response::Log(action.log().await?),
+                }
+            }
+            requests::Request::Run(run_handle, req) => {
+                let run = Run::get(&run_handle).await?;
+                match req {
+                    requests::Run::Cancel => {
+                        run.cancel().await;
                         Response::Ok
                     }
-                    requests::Job::Info => Response::JobInfo(job.info()),
-                    requests::Job::LogBegin => Response::Log(job.log_begin().await?),
-                    requests::Job::LogEnd => Response::Log(job.log_end().await?),
+                    requests::Run::Info => Response::RunInfo(run.info()),
                 }
             }
             requests::Request::Login(password) => {
@@ -279,11 +314,10 @@ pub async fn log_event(event: Event) {
 pub async fn shutdown() {
     eprintln!("Typhon is shutting down...");
     tokio::join!(
+        RUNS.shutdown(),
+        TASKS.shutdown(),
+        LOGS.shutdown(),
         EVENT_LOGGER.shutdown(),
-        EVALUATIONS.shutdown(),
-        JOBS_BEGIN.shutdown(),
-        JOBS_END.shutdown(),
-        BUILD_LOGS.shutdown(),
         build_manager::BUILDS.shutdown(),
     );
     eprintln!("Good bye!");

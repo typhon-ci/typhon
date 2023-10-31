@@ -1,42 +1,51 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    actions (id) {
+        id -> Integer,
+        input -> Text,
+        name -> Text,
+        num -> BigInt,
+        path -> Text,
+        project_id -> Integer,
+        task_id -> Integer,
+        time_created -> BigInt,
+    }
+}
+
+diesel::table! {
+    builds (id) {
+        drv -> Text,
+        id -> Integer,
+        num -> BigInt,
+        task_id -> Integer,
+        time_created -> BigInt,
+    }
+}
+
+diesel::table! {
     evaluations (id) {
         actions_path -> Nullable<Text>,
         flake -> Bool,
         id -> Integer,
         jobset_name -> Text,
-        log_id -> Integer,
         num -> BigInt,
         project_id -> Integer,
-        status -> Text,
+        task_id -> Integer,
         time_created -> BigInt,
-        time_finished -> Nullable<BigInt>,
         url -> Text,
     }
 }
 
 diesel::table! {
     jobs (id) {
-        begin_log_id -> Integer,
-        begin_status -> Text,
-        begin_time_finished -> Nullable<BigInt>,
-        begin_time_started -> Nullable<BigInt>,
-        build_drv -> Text,
-        build_out -> Text,
-        build_status -> Text,
-        build_time_finished -> Nullable<BigInt>,
-        build_time_started -> Nullable<BigInt>,
         dist -> Bool,
-        end_log_id -> Integer,
-        end_status -> Text,
-        end_time_finished -> Nullable<BigInt>,
-        end_time_started -> Nullable<BigInt>,
+        drv -> Text,
         evaluation_id -> Integer,
         id -> Integer,
         name -> Text,
+        out -> Text,
         system -> Text,
-        time_created -> BigInt,
     }
 }
 
@@ -65,6 +74,7 @@ diesel::table! {
         homepage -> Text,
         id -> Integer,
         key -> Text,
+        last_refresh_task_id -> Nullable<Integer>,
         name -> Text,
         title -> Text,
         url -> Text,
@@ -72,9 +82,48 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(evaluations -> logs (log_id));
+diesel::table! {
+    runs (id) {
+        begin_id -> Nullable<Integer>,
+        build_id -> Nullable<Integer>,
+        end_id -> Nullable<Integer>,
+        id -> Integer,
+        job_id -> Integer,
+        num -> BigInt,
+        time_created -> BigInt,
+    }
+}
+
+diesel::table! {
+    tasks (id) {
+        id -> Integer,
+        log_id -> Integer,
+        status -> Integer,
+        time_finished -> Nullable<BigInt>,
+        time_started -> Nullable<BigInt>,
+    }
+}
+
+diesel::joinable!(actions -> projects (project_id));
+diesel::joinable!(actions -> tasks (task_id));
+diesel::joinable!(builds -> tasks (task_id));
 diesel::joinable!(evaluations -> projects (project_id));
+diesel::joinable!(evaluations -> tasks (task_id));
 diesel::joinable!(jobs -> evaluations (evaluation_id));
 diesel::joinable!(jobsets -> projects (project_id));
+diesel::joinable!(projects -> tasks (last_refresh_task_id));
+diesel::joinable!(runs -> builds (build_id));
+diesel::joinable!(runs -> jobs (job_id));
+diesel::joinable!(tasks -> logs (log_id));
 
-diesel::allow_tables_to_appear_in_same_query!(evaluations, jobs, jobsets, logs, projects,);
+diesel::allow_tables_to_appear_in_same_query!(
+    actions,
+    builds,
+    evaluations,
+    jobs,
+    jobsets,
+    logs,
+    projects,
+    runs,
+    tasks,
+);
