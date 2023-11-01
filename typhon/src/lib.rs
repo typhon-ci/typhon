@@ -13,7 +13,7 @@ mod time;
 
 pub mod api;
 pub mod logs;
-pub mod tasks;
+pub mod task_manager;
 
 pub use typhon_types::{
     handles, requests, responses, responses::Response, responses::ResponseError, Event,
@@ -24,6 +24,7 @@ use evaluations::Evaluation;
 use jobs::Job;
 use jobsets::Jobset;
 use projects::Project;
+use task_manager::TaskManager;
 
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use clap::Parser;
@@ -93,10 +94,10 @@ pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
         webroot: args.webroot.clone(),
     }
 });
-pub static EVALUATIONS: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static JOBS_BEGIN: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static JOBS_BUILD: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
-pub static JOBS_END: Lazy<tasks::Tasks<i32>> = Lazy::new(tasks::Tasks::new);
+pub static EVALUATIONS: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
+pub static JOBS_BEGIN: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
+pub static JOBS_BUILD: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
+pub static JOBS_END: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
 pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
     use diesel::Connection as _;
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");

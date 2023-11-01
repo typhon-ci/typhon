@@ -531,7 +531,7 @@ pub mod build {
     use super::CommandExtTrait;
     use super::DrvPath;
 
-    use crate::tasks::Tasks;
+    use crate::task_manager::TaskManager;
 
     use once_cell::sync::Lazy;
     use tokio::sync::mpsc;
@@ -590,7 +590,7 @@ pub mod build {
                                 let sender_self_2 = sender_self.clone();
                                 let drv_1 = drv.clone();
                                 let drv_2 = drv.clone();
-                                let task = async move {
+                                let run = async move {
                                     if is_cached(&drv_1).await == Ok(false) {
                                         let json: serde_json::Value = serde_json::from_str(
                                             &Command::nix([
@@ -625,7 +625,7 @@ pub mod build {
                                     let _ =
                                         sender_self_2.send(Msg::Finished(drv_2, res.clone())).await;
                                 };
-                                let _ = TASKS.run(drv, task, finish).await;
+                                let _ = TASKS.run(drv, run, finish).await;
                             }
                         }
                         Msg::Finished(drv, res) => {
@@ -670,6 +670,6 @@ pub mod build {
         }
     }
 
-    static TASKS: Lazy<Tasks<DrvPath>> = Lazy::new(Tasks::new);
+    static TASKS: Lazy<TaskManager<DrvPath>> = Lazy::new(TaskManager::new);
     pub static BUILDS: Lazy<Builder> = Lazy::new(Builder::new);
 }

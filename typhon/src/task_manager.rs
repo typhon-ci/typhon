@@ -28,12 +28,14 @@ struct TaskHandle {
     waiters: Vec<oneshot::Sender<()>>,
 }
 
-pub struct Tasks<Id> {
+pub struct TaskManager<Id> {
     msg_send: mpsc::Sender<Msg<Id>>,
     shutdown_recv: Mutex<Option<oneshot::Receiver<()>>>,
 }
 
-impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static> Tasks<Id> {
+impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static>
+    TaskManager<Id>
+{
     pub fn new() -> Self {
         let (msg_send, mut msg_recv) = mpsc::channel(256);
         let (shutdown_send, shutdown_recv) = oneshot::channel();
@@ -115,7 +117,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
     >(
         &self,
         id: Id,
-        task: O,
+        run: O,
         finish: F,
     ) {
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
@@ -125,7 +127,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
         tokio::spawn(async move {
             let r = tokio::select! {
                 _ = cancel_recv => None,
-                r = task => Some(r),
+                r = run => Some(r),
             };
             finish(r).await;
             let _ = sender_self.send(Msg::Finish(id_bis)).await;

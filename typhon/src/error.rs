@@ -1,7 +1,7 @@
 use crate::actions;
 use crate::handles;
 use crate::nix;
-use crate::tasks;
+use crate::task_manager;
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,7 +19,7 @@ pub enum Error {
     Todo,
     UnexpectedDatabaseError(diesel::result::Error),
     LoginError,
-    TaskError(tasks::Error),
+    TaskError(task_manager::Error),
 }
 
 impl Error {
@@ -88,8 +88,8 @@ impl From<actions::Error> for Error {
     }
 }
 
-impl From<tasks::Error> for Error {
-    fn from(e: tasks::Error) -> Error {
+impl From<task_manager::Error> for Error {
+    fn from(e: task_manager::Error) -> Error {
         Error::TaskError(e)
     }
 }
