@@ -448,6 +448,14 @@ pub async fn is_cached(drv: &DrvPath) -> Result<bool, Error> {
     Ok(!output.contains(&drv.to_string()))
 }
 
+pub async fn is_built(drv: &DrvPath) -> Result<bool, Error> {
+    let output = Command::nix(["build", "--dry-run"])
+        .arg(format!("{}^*", drv))
+        .sync_stderr()
+        .await?;
+    Ok(output.is_empty())
+}
+
 /// This module parses https://github.com/NixOS/nix/blob/7474a90db69813d051ab1bef35c7d0ab958d9ccd/src/libutil/logging.hh
 mod messages {
     use serde_repr::*;

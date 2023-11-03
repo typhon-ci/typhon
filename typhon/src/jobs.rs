@@ -27,7 +27,6 @@ impl Job {
         JOBS_BEGIN.cancel(self.job.id).await;
         JOBS_BUILD.cancel(self.job.id).await;
         JOBS_END.cancel(self.job.id).await;
-        BUILDS.abort(nix::DrvPath::new(&self.job.build_drv)).await;
     }
 
     pub async fn delete(&self) -> Result<(), Error> {
@@ -203,13 +202,14 @@ impl Job {
                 .set(schema::jobs::build_time_started.eq(now()))
                 .execute(&mut *conn);
             drop(conn);
-            BUILDS.run(drv).await
+            let build_handle = BUILDS.run(drv).await;
+            build_handle.wait().await
         };
-        let finish_build = move |r: Option<Option<Result<nix::DrvOutputs, nix::Error>>>| async move {
+        let finish_build = move |r: Option<Option<Option<()>>>| async move {
             let r = r.flatten();
             let status = match r {
-                Some(Ok(_)) => "success",
-                Some(Err(_)) => "error", // TODO: log error
+                Some(Some(())) => "success",
+                Some(None) => "error",
                 None => "canceled",
             };
             let _ = sender.send(status.to_string());
