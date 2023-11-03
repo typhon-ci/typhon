@@ -12,6 +12,7 @@ mod schema;
 mod time;
 
 pub mod api;
+pub mod build_manager;
 pub mod logs;
 pub mod task_manager;
 
@@ -283,7 +284,7 @@ pub async fn shutdown() {
         JOBS_BEGIN.shutdown(),
         JOBS_END.shutdown(),
         BUILD_LOGS.shutdown(),
-        nix::build::BUILDS.shutdown(),
+        build_manager::BUILDS.shutdown(),
     );
     eprintln!("Good bye!");
 }

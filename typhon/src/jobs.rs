@@ -1,4 +1,5 @@
 use crate::actions;
+use crate::build_manager::BUILDS;
 use crate::connection;
 use crate::error::Error;
 use crate::handles;
@@ -26,9 +27,7 @@ impl Job {
         JOBS_BEGIN.cancel(self.job.id).await;
         JOBS_BUILD.cancel(self.job.id).await;
         JOBS_END.cancel(self.job.id).await;
-        nix::build::BUILDS
-            .abort(nix::DrvPath::new(&self.job.build_drv))
-            .await;
+        BUILDS.abort(nix::DrvPath::new(&self.job.build_drv)).await;
     }
 
     pub async fn delete(&self) -> Result<(), Error> {
@@ -204,7 +203,7 @@ impl Job {
                 .set(schema::jobs::build_time_started.eq(now()))
                 .execute(&mut *conn);
             drop(conn);
-            nix::build::BUILDS.run(drv).await
+            BUILDS.run(drv).await
         };
         let finish_build = move |r: Option<Option<Result<nix::DrvOutputs, nix::Error>>>| async move {
             let r = r.flatten();
