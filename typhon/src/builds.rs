@@ -8,6 +8,7 @@ use crate::tasks;
 use typhon_types::*;
 
 use diesel::prelude::*;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Build {
@@ -62,7 +63,7 @@ impl Build {
 
     pub async fn search(
         search: &requests::BuildSearch,
-    ) -> Result<Vec<(handles::Build, u64)>, Error> {
+    ) -> Result<Vec<(handles::Build, OffsetDateTime)>, Error> {
         let mut conn = connection().await;
         let mut query = schema::builds::table
             .inner_join(schema::tasks::table)
@@ -87,7 +88,10 @@ impl Build {
         drop(conn);
         let mut res = Vec::new();
         for build in builds {
-            res.push((build.handle(), build.build.time_created as u64));
+            res.push((
+                build.handle(),
+                OffsetDateTime::from_unix_timestamp(build.build.time_created)?,
+            ));
         }
         Ok(res)
     }

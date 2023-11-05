@@ -355,13 +355,14 @@ pub mod responses {
     use crate::handles;
 
     use serde::{Deserialize, Serialize};
+    use time::OffsetDateTime;
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum TaskStatus {
-        Pending(Option<u64>),
-        Success(u64, u64),
-        Error(u64, u64),
-        Canceled(Option<(u64, u64)>),
+        Pending(Option<OffsetDateTime>),
+        Success(OffsetDateTime, OffsetDateTime),
+        Error(OffsetDateTime, OffsetDateTime),
+        Canceled(Option<(OffsetDateTime, OffsetDateTime)>),
     }
     impl TaskStatus {
         pub fn kind(&self) -> TaskStatusKind {
@@ -373,34 +374,43 @@ pub mod responses {
             }
         }
         pub fn from_data(kind: i32, time_started: Option<i64>, time_finished: Option<i64>) -> Self {
+            let time_started =
+                time_started.map(|i| OffsetDateTime::from_unix_timestamp(i).unwrap());
+            let time_finished =
+                time_finished.map(|i| OffsetDateTime::from_unix_timestamp(i).unwrap());
             match TaskStatusKind::from_i32(kind) {
-                TaskStatusKind::Pending => Self::Pending(time_started.map(|i| i as u64)),
+                TaskStatusKind::Pending => Self::Pending(time_started),
                 TaskStatusKind::Success => {
-                    Self::Success(time_started.unwrap() as u64, time_finished.unwrap() as u64)
+                    Self::Success(time_started.unwrap(), time_finished.unwrap())
                 }
-                TaskStatusKind::Error => {
-                    Self::Error(time_started.unwrap() as u64, time_finished.unwrap() as u64)
-                }
+                TaskStatusKind::Error => Self::Error(time_started.unwrap(), time_finished.unwrap()),
                 TaskStatusKind::Canceled => Self::Canceled(
-                    time_started
-                        .map(|time_started| (time_started as u64, time_finished.unwrap() as u64)),
+                    time_started.map(|time_started| (time_started, time_finished.unwrap())),
                 ),
             }
         }
         pub fn to_data(&self) -> (i32, Option<i64>, Option<i64>) {
             let kind = self.kind().to_i32();
             match *self {
-                TaskStatus::Pending(time_started) => (kind, time_started.map(|i| i as i64), None),
-                TaskStatus::Success(time_started, time_finished) => {
-                    (kind, Some(time_started as i64), Some(time_finished as i64))
+                TaskStatus::Pending(time_started) => {
+                    (kind, time_started.map(|t| t.unix_timestamp()), None)
                 }
-                TaskStatus::Error(time_started, time_finished) => {
-                    (kind, Some(time_started as i64), Some(time_finished as i64))
-                }
+                TaskStatus::Success(time_started, time_finished) => (
+                    kind,
+                    Some(time_started.unix_timestamp()),
+                    Some(time_finished.unix_timestamp()),
+                ),
+                TaskStatus::Error(time_started, time_finished) => (
+                    kind,
+                    Some(time_started.unix_timestamp()),
+                    Some(time_finished.unix_timestamp()),
+                ),
                 TaskStatus::Canceled(None) => (kind, None, None),
-                TaskStatus::Canceled(Some((time_started, time_finished))) => {
-                    (kind, Some(time_started as i64), Some(time_finished as i64))
-                }
+                TaskStatus::Canceled(Some((time_started, time_finished))) => (
+                    kind,
+                    Some(time_started.unix_timestamp()),
+                    Some(time_finished.unix_timestamp()),
+                ),
             }
         }
     }
@@ -446,7 +456,7 @@ pub mod responses {
         pub jobs: Option<Vec<JobSystemName>>,
         pub jobset_name: String,
         pub status: TaskStatus,
-        pub time_created: u64,
+        pub time_created: OffsetDateTime,
         pub url: String,
     }
 
@@ -481,10 +491,10 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Response {
         Ok,
-        ListEvaluations(Vec<(handles::Evaluation, u64)>),
-        ListBuilds(Vec<(handles::Build, u64)>),
-        ListActions(Vec<(handles::Action, u64)>),
-        ListRuns(Vec<(handles::Run, u64)>),
+        ListEvaluations(Vec<(handles::Evaluation, OffsetDateTime)>),
+        ListBuilds(Vec<(handles::Build, OffsetDateTime)>),
+        ListActions(Vec<(handles::Action, OffsetDateTime)>),
+        ListRuns(Vec<(handles::Run, OffsetDateTime)>),
         ListProjects(Vec<(String, ProjectMetadata)>),
         ProjectInfo(ProjectInfo),
         JobsetEvaluate(crate::handles::Evaluation),

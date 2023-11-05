@@ -12,7 +12,6 @@ mod projects;
 mod runs;
 mod schema;
 mod tasks;
-mod time;
 
 pub mod api;
 pub mod build_manager;

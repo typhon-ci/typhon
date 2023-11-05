@@ -10,6 +10,7 @@ use crate::{log_event, Event};
 
 use diesel::prelude::*;
 use serde::Deserialize;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Jobset {
@@ -90,7 +91,7 @@ impl Jobset {
         let (evaluation, task) =
             conn.transaction::<(models::Evaluation, tasks::Task), Error, _>(|conn| {
                 let task = tasks::Task::new(conn)?;
-                let time_created = crate::time::now() as i64;
+                let time_created = OffsetDateTime::now_utc().unix_timestamp();
                 let max = schema::evaluations::table
                     .filter(schema::evaluations::project_id.eq(self.project.id))
                     .select(diesel::dsl::max(schema::evaluations::num))

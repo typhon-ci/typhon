@@ -42,7 +42,7 @@ sha256 = "1.4"
 stderrlog = "0.5"
 substring = "1.4"
 surf = "2.3"
-time = "0.3"
+time = { version = "0.3", features = ["serde"] }
 tokio = { version = "1.33", features = ["full"] }
 tokio-stream = "0.1"
 wasm-bindgen-futures = "0.4"

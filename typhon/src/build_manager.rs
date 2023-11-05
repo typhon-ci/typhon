@@ -6,12 +6,12 @@ use crate::nix;
 use crate::nix::DrvPath;
 use crate::schema;
 use crate::tasks;
-use crate::time::now;
 
 use typhon_types::data::TaskStatusKind;
 
 use diesel::prelude::*;
 use once_cell::sync::Lazy;
+use time::OffsetDateTime;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
@@ -81,7 +81,7 @@ impl State {
                 drv: &drv.to_string(),
                 num,
                 task_id: task.task.id,
-                time_created: now() as i64,
+                time_created: OffsetDateTime::now_utc().unix_timestamp(),
             };
             let build = diesel::insert_into(schema::builds::table)
                 .values(&new_build)

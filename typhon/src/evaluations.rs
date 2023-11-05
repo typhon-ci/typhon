@@ -11,6 +11,7 @@ use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
 
 use diesel::prelude::*;
+use time::OffsetDateTime;
 use tokio::sync::mpsc;
 
 #[derive(Clone)]
@@ -83,7 +84,7 @@ impl Evaluation {
             jobs,
             jobset_name: self.evaluation.jobset_name.clone(),
             status: self.task.status(),
-            time_created: self.evaluation.time_created as u64,
+            time_created: time::OffsetDateTime::from_unix_timestamp(self.evaluation.time_created)?,
             url: self.evaluation.url.clone(),
         })
     }
@@ -109,7 +110,7 @@ impl Evaluation {
 
     pub async fn search(
         search: &requests::EvaluationSearch,
-    ) -> Result<Vec<(handles::Evaluation, u64)>, Error> {
+    ) -> Result<Vec<(handles::Evaluation, OffsetDateTime)>, Error> {
         let mut conn = connection().await;
         let mut query = schema::evaluations::table
             .inner_join(schema::projects::table)
@@ -135,7 +136,7 @@ impl Evaluation {
         for (evaluation, project, _) in evaluations.drain(..) {
             res.push((
                 handles::evaluation((project.name, evaluation.num as u64)),
-                evaluation.time_created as u64,
+                OffsetDateTime::from_unix_timestamp(evaluation.time_created)?,
             ));
         }
         Ok(res)

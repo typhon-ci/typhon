@@ -14,6 +14,7 @@ use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
 
 use diesel::prelude::*;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Run {
@@ -164,7 +165,9 @@ impl Run {
         Ok(())
     }
 
-    pub async fn search(search: &requests::RunSearch) -> Result<Vec<(handles::Run, u64)>, Error> {
+    pub async fn search(
+        search: &requests::RunSearch,
+    ) -> Result<Vec<(handles::Run, OffsetDateTime)>, Error> {
         let mut conn = connection().await;
         let mut query = schema::runs::table
             .inner_join(
@@ -206,7 +209,7 @@ impl Run {
                     job.name.clone(),
                     run.num as u64,
                 )),
-                run.time_created as u64,
+                OffsetDateTime::from_unix_timestamp(run.time_created)?,
             ));
         }
         Ok(res)

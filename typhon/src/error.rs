@@ -21,6 +21,7 @@ pub enum Error {
     ProjectNotFound(handles::Project),
     Todo,
     UnexpectedDatabaseError(diesel::result::Error),
+    UnexpectedTimeError(time::error::ComponentRange),
     LoginError,
     TaskError(task_manager::Error),
 }
@@ -31,6 +32,7 @@ impl Error {
         match self {
             ActionError(actions::Error::Unexpected)
             | UnexpectedDatabaseError(_)
+            | UnexpectedTimeError(_)
             | TaskError(_)
             | Todo => true,
             _ => false,
@@ -71,6 +73,7 @@ impl std::fmt::Display for Error {
             LoginError => write!(f, "Login error"),
             Todo => write!(f, "Unspecified error"),
             UnexpectedDatabaseError(e) => write!(f, "Database error: {}", e),
+            UnexpectedTimeError(e) => write!(f, "Time error: {}", e),
             TaskError(e) => write!(f, "Task error: {}", e),
         }
     }
@@ -79,6 +82,12 @@ impl std::fmt::Display for Error {
 impl From<diesel::result::Error> for Error {
     fn from(e: diesel::result::Error) -> Error {
         Error::UnexpectedDatabaseError(e)
+    }
+}
+
+impl From<time::error::ComponentRange> for Error {
+    fn from(e: time::error::ComponentRange) -> Error {
+        Error::UnexpectedTimeError(e)
     }
 }
 
@@ -106,6 +115,7 @@ impl Into<typhon_types::responses::ResponseError> for Error {
         match self {
             ActionError(actions::Error::Unexpected)
             | UnexpectedDatabaseError(_)
+            | UnexpectedTimeError(_)
             | TaskError(_)
             | Todo => InternalError,
             EvaluationNotFound(_)

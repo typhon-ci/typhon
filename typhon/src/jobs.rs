@@ -10,6 +10,7 @@ use crate::schema;
 use typhon_types::*;
 
 use diesel::prelude::*;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Job {
@@ -51,7 +52,7 @@ impl Job {
 
         // create a new run in the database
         let run = conn.transaction::<models::Run, Error, _>(|conn| {
-            let time_created = crate::time::now() as i64;
+            let time_created = OffsetDateTime::now_utc().unix_timestamp();
             let max = schema::runs::table
                 .filter(schema::runs::job_id.eq(self.job.id))
                 .select(diesel::dsl::max(schema::runs::num))

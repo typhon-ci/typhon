@@ -2,7 +2,6 @@ use crate::connection;
 use crate::error::Error;
 use crate::models;
 use crate::schema;
-use crate::time::now;
 use crate::{LOGS, TASKS};
 
 use typhon_types::data::TaskStatusKind;
@@ -10,6 +9,7 @@ use typhon_types::responses::TaskStatus;
 
 use diesel::prelude::*;
 use std::future::Future;
+use time::OffsetDateTime;
 use tokio::sync::mpsc;
 
 #[derive(Clone)]
@@ -58,7 +58,7 @@ impl Task {
     ) -> Result<(), Error> {
         use tokio_stream::StreamExt;
 
-        let time_started = now();
+        let time_started = OffsetDateTime::now_utc();
 
         let mut conn = connection().await;
         let _ = self.set_status(&mut *conn, TaskStatus::Pending(Some(time_started)));
@@ -78,7 +78,7 @@ impl Task {
         };
         let finish = move |res: Option<T>| async move {
             let status_kind = finish(res).await;
-            let time_finished = now();
+            let time_finished = OffsetDateTime::now_utc();
             let maybe_stream = LOGS.listen(&id).await;
             LOGS.reset(&id).await;
             let stderr = if let Some(stream) = maybe_stream {

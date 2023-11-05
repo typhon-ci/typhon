@@ -7,7 +7,6 @@ use crate::models;
 use crate::nix;
 use crate::schema;
 use crate::tasks;
-use crate::time::now;
 use crate::CURRENT_SYSTEM;
 use crate::{handles, responses};
 use crate::{log_event, Event};
@@ -19,6 +18,7 @@ use typhon_types::*;
 use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
 use serde::Deserialize;
+use time::OffsetDateTime;
 use tokio::sync::oneshot;
 
 use std::collections::HashMap;
@@ -143,7 +143,7 @@ impl Project {
         let (action, task) =
             conn.transaction::<(models::Action, tasks::Task), Error, _>(|conn| {
                 let task = tasks::Task::new(conn)?;
-                let time_created = now() as i64;
+                let time_created = OffsetDateTime::now_utc().unix_timestamp();
                 let max = schema::actions::table
                     .filter(schema::actions::project_id.eq(self.project.id))
                     .select(diesel::dsl::max(schema::actions::num))

@@ -16,6 +16,7 @@ use std::io::Read;
 use std::iter;
 use std::process::Stdio;
 use std::str::FromStr;
+use time::OffsetDateTime;
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
@@ -178,7 +179,7 @@ impl Action {
 
     pub async fn search(
         search: &requests::ActionSearch,
-    ) -> Result<Vec<(handles::Action, u64)>, error::Error> {
+    ) -> Result<Vec<(handles::Action, OffsetDateTime)>, error::Error> {
         let mut conn = connection().await;
         let mut query = schema::actions::table
             .inner_join(schema::projects::table)
@@ -201,7 +202,7 @@ impl Action {
         for (action, project, _) in actions.drain(..) {
             res.push((
                 handles::action((project.name, action.num as u64)),
-                action.time_created as u64,
+                OffsetDateTime::from_unix_timestamp(action.time_created)?,
             ));
         }
         Ok(res)

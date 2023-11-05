@@ -26,5 +26,6 @@ serde_repr.workspace = true
 sha256.workspace = true
 stderrlog.workspace = true
 substring.workspace = true
+time.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
