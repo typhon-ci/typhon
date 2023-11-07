@@ -233,7 +233,7 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
                 let evaluation = Evaluation::get(evaluation_handle).await?;
                 match req {
                     requests::Evaluation::Cancel => {
-                        evaluation.cancel().await;
+                        evaluation.cancel();
                         Response::Ok
                     }
                     requests::Evaluation::Info => {
@@ -305,9 +305,9 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
     })?)
 }
 
-pub async fn log_event(event: Event) {
+pub fn log_event(event: Event) {
     log::info!("event: {:?}", event);
-    EVENT_LOGGER.log(event).await;
+    EVENT_LOGGER.log(event);
 }
 
 pub async fn shutdown() {

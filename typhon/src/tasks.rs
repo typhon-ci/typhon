@@ -18,8 +18,8 @@ pub struct Task {
 }
 
 impl Task {
-    pub async fn cancel(&self) {
-        TASKS.cancel(self.task.id).await;
+    pub fn cancel(&self) {
+        TASKS.cancel(self.task.id);
     }
 
     pub async fn log(&self) -> Result<Option<String>, Error> {
@@ -71,7 +71,7 @@ impl Task {
         let run = async move {
             let (res, ()) = tokio::join!(run(sender), async move {
                 while let Some(line) = receiver.recv().await {
-                    LOGS.send_line(&id, line).await;
+                    LOGS.send_line(&id, line);
                 }
             },);
             res
@@ -79,8 +79,8 @@ impl Task {
         let finish = move |res: Option<T>| async move {
             let status_kind = finish(res).await;
             let time_finished = OffsetDateTime::now_utc();
-            let maybe_stream = LOGS.listen(&id).await;
-            LOGS.reset(&id).await;
+            let maybe_stream = LOGS.listen(&id);
+            LOGS.reset(&id);
             let stderr = if let Some(stream) = maybe_stream {
                 stream.collect::<Vec<String>>().await.join("\n")
             } else {
@@ -103,7 +103,7 @@ impl Task {
                     .execute(&mut *conn);
         };
 
-        TASKS.run(id, run, finish).await;
+        TASKS.run(id, run, finish);
 
         Ok(())
     }

@@ -183,7 +183,7 @@ async fn main_thread(
                 if let Some(build) = state.builds.get_mut(&drv) {
                     build.active_waiters = build.active_waiters - 1;
                     if build.active_waiters == 0 {
-                        build.build.task.cancel().await;
+                        build.build.task.cancel();
                     }
                 }
             }
@@ -235,7 +235,7 @@ async fn main_thread(
     }
     state.join_set.abort_all();
     for (_, build) in state.builds {
-        build.build.task.cancel().await;
+        build.build.task.cancel();
         for sender in build.senders {
             let _ = sender.send(None);
         }
@@ -264,12 +264,12 @@ impl Builder {
         Self { handle, sender }
     }
 
-    pub async fn run(&self, drv: DrvPath) -> BuildHandle {
+    pub fn run(&self, drv: DrvPath) -> BuildHandle {
         let (handle_sender, handle_receiver) = oneshot::channel();
         self.sender
             .try_send(Msg::Build(drv, handle_sender))
             .unwrap(); // FIXME
-        handle_receiver.await.unwrap() // FIXME
+        handle_receiver.blocking_recv().unwrap() // FIXME
     }
 
     pub async fn shutdown(&self) {

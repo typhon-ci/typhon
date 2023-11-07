@@ -109,7 +109,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
     }
 
     // TODO: `finish` should be able to output an error
-    pub async fn run<
+    pub fn run<
         T: Send + 'static,
         O: Future<Output = T> + Send + 'static,
         U: Future<Output = ()> + Send + 'static,
@@ -135,12 +135,11 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
         });
         let _ = self
             .msg_send
-            .send(Msg::Run(id, finish_send_send, cancel_send))
-            .await;
+            .try_send(Msg::Run(id, finish_send_send, cancel_send));
     }
 
-    pub async fn cancel(&self, id: Id) {
-        let _ = self.msg_send.send(Msg::Cancel(id)).await;
+    pub fn cancel(&self, id: Id) {
+        let _ = self.msg_send.try_send(Msg::Cancel(id));
     }
 
     pub async fn shutdown(&'static self) {

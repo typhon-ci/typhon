@@ -45,15 +45,15 @@ impl EventLogger {
         }
     }
 
-    pub async fn log(&self, event: Event) {
-        let _ = self.sender.send(Msg::Emit(event)).await;
+    pub fn log(&self, event: Event) {
+        let _ = self.sender.try_send(Msg::Emit(event));
     }
 
-    pub async fn listen(&self) -> Option<impl Stream<Item = Event>> {
+    pub fn listen(&self) -> Option<impl Stream<Item = Event>> {
         let (sender, mut receiver) = mpsc::channel(256);
-        let _ = self.sender.send(Msg::Listen(sender)).await;
+        let _ = self.sender.try_send(Msg::Listen(sender));
         Some(async_stream::stream! {
-            while let Some(e) = receiver.recv().await {
+            while let Some(e) = receiver.blocking_recv() {
                 yield e;
             }
         })

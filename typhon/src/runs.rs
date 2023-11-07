@@ -29,7 +29,7 @@ pub struct Run {
 
 impl Run {
     pub async fn cancel(&self) {
-        RUNS.cancel(self.run.id).await;
+        RUNS.cancel(self.run.id);
     }
 
     pub async fn get(handle: &handles::Run) -> Result<Self, Error> {
@@ -115,7 +115,7 @@ impl Run {
 
         // run the build
         let drv = nix::DrvPath::new(&self.job.drv);
-        let build_handle = BUILDS.run(drv).await;
+        let build_handle = BUILDS.run(drv);
 
         // run the 'begin' action
         let action_begin = self.spawn_action("begin", TaskStatusKind::Pending).await?;
@@ -151,7 +151,7 @@ impl Run {
                     diesel::update(&self_.run)
                         .set((schema::runs::end_id.eq(action_end.action.id),))
                         .execute(&mut *conn)?;
-                    log_event(Event::RunUpdated(self_.handle())).await;
+                    log_event(Event::RunUpdated(self_.handle()));
                 }
                 Ok::<_, Error>(())
             };
@@ -160,7 +160,7 @@ impl Run {
             }
         };
 
-        RUNS.run(self.run.id, run_run, finish_run).await;
+        RUNS.run(self.run.id, run_run, finish_run);
 
         Ok(())
     }

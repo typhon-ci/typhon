@@ -22,8 +22,8 @@ pub struct Evaluation {
 }
 
 impl Evaluation {
-    pub async fn cancel(&self) {
-        self.task.cancel().await
+    pub fn cancel(&self) {
+        self.task.cancel()
     }
 
     pub async fn finish(self, r: Option<Result<nix::NewJobs, nix::Error>>) -> TaskStatusKind {

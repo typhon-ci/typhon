@@ -134,7 +134,7 @@ impl Jobset {
 
         evaluation.task.run(run, finish).await?;
 
-        log_event(Event::EvaluationNew(evaluation.handle())).await;
+        log_event(Event::EvaluationNew(evaluation.handle()));
 
         gcroots::update().await;
 

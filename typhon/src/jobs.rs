@@ -80,7 +80,7 @@ impl Job {
         };
         drop(conn);
 
-        log_event(Event::RunNew(run.handle())).await;
+        log_event(Event::RunNew(run.handle()));
 
         run.run().await?;
 

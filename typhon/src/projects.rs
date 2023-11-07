@@ -57,7 +57,7 @@ impl Project {
                     .values(&new_project)
                     .execute(&mut *conn)?;
                 drop(conn);
-                log_event(Event::ProjectNew(handle.clone())).await;
+                log_event(Event::ProjectNew(handle.clone()));
                 Ok(())
             }
         }
@@ -215,7 +215,7 @@ impl Project {
                     Some(Err(_)) => Ok(TaskStatusKind::Error),
                     None => Ok(TaskStatusKind::Canceled),
                 };
-                log_event(Event::ProjectUpdated(self_.handle())).await;
+                log_event(Event::ProjectUpdated(self_.handle()));
                 status.unwrap_or(TaskStatusKind::Error)
             }
         };
@@ -229,7 +229,7 @@ impl Project {
 
         task.run(run, finish).await?;
 
-        log_event(Event::ProjectUpdated(self.handle())).await;
+        log_event(Event::ProjectUpdated(self.handle()));
 
         Ok(())
     }
@@ -243,7 +243,7 @@ impl Project {
             ))
             .execute(&mut *conn)?;
         drop(conn);
-        log_event(Event::ProjectUpdated(self.handle())).await;
+        log_event(Event::ProjectUpdated(self.handle()));
         Ok(())
     }
 
@@ -254,7 +254,7 @@ impl Project {
             .set(schema::projects::key.eq(key))
             .execute(&mut *conn)?;
         drop(conn);
-        log_event(Event::ProjectUpdated(self.handle())).await;
+        log_event(Event::ProjectUpdated(self.handle()));
         Ok(())
     }
 
@@ -293,14 +293,14 @@ impl Project {
                     }
                     None => TaskStatusKind::Canceled,
                 };
-                log_event(Event::ProjectUpdated(self_.handle())).await;
+                log_event(Event::ProjectUpdated(self_.handle()));
                 status
             }
         };
 
         action.spawn(finish).await?;
 
-        log_event(Event::ProjectUpdated(self.handle())).await;
+        log_event(Event::ProjectUpdated(self.handle()));
 
         Ok(())
     }
@@ -420,7 +420,7 @@ impl Project {
 
         gcroots::update().await;
 
-        log_event(Event::ProjectJobsetsUpdated(self.handle())).await;
+        log_event(Event::ProjectJobsetsUpdated(self.handle()));
 
         Ok(TaskStatusKind::Success)
     }

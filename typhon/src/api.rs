@@ -225,7 +225,7 @@ async fn dist(
 
 async fn live_log(task_id: i32) -> Option<HttpResponse> {
     use futures::stream::StreamExt;
-    match LOGS.listen(&task_id).await {
+    match LOGS.listen(&task_id) {
         Some(stream) => {
             let stream = stream.map(|x: String| {
                 Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
@@ -267,7 +267,7 @@ async fn raw_request(
 
 async fn events() -> Option<HttpResponse> {
     use futures::StreamExt;
-    EVENT_LOGGER.listen().await.map(|stream| {
+    EVENT_LOGGER.listen().map(|stream| {
         HttpResponse::Ok().streaming(stream.map(|x: typhon_types::Event| {
             Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(
                 serde_json::to_string(&x).unwrap(),
