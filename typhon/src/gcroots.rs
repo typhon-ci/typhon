@@ -1,6 +1,6 @@
-use crate::connection;
 use crate::nix;
 use crate::schema;
+use crate::Conn;
 
 use diesel::prelude::*;
 
@@ -40,9 +40,8 @@ allow_columns_to_appear_in_same_group_by_clause!(
     schema::jobsets::name,
 );
 
-async fn update_aux() -> Result<(), Error> {
+fn update_aux(conn: &mut Conn) -> Result<(), Error> {
     // collect all gcroots from the database
-    let mut conn = connection().await;
     let mut gcroots: HashSet<String> = HashSet::new();
     let mut res_1 = schema::evaluations::table
         .inner_join(schema::jobs::table)
@@ -56,14 +55,13 @@ async fn update_aux() -> Result<(), Error> {
             schema::jobsets::name,
             diesel::dsl::max(schema::evaluations::num),
         ))
-        .load::<(String, String, String, Option<i64>)>(&mut *conn)?;
+        .load::<(String, String, String, Option<i64>)>(conn)?;
     let mut res_2 = schema::projects::table
         .select(schema::projects::actions_path)
-        .load::<Option<String>>(&mut *conn)?;
-    drop(conn);
+        .load::<Option<String>>(conn)?;
 
     for (path, drv, _, _) in res_1.drain(..) {
-        for dep in nix::dependencies(&drv).await? {
+        for dep in nix::dependencies(&drv)? {
             gcroots.insert(dep);
         }
         gcroots.insert(drv);
@@ -97,8 +95,6 @@ async fn update_aux() -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn update() -> () {
-    update_aux()
-        .await
-        .unwrap_or_else(|e| log::error!("error when updating gcroots: {:?}", e));
+pub fn update(conn: &mut Conn) -> () {
+    update_aux(conn).unwrap_or_else(|e| log::error!("error when updating gcroots: {:?}", e));
 }

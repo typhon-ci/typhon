@@ -2,13 +2,14 @@ use crate::actions::webhooks;
 use crate::error;
 use crate::projects;
 use crate::requests::*;
+use crate::DbPool;
 use crate::{handle_request, handles, Response, ResponseError, User};
 use crate::{EVENT_LOGGER, LOGS, SETTINGS};
 
 use actix_cors::Cors;
 use actix_files::NamedFile;
 use actix_web::{
-    body::EitherBody, guard, http::StatusCode, web, Error, HttpRequest, HttpResponse, Responder,
+    body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
 };
 
 use std::collections::HashMap;
@@ -16,6 +17,12 @@ use std::collections::HashMap;
 struct ResponseWrapper(crate::Response);
 #[derive(Debug)]
 struct ResponseErrorWrapper(crate::ResponseError);
+
+impl From<actix_web::error::BlockingError> for ResponseErrorWrapper {
+    fn from(_: actix_web::error::BlockingError) -> ResponseErrorWrapper {
+        ResponseErrorWrapper(ResponseError::InternalError)
+    }
+}
 
 impl From<error::Error> for ResponseErrorWrapper {
     fn from(e: error::Error) -> ResponseErrorWrapper {
@@ -69,8 +76,11 @@ macro_rules! r {
     ($name: ident($($i: ident : $t: ty),*) => $e: expr
      ;$($rest: tt)*
     ) => {
-    async fn $name (user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
-        handle_request(user, $e).await.map(ResponseWrapper).map_err(ResponseErrorWrapper)
+    async fn $name (pool: web::Data<DbPool>, user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
+        web::block(move || {
+          let mut conn = pool.get().unwrap();
+          handle_request(&mut conn, user, $e).map(ResponseWrapper).map_err(ResponseErrorWrapper)
+        }).await?
     } r!( $($rest)* );
     };
     (  ) => {}
@@ -201,19 +211,22 @@ r!(
 );
 
 async fn dist(
+    pool: web::Data<DbPool>,
     user: User,
     path: web::Path<(String, u64, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
     let (project, evaluation, system, job, path) = path.into_inner();
-    let handle = handles::job((project, evaluation, system, job));
-    let req = Request::Job(handle, Job::Info);
-    let rsp = handle_request(user, req)
-        .await
-        .map_err(ResponseErrorWrapper)?;
-    let info = match rsp {
-        Response::JobInfo(info) => Ok(info),
-        _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
-    }?;
+    let info = web::block(move || {
+        let mut conn = pool.get().unwrap();
+        let handle = handles::job((project, evaluation, system, job));
+        let req = Request::Job(handle, Job::Info);
+        let rsp = handle_request(&mut conn, user, req).map_err(ResponseErrorWrapper)?;
+        match rsp {
+            Response::JobInfo(info) => Ok(info),
+            _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
+        }
+    })
+    .await??;
     if info.dist {
         Ok(NamedFile::open_async(format!("{}/{}", info.out, path)).await)
     } else {
@@ -237,32 +250,50 @@ async fn live_log(task_id: i32) -> Option<HttpResponse> {
 }
 
 async fn build_live_log(
+    pool: web::Data<DbPool>,
     path: web::Path<(String, u64)>,
 ) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
     use crate::builds;
 
     let handle = handles::build(path.into_inner());
-    let build = builds::Build::get(&handle).await?;
-    let id = build.task.task.id;
+
+    let id = web::block(move || {
+        let mut conn = pool.get().unwrap();
+        let build = builds::Build::get(&mut conn, &handle)?;
+        Ok::<_, error::Error>(build.task.task.id)
+    })
+    .await??;
+
     Ok(live_log(id).await)
 }
 
 async fn action_live_log(
+    pool: web::Data<DbPool>,
     path: web::Path<(String, u64)>,
 ) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
     use crate::actions;
 
-    let handle = handles::action(path.into_inner());
-    let action = actions::Action::get(&handle).await?;
-    let id = action.task.task.id;
+    let id = web::block(move || {
+        let mut conn = pool.get().unwrap();
+        let handle = handles::action(path.into_inner());
+        let action = actions::Action::get(&mut conn, &handle)?;
+        Ok::<_, error::Error>(action.task.task.id)
+    })
+    .await??;
+
     Ok(live_log(id).await)
 }
 
 async fn raw_request(
+    pool: web::Data<DbPool>,
     user: User,
     body: web::Json<Request>,
-) -> web::Json<Result<Response, ResponseError>> {
-    web::Json(handle_request(user, body.into_inner()).await)
+) -> actix_web::Result<web::Json<Result<Response, ResponseError>>> {
+    Ok(web::block(move || {
+        let mut conn = pool.get().unwrap();
+        web::Json(handle_request(&mut conn, user, body.into_inner()))
+    })
+    .await?)
 }
 
 async fn events() -> Option<HttpResponse> {
@@ -277,10 +308,11 @@ async fn events() -> Option<HttpResponse> {
 }
 
 async fn webhook(
+    pool: web::Data<DbPool>,
     path: web::Path<String>,
     req: HttpRequest,
     body: String,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, ResponseErrorWrapper> {
     let input = webhooks::Input {
         headers: req
             .headers()
@@ -297,34 +329,40 @@ async fn webhook(
                         .to_string(),
                 ))
             })
-            .collect::<Result<HashMap<_, _>, Error>>()?,
+            .collect::<Result<HashMap<_, _>, ResponseErrorWrapper>>()?,
         body,
     };
 
-    log::info!("handling webhook {:?}", input);
+    web::block(move || {
+        let mut conn = pool.get().unwrap();
 
-    let project_handle = handles::project(path.into_inner().to_string());
-    let project = projects::Project::get(&project_handle).await.map_err(|e| {
-        if e.is_internal() {
-            log::error!("webhook raised error: {:?}", e);
-        }
-        ResponseErrorWrapper(e.into())
-    })?;
+        log::info!("handling webhook {:?}", input);
 
-    let requests = project
-        .webhook(input)
-        .await
-        .map_err(|e| {
+        let project_handle = handles::project(path.into_inner().to_string());
+        let project = projects::Project::get(&mut conn, &project_handle).map_err(|e| {
             if e.is_internal() {
                 log::error!("webhook raised error: {:?}", e);
             }
-            ResponseErrorWrapper(e.into())
-        })?
-        .into_iter();
+            e
+        })?;
 
-    for req in requests {
-        let _ = handle_request(User::Admin, req).await;
-    }
+        let requests = project
+            .webhook(&mut conn, input)
+            .map_err(|e| {
+                if e.is_internal() {
+                    log::error!("webhook raised error: {:?}", e);
+                }
+                e
+            })?
+            .into_iter();
+
+        for req in requests {
+            let _ = handle_request(&mut conn, User::Admin, req);
+        }
+
+        Ok::<_, error::Error>(())
+    })
+    .await??;
 
     Ok(HttpResponse::Ok().finish())
 }

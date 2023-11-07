@@ -35,12 +35,11 @@ use task_manager::TaskManager;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use clap::Parser;
 use diesel::prelude::*;
+use diesel::r2d2;
 use once_cell::sync::Lazy;
 use sha256::digest;
-use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
-use tokio::sync::Mutex;
 
 /// Typhon, Nix-based continuous integration
 #[derive(Parser, Debug)]
@@ -74,25 +73,18 @@ pub struct Settings {
     pub webroot: String,
 }
 
-pub struct Connection {
-    pub conn: Mutex<SqliteConnection>,
-}
-
-impl Connection {
-    pub fn new(conn: SqliteConnection) -> Self {
-        Self {
-            conn: Mutex::new(conn),
-        }
-    }
-}
-
-impl fmt::Debug for Connection {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Sqlite Connection")
-    }
-}
+pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
+pub type Conn =
+    diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::SqliteConnection>>;
 
 // Typhon's state
+pub static POOL: Lazy<DbPool> = Lazy::new(|| {
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let manager = diesel::r2d2::ConnectionManager::<SqliteConnection>::new(database_url);
+    diesel::r2d2::Pool::builder()
+        .build(manager)
+        .expect("database URL should be valid path to SQLite DB file")
+});
 pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
     let args = Args::parse();
     Settings {
@@ -100,22 +92,11 @@ pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
         webroot: args.webroot.clone(),
     }
 });
-pub static RUNS: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
-pub static TASKS: Lazy<TaskManager<i32>> = Lazy::new(TaskManager::new);
+pub static RUNS: Lazy<TaskManager<i32, DbPool>> = Lazy::new(|| TaskManager::new(&POOL));
+pub static TASKS: Lazy<TaskManager<i32, DbPool>> = Lazy::new(|| TaskManager::new(&POOL));
 pub static LOGS: Lazy<logs::live::Cache<i32>> = Lazy::new(logs::live::Cache::new);
-pub static CONNECTION: Lazy<Connection> = Lazy::new(|| {
-    use diesel::Connection as _;
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let conn = SqliteConnection::establish(&database_url)
-        .unwrap_or_else(|e| panic!("Error connecting to {}, with error {:#?}", database_url, e));
-    Connection::new(conn)
-});
 pub static EVENT_LOGGER: Lazy<events::EventLogger> = Lazy::new(events::EventLogger::new);
 pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);
-
-pub async fn connection<'a>() -> tokio::sync::MutexGuard<'a, SqliteConnection> {
-    CONNECTION.conn.lock().await
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum User {
@@ -175,98 +156,100 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
     }
 }
 
-pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<Response, Error> {
+pub fn handle_request_aux(
+    conn: &mut Conn,
+    user: &User,
+    req: &requests::Request,
+) -> Result<Response, Error> {
     if authorize_request(user, req) {
         Ok(match req {
             requests::Request::ListEvaluations(search) => {
-                Response::ListEvaluations(Evaluation::search(search).await?)
+                Response::ListEvaluations(Evaluation::search(conn, search)?)
             }
             requests::Request::ListBuilds(search) => {
-                Response::ListBuilds(Build::search(search).await?)
+                Response::ListBuilds(Build::search(conn, search)?)
             }
             requests::Request::ListActions(search) => {
-                Response::ListActions(Action::search(search).await?)
+                Response::ListActions(Action::search(conn, search)?)
             }
-            requests::Request::ListRuns(search) => Response::ListRuns(Run::search(search).await?),
-            requests::Request::ListProjects => Response::ListProjects(Project::list().await?),
+            requests::Request::ListRuns(search) => Response::ListRuns(Run::search(conn, search)?),
+            requests::Request::ListProjects => Response::ListProjects(Project::list(conn)?),
             requests::Request::CreateProject { name, decl } => {
-                Project::create(name, decl).await?;
+                Project::create(conn, name, decl)?;
                 Response::Ok
             }
             requests::Request::Project(project_handle, req) => {
-                let project = Project::get(&project_handle).await?;
+                let project = Project::get(conn, &project_handle)?;
                 match req {
                     requests::Project::Delete => {
-                        project.delete().await?;
+                        project.delete(conn)?;
                         Response::Ok
                     }
-                    requests::Project::Info => Response::ProjectInfo(project.info().await?),
+                    requests::Project::Info => Response::ProjectInfo(project.info(conn)?),
                     requests::Project::Refresh => {
-                        project.refresh().await?;
+                        project.refresh(conn)?;
                         Response::Ok
                     }
                     requests::Project::SetDecl(decl) => {
-                        project.set_decl(decl).await?;
+                        project.set_decl(conn, decl)?;
                         Response::Ok
                     }
                     requests::Project::SetPrivateKey(key) => {
-                        project.set_private_key(&key).await?;
+                        project.set_private_key(conn, &key)?;
                         Response::Ok
                     }
                     requests::Project::UpdateJobsets => {
-                        project.update_jobsets().await?;
+                        project.update_jobsets(conn)?;
                         Response::Ok
                     }
                 }
             }
             requests::Request::Jobset(jobset_handle, req) => {
-                let jobset = Jobset::get(&jobset_handle).await?;
+                let jobset = Jobset::get(conn, &jobset_handle)?;
                 match req {
                     requests::Jobset::Evaluate(force) => {
-                        let evaluation_handle = jobset.evaluate(*force).await?;
+                        let evaluation_handle = jobset.evaluate(conn, *force)?;
                         Response::JobsetEvaluate(evaluation_handle)
                     }
                     requests::Jobset::Info => Response::JobsetInfo(jobset.info()),
                 }
             }
             requests::Request::Evaluation(evaluation_handle, req) => {
-                let evaluation = Evaluation::get(evaluation_handle).await?;
+                let evaluation = Evaluation::get(conn, evaluation_handle)?;
                 match req {
                     requests::Evaluation::Cancel => {
                         evaluation.cancel();
                         Response::Ok
                     }
-                    requests::Evaluation::Info => {
-                        Response::EvaluationInfo(evaluation.info().await?)
-                    }
-                    requests::Evaluation::Log => Response::Log(evaluation.log().await?),
+                    requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
+                    requests::Evaluation::Log => Response::Log(evaluation.log(conn)?),
                 }
             }
             requests::Request::Job(job_handle, req) => {
-                let job = Job::get(&job_handle).await?;
+                let job = Job::get(conn, &job_handle)?;
                 match req {
                     requests::Job::Info => Response::JobInfo(job.info()),
                 }
             }
             requests::Request::Build(build_handle, req) => {
-                let build = Build::get(&build_handle).await?;
+                let build = Build::get(conn, &build_handle)?;
                 match req {
                     requests::Build::Info => Response::BuildInfo(build.info()),
-                    requests::Build::Log => Response::Log(build.log().await?),
+                    requests::Build::Log => Response::Log(build.log(conn)?),
                 }
             }
             requests::Request::Action(action_handle, req) => {
-                let action = Action::get(&action_handle).await?;
+                let action = Action::get(conn, &action_handle)?;
                 match req {
                     requests::Action::Info => Response::ActionInfo(action.info()),
-                    requests::Action::Log => Response::Log(action.log().await?),
+                    requests::Action::Log => Response::Log(action.log(conn)?),
                 }
             }
             requests::Request::Run(run_handle, req) => {
-                let run = Run::get(&run_handle).await?;
+                let run = Run::get(conn, &run_handle)?;
                 match req {
                     requests::Run::Cancel => {
-                        run.cancel().await;
+                        run.cancel();
                         Response::Ok
                     }
                     requests::Run::Info => Response::RunInfo(run.info()),
@@ -290,9 +273,13 @@ pub async fn handle_request_aux(user: &User, req: &requests::Request) -> Result<
 }
 
 /// Main entry point for Typhon requests
-pub async fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
+pub fn handle_request(
+    conn: &mut Conn,
+    user: User,
+    req: requests::Request,
+) -> Result<Response, ResponseError> {
     log::info!("handling request {} for user {:?}", req, user);
-    Ok(handle_request_aux(&user, &req).await.map_err(|e| {
+    Ok(handle_request_aux(conn, &user, &req).map_err(|e| {
         if e.is_internal() {
             log::error!(
                 "request {:?} for user {:?} raised error: {:?}",

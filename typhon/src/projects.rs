@@ -1,5 +1,4 @@
 use crate::actions;
-use crate::connection;
 use crate::error::Error;
 use crate::gcroots;
 use crate::jobsets;
@@ -7,6 +6,8 @@ use crate::models;
 use crate::nix;
 use crate::schema;
 use crate::tasks;
+use crate::Conn;
+use crate::DbPool;
 use crate::CURRENT_SYSTEM;
 use crate::{handles, responses};
 use crate::{log_event, Event};
@@ -31,7 +32,8 @@ pub struct Project {
 }
 
 impl Project {
-    pub async fn create(
+    pub fn create(
+        conn: &mut Conn,
         name: &String,
         decl: &typhon_types::requests::ProjectDecl,
     ) -> Result<(), Error> {
@@ -39,7 +41,7 @@ impl Project {
         if !handle.legal() {
             return Err(Error::IllegalProjectHandle(handle.clone()));
         }
-        match Self::get(&handle).await {
+        match Self::get(conn, &handle) {
             Ok(_) => Err(Error::ProjectAlreadyExists(handle.clone())),
             Err(_) => {
                 let key = age::x25519::Identity::generate()
@@ -52,27 +54,24 @@ impl Project {
                     key: &key,
                     name: &handle.name,
                 };
-                let mut conn = connection().await;
                 diesel::insert_into(schema::projects::table)
                     .values(&new_project)
-                    .execute(&mut *conn)?;
-                drop(conn);
+                    .execute(conn)?;
                 log_event(Event::ProjectNew(handle.clone()));
                 Ok(())
             }
         }
     }
 
-    pub async fn delete(&self) -> Result<(), Error> {
+    pub fn delete(&self, _conn: &mut Conn) -> Result<(), Error> {
         todo!()
     }
 
-    pub async fn get(handle: &handles::Project) -> Result<Self, Error> {
-        let mut conn = connection().await;
+    pub fn get(conn: &mut Conn, handle: &handles::Project) -> Result<Self, Error> {
         let (project, task): (models::Project, Option<models::Task>) = schema::projects::table
             .left_join(schema::tasks::table)
             .filter(schema::projects::name.eq(&handle.name))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .ok_or(Error::ProjectNotFound(handle.clone()))?;
         Ok(Self {
@@ -85,15 +84,13 @@ impl Project {
         handles::project(self.project.name.clone())
     }
 
-    pub async fn info(&self) -> Result<responses::ProjectInfo, Error> {
-        let mut conn = connection().await;
+    pub fn info(&self, conn: &mut Conn) -> Result<responses::ProjectInfo, Error> {
         let jobsets_names = schema::jobsets::table
             .filter(schema::jobsets::project_id.eq(&self.project.id))
-            .load::<models::Jobset>(&mut *conn)?
+            .load::<models::Jobset>(conn)?
             .iter()
             .map(|jobset| jobset.name.clone())
             .collect();
-        drop(conn);
         let public_key = age::x25519::Identity::from_str(&self.project.key)
             .map_err(|_| Error::Todo)?
             .to_public()
@@ -114,11 +111,10 @@ impl Project {
         })
     }
 
-    pub async fn list() -> Result<Vec<(String, ProjectMetadata)>, Error> {
-        let mut conn = connection().await;
+    pub fn list(conn: &mut Conn) -> Result<Vec<(String, ProjectMetadata)>, Error> {
         Ok(schema::projects::table
             .order(schema::projects::name.asc())
-            .load::<models::Project>(&mut *conn)?
+            .load::<models::Project>(conn)?
             .iter()
             .map(|project| {
                 (
@@ -135,7 +131,7 @@ impl Project {
 
     pub fn new_action(
         &self,
-        conn: &mut SqliteConnection,
+        conn: &mut Conn,
         path: &String,
         name: &String,
         input: &serde_json::Value,
@@ -172,7 +168,7 @@ impl Project {
         })
     }
 
-    pub async fn refresh(&self) -> Result<(), Error> {
+    pub fn refresh(&self, conn: &mut Conn) -> Result<(), Error> {
         #[derive(Deserialize)]
         struct TyphonProject {
             actions: Option<HashMap<String, String>>,
@@ -184,7 +180,7 @@ impl Project {
             let url = self.project.url.clone();
             let flake = self.project.flake;
             move |sender| async move {
-                let url_locked = nix::lock(&url).await?;
+                let url_locked = nix::lock(&url)?;
 
                 let TyphonProject { actions, meta } =
                     serde_json::from_value(nix::eval(&url_locked, &"typhonProject", flake).await?)
@@ -208,10 +204,11 @@ impl Project {
 
         let finish = {
             let self_ = self.clone();
-            move |res: Option<Result<(String, ProjectMetadata, Option<String>), Error>>| async move {
+            move |res: Option<Result<(String, ProjectMetadata, Option<String>), Error>>,
+                  pool: &DbPool| {
                 // TODO: log error?
                 let status = match res {
-                    Some(Ok(x)) => self_.finish_refresh(x).await,
+                    Some(Ok(x)) => self_.finish_refresh(x, pool),
                     Some(Err(_)) => Ok(TaskStatusKind::Error),
                     None => Ok(TaskStatusKind::Canceled),
                 };
@@ -220,49 +217,46 @@ impl Project {
             }
         };
 
-        let mut conn = connection().await;
-        let task = tasks::Task::new(&mut *conn)?;
+        let task = tasks::Task::new(conn)?;
         diesel::update(&self.project)
             .set(schema::projects::last_refresh_task_id.eq(task.task.id))
-            .execute(&mut *conn)?;
-        drop(conn);
+            .execute(conn)?;
 
-        task.run(run, finish).await?;
+        task.run(conn, run, finish)?;
 
         log_event(Event::ProjectUpdated(self.handle()));
 
         Ok(())
     }
 
-    pub async fn set_decl(&self, decl: &typhon_types::requests::ProjectDecl) -> Result<(), Error> {
-        let mut conn = connection().await;
+    pub fn set_decl(
+        &self,
+        conn: &mut Conn,
+        decl: &typhon_types::requests::ProjectDecl,
+    ) -> Result<(), Error> {
         diesel::update(&self.project)
             .set((
                 schema::projects::flake.eq(decl.flake),
                 schema::projects::url.eq(&decl.url),
             ))
-            .execute(&mut *conn)?;
-        drop(conn);
+            .execute(conn)?;
         log_event(Event::ProjectUpdated(self.handle()));
         Ok(())
     }
 
-    pub async fn set_private_key(&self, key: &String) -> Result<(), Error> {
+    pub fn set_private_key(&self, conn: &mut Conn, key: &String) -> Result<(), Error> {
         let _ = age::x25519::Identity::from_str(key).map_err(|_| Error::Todo)?;
-        let mut conn = connection().await;
         diesel::update(&self.project)
             .set(schema::projects::key.eq(key))
-            .execute(&mut *conn)?;
-        drop(conn);
+            .execute(conn)?;
         log_event(Event::ProjectUpdated(self.handle()));
         Ok(())
     }
 
-    pub async fn update_jobsets(&self) -> Result<(), Error> {
+    pub fn update_jobsets(&self, conn: &mut Conn) -> Result<(), Error> {
         // run action `jobsets`
-        let mut conn = connection().await;
         let action = self.new_action(
-            &mut conn,
+            conn,
             &self
                 .project
                 .actions_path
@@ -271,18 +265,17 @@ impl Project {
             &"jobsets".to_string(),
             &serde_json::Value::Null,
         )?;
-        drop(conn);
 
         let finish = {
             let self_ = self.clone();
-            move |output: Option<String>| async move {
+            move |output: Option<String>, pool: &DbPool| {
                 let status = match output {
                     Some(output) => {
                         let decls: Result<HashMap<String, jobsets::JobsetDecl>, Error> =
                             serde_json::from_str(&output).map_err(|_| Error::BadJobsetDecl(output));
                         match decls {
                             Ok(decls) => {
-                                if self_.finish_update_jobsets(decls).await.is_ok() {
+                                if self_.finish_update_jobsets(decls, pool).is_ok() {
                                     TaskStatusKind::Success
                                 } else {
                                     TaskStatusKind::Error
@@ -298,24 +291,24 @@ impl Project {
             }
         };
 
-        action.spawn(finish).await?;
+        action.spawn(conn, finish)?;
 
         log_event(Event::ProjectUpdated(self.handle()));
 
         Ok(())
     }
 
-    pub async fn webhook(
+    pub fn webhook(
         &self,
+        conn: &mut Conn,
         input: actions::webhooks::Input,
     ) -> Result<Vec<requests::Request>, Error> {
         let (sender, receiver) = oneshot::channel();
 
         let input = serde_json::to_value(input).unwrap();
 
-        let mut conn = connection().await;
         let action = self.new_action(
-            &mut *conn,
+            conn,
             &self
                 .project
                 .actions_path
@@ -324,40 +317,36 @@ impl Project {
             &"webhook".to_string(),
             &input,
         )?;
-        drop(conn);
 
         let finish = {
             let handle = self.handle();
-            move |output: Option<String>| async move {
-                match output {
-                    Some(output) => {
-                        match serde_json::from_str::<actions::webhooks::Output>(&output) {
-                            Ok(cmds) => {
-                                let cmds = cmds
-                                    .into_iter()
-                                    .map(|cmd| cmd.lift(handle.clone()))
-                                    .collect();
-                                let _ = sender.send(cmds);
-                                TaskStatusKind::Success
-                            }
-                            Err(_) => TaskStatusKind::Error,
-                        }
+            move |output: Option<String>, _: &DbPool| match output {
+                Some(output) => match serde_json::from_str::<actions::webhooks::Output>(&output) {
+                    Ok(cmds) => {
+                        let cmds = cmds
+                            .into_iter()
+                            .map(|cmd| cmd.lift(handle.clone()))
+                            .collect();
+                        let _ = sender.send(cmds);
+                        TaskStatusKind::Success
                     }
-                    None => TaskStatusKind::Error,
-                }
+                    Err(_) => TaskStatusKind::Error,
+                },
+                None => TaskStatusKind::Error,
             }
         };
 
-        action.spawn(finish).await?;
+        action.spawn(conn, finish)?;
 
-        Ok(receiver.await.map_err(|_| Error::Todo)?)
+        Ok(receiver.blocking_recv().map_err(|_| Error::Todo)?)
     }
 
-    async fn finish_refresh(
+    fn finish_refresh(
         &self,
         (url_locked, meta, actions_path): (String, ProjectMetadata, Option<String>),
+        pool: &DbPool,
     ) -> Result<TaskStatusKind, Error> {
-        let mut conn = connection().await;
+        let mut conn = pool.get().unwrap();
         diesel::update(&self.project)
             .set((
                 schema::projects::actions_path.eq(actions_path),
@@ -366,27 +355,26 @@ impl Project {
                 schema::projects::title.eq(meta.title),
                 schema::projects::url_locked.eq(url_locked),
             ))
-            .execute(&mut *conn)?;
-        drop(conn);
-        gcroots::update().await;
+            .execute(&mut conn)?;
+        gcroots::update(&mut conn);
         Ok(TaskStatusKind::Success)
     }
 
-    async fn finish_update_jobsets(
+    fn finish_update_jobsets(
         &self,
         decls: HashMap<String, jobsets::JobsetDecl>,
+        pool: &DbPool,
     ) -> Result<TaskStatusKind, Error> {
-        let mut conn = connection().await;
+        let mut conn = pool.get().unwrap();
         let mut current_jobsets: Vec<jobsets::Jobset> = schema::jobsets::table
             .filter(schema::jobsets::project_id.eq(&self.project.id))
-            .load::<models::Jobset>(&mut *conn)?
+            .load::<models::Jobset>(&mut conn)?
             .drain(..)
             .map(|jobset| jobsets::Jobset {
                 project: self.project.clone(),
                 jobset,
             })
             .collect();
-        drop(conn);
 
         // delete obsolete jobsets
         let mut set = std::collections::HashSet::<String>::new();
@@ -397,12 +385,11 @@ impl Project {
             {
                 set.insert(jobset.jobset.name);
             } else {
-                jobset.delete().await?;
+                jobset.delete(&mut conn)?;
             }
         }
 
         // create new jobsets
-        let mut conn = connection().await;
         for (name, decl) in decls.iter() {
             if !set.contains(name) {
                 let new_jobset = models::NewJobset {
@@ -413,12 +400,11 @@ impl Project {
                 };
                 diesel::insert_into(schema::jobsets::table)
                     .values(&new_jobset)
-                    .execute(&mut *conn)?;
+                    .execute(&mut conn)?;
             }
         }
-        drop(conn);
 
-        gcroots::update().await;
+        gcroots::update(&mut conn);
 
         log_event(Event::ProjectJobsetsUpdated(self.handle()));
 

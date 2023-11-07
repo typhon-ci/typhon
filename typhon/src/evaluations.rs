@@ -1,4 +1,3 @@
-use crate::connection;
 use crate::error::Error;
 use crate::jobs;
 use crate::models;
@@ -6,6 +5,8 @@ use crate::nix;
 use crate::responses;
 use crate::schema;
 use crate::tasks;
+use crate::Conn;
+use crate::DbPool;
 
 use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
@@ -26,9 +27,14 @@ impl Evaluation {
         self.task.cancel()
     }
 
-    pub async fn finish(self, r: Option<Result<nix::NewJobs, nix::Error>>) -> TaskStatusKind {
+    pub fn finish(
+        self,
+        r: Option<Result<nix::NewJobs, nix::Error>>,
+        pool: &DbPool,
+    ) -> TaskStatusKind {
+        let mut conn = pool.get().unwrap();
         match r {
-            Some(Ok(new_jobs)) => match self.create_new_jobs(new_jobs).await {
+            Some(Ok(new_jobs)) => match self.create_new_jobs(&mut conn, new_jobs) {
                 Ok(()) => TaskStatusKind::Success,
                 Err(_) => TaskStatusKind::Error,
             },
@@ -37,14 +43,13 @@ impl Evaluation {
         }
     }
 
-    pub async fn get(handle: &handles::Evaluation) -> Result<Self, Error> {
-        let mut conn = connection().await;
+    pub fn get(conn: &mut Conn, handle: &handles::Evaluation) -> Result<Self, Error> {
         let (evaluation, project, task) = schema::evaluations::table
             .inner_join(schema::projects::table)
             .inner_join(schema::tasks::table)
             .filter(schema::projects::name.eq(&handle.project.name))
             .filter(schema::evaluations::num.eq(handle.num as i64))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .ok_or(Error::EvaluationNotFound(handle.clone()))?;
         Ok(Self {
@@ -58,15 +63,13 @@ impl Evaluation {
         handles::evaluation((self.project.name.clone(), self.evaluation.num as u64))
     }
 
-    pub async fn info(&self) -> Result<responses::EvaluationInfo, Error> {
+    pub fn info(&self, conn: &mut Conn) -> Result<responses::EvaluationInfo, Error> {
         use typhon_types::responses::JobSystemName;
 
         let jobs = if TaskStatusKind::from_i32(self.task.task.status) == TaskStatusKind::Success {
-            let mut conn = connection().await;
             let jobs = schema::jobs::table
                 .filter(schema::jobs::evaluation_id.eq(self.evaluation.id))
-                .load::<models::Job>(&mut *conn)?;
-            drop(conn);
+                .load::<models::Job>(conn)?;
             Some(
                 jobs.iter()
                     .map(|job| JobSystemName {
@@ -89,8 +92,8 @@ impl Evaluation {
         })
     }
 
-    pub async fn log(&self) -> Result<Option<String>, Error> {
-        self.task.log().await
+    pub fn log(&self, conn: &mut Conn) -> Result<Option<String>, Error> {
+        self.task.log(conn)
     }
 
     pub async fn run(self, sender: mpsc::Sender<String>) -> Result<nix::NewJobs, nix::Error> {
@@ -108,10 +111,10 @@ impl Evaluation {
         res
     }
 
-    pub async fn search(
+    pub fn search(
+        conn: &mut Conn,
         search: &requests::EvaluationSearch,
     ) -> Result<Vec<(handles::Evaluation, OffsetDateTime)>, Error> {
-        let mut conn = connection().await;
         let mut query = schema::evaluations::table
             .inner_join(schema::projects::table)
             .inner_join(schema::tasks::table.on(schema::tasks::id.eq(schema::evaluations::task_id)))
@@ -130,8 +133,7 @@ impl Evaluation {
             .offset(search.offset as i64)
             .limit(search.limit as i64);
         let mut evaluations =
-            query.load::<(models::Evaluation, models::Project, models::Task)>(&mut *conn)?;
-        drop(conn);
+            query.load::<(models::Evaluation, models::Project, models::Task)>(conn)?;
         let mut res = Vec::new();
         for (evaluation, project, _) in evaluations.drain(..) {
             res.push((
@@ -142,8 +144,7 @@ impl Evaluation {
         Ok(res)
     }
 
-    async fn create_new_jobs(&self, mut new_jobs: nix::NewJobs) -> Result<(), Error> {
-        let mut conn = connection().await;
+    fn create_new_jobs(&self, conn: &mut Conn, mut new_jobs: nix::NewJobs) -> Result<(), Error> {
         let created_jobs = conn.transaction::<Vec<jobs::Job>, Error, _>(|conn| {
             new_jobs
                 .drain()
@@ -172,10 +173,9 @@ impl Evaluation {
                 })
                 .collect()
         })?;
-        drop(conn);
 
         for job in created_jobs.into_iter() {
-            job.new_run().await?;
+            job.new_run(conn)?;
         }
 
         Ok(())

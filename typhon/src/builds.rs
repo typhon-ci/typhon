@@ -1,9 +1,9 @@
-use crate::connection;
 use crate::error::Error;
 use crate::models;
 use crate::nix;
 use crate::schema;
 use crate::tasks;
+use crate::Conn;
 
 use typhon_types::*;
 
@@ -17,13 +17,12 @@ pub struct Build {
 }
 
 impl Build {
-    pub async fn get(handle: &handles::Build) -> Result<Self, Error> {
-        let mut conn = connection().await;
+    pub fn get(conn: &mut Conn, handle: &handles::Build) -> Result<Self, Error> {
         let (build, task) = schema::builds::table
             .inner_join(schema::tasks::table)
             .filter(schema::builds::drv.eq(&handle.drv))
             .filter(schema::builds::num.eq(handle.num as i64))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .ok_or(Error::BuildNotFound(handle.clone()))?;
         Ok(Self {
@@ -43,13 +42,12 @@ impl Build {
         }
     }
 
-    pub async fn last(drv: &nix::DrvPath) -> Result<Option<Self>, Error> {
-        let mut conn = connection().await;
+    pub fn last(conn: &mut Conn, drv: &nix::DrvPath) -> Result<Option<Self>, Error> {
         Ok(schema::builds::table
             .inner_join(schema::tasks::table)
             .filter(schema::builds::drv.eq(drv.to_string()))
             .order(schema::builds::time_created.desc())
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .map(|(build, task)| Self {
                 task: tasks::Task { task },
@@ -57,14 +55,14 @@ impl Build {
             }))
     }
 
-    pub async fn log(&self) -> Result<Option<String>, Error> {
-        self.task.log().await
+    pub fn log(&self, conn: &mut Conn) -> Result<Option<String>, Error> {
+        self.task.log(conn)
     }
 
-    pub async fn search(
+    pub fn search(
+        conn: &mut Conn,
         search: &requests::BuildSearch,
     ) -> Result<Vec<(handles::Build, OffsetDateTime)>, Error> {
-        let mut conn = connection().await;
         let mut query = schema::builds::table
             .inner_join(schema::tasks::table)
             .into_boxed();
@@ -79,13 +77,12 @@ impl Build {
             .offset(search.offset as i64)
             .limit(search.limit as i64);
         let builds = query
-            .load::<(models::Build, models::Task)>(&mut *conn)?
+            .load::<(models::Build, models::Task)>(conn)?
             .into_iter()
             .map(|(build, task)| Self {
                 build,
                 task: tasks::Task { task },
             });
-        drop(conn);
         let mut res = Vec::new();
         for build in builds {
             res.push((

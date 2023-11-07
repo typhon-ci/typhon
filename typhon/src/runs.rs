@@ -1,6 +1,5 @@
 use crate::actions;
 use crate::builds;
-use crate::connection;
 use crate::error::Error;
 use crate::handles;
 use crate::log_event;
@@ -8,6 +7,8 @@ use crate::models;
 use crate::responses;
 use crate::schema;
 use crate::tasks;
+use crate::Conn;
+use crate::DbPool;
 use crate::RUNS;
 
 use typhon_types::data::TaskStatusKind;
@@ -28,12 +29,11 @@ pub struct Run {
 }
 
 impl Run {
-    pub async fn cancel(&self) {
+    pub fn cancel(&self) {
         RUNS.cancel(self.run.id);
     }
 
-    pub async fn get(handle: &handles::Run) -> Result<Self, Error> {
-        let mut conn = connection().await;
+    pub fn get(conn: &mut Conn, handle: &handles::Run) -> Result<Self, Error> {
         let (run, (job, (evaluation, project))): (
             models::Run,
             (models::Job, (models::Evaluation, models::Project)),
@@ -47,13 +47,13 @@ impl Run {
             .filter(schema::jobs::system.eq(&handle.job.system))
             .filter(schema::jobs::name.eq(&handle.job.name))
             .filter(schema::runs::num.eq(handle.num as i64))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .ok_or(Error::RunNotFound(handle.clone()))?;
         let begin = schema::actions::table
             .inner_join(schema::tasks::table)
             .filter(schema::actions::id.nullable().eq(run.begin_id))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .map(|(action, task)| actions::Action {
                 task: tasks::Task { task },
@@ -63,7 +63,7 @@ impl Run {
         let end = schema::actions::table
             .inner_join(schema::tasks::table)
             .filter(schema::actions::id.nullable().eq(run.end_id))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .map(|(action, task)| actions::Action {
                 task: tasks::Task { task },
@@ -73,7 +73,7 @@ impl Run {
         let build = schema::builds::table
             .inner_join(schema::tasks::table)
             .filter(schema::builds::id.nullable().eq(run.build_id))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .map(|(build, task)| builds::Build {
                 task: tasks::Task { task },
@@ -108,7 +108,7 @@ impl Run {
         }
     }
 
-    pub async fn run(&self) -> Result<(), Error> {
+    pub fn run(&self, conn: &mut Conn) -> Result<(), Error> {
         use crate::build_manager::BUILDS;
         use crate::nix;
         use crate::TASKS;
@@ -118,17 +118,15 @@ impl Run {
         let build_handle = BUILDS.run(drv);
 
         // run the 'begin' action
-        let action_begin = self.spawn_action("begin", TaskStatusKind::Pending).await?;
+        let action_begin = self.spawn_action(conn, "begin", TaskStatusKind::Pending)?;
 
-        let mut conn = connection().await;
         diesel::update(&self.run)
             .set((
                 schema::runs::begin_id.eq(action_begin.action.id),
                 schema::runs::build_id.eq(build_handle.id),
             ))
-            .execute(&mut *conn)?;
-        drop(conn);
-        log_event(Event::RunUpdated(self.handle())).await;
+            .execute(conn)?;
+        log_event(Event::RunUpdated(self.handle()));
 
         // a waiter task
         let run_run = async move {
@@ -144,19 +142,19 @@ impl Run {
         // run the 'end' action
         let finish_run = {
             let self_ = self.clone();
-            let finish_err = move |status| async move {
+            let finish_err = move |status, pool: &DbPool| {
                 if let Some(status) = status {
-                    let action_end = self_.spawn_action("end", status).await?;
-                    let mut conn = connection().await;
+                    let mut conn = pool.get().unwrap();
+                    let action_end = self_.spawn_action(&mut conn, "end", status)?;
                     diesel::update(&self_.run)
                         .set((schema::runs::end_id.eq(action_end.action.id),))
-                        .execute(&mut *conn)?;
+                        .execute(&mut conn)?;
                     log_event(Event::RunUpdated(self_.handle()));
                 }
                 Ok::<_, Error>(())
             };
-            move |status| async move {
-                finish_err(status).await.unwrap(); // FIXME
+            move |status, pool: &DbPool| {
+                finish_err(status, pool).unwrap(); // FIXME
             }
         };
 
@@ -165,10 +163,10 @@ impl Run {
         Ok(())
     }
 
-    pub async fn search(
+    pub fn search(
+        conn: &mut Conn,
         search: &requests::RunSearch,
     ) -> Result<Vec<(handles::Run, OffsetDateTime)>, Error> {
-        let mut conn = connection().await;
         let mut query = schema::runs::table
             .inner_join(
                 schema::jobs::table
@@ -197,8 +195,7 @@ impl Run {
         let mut runs = query.load::<(
             models::Run,
             (models::Job, (models::Evaluation, models::Project)),
-        )>(&mut *conn)?;
-        drop(conn);
+        )>(conn)?;
         let mut res = Vec::new();
         for (run, (job, (evaluation, project))) in runs.drain(..) {
             res.push((
@@ -230,14 +227,13 @@ impl Run {
         }))
     }
 
-    async fn spawn_action(
+    fn spawn_action(
         &self,
+        conn: &mut Conn,
         name: &str,
         status: TaskStatusKind,
     ) -> Result<actions::Action, Error> {
         use crate::projects;
-
-        let mut conn = connection().await;
 
         let project = projects::Project {
             refresh_task: None, // FIXME?
@@ -247,7 +243,7 @@ impl Run {
         let input = self.mk_input(status)?;
 
         let action = project.new_action(
-            &mut *conn,
+            conn,
             &self
                 .clone() // FIXME: why do we need this clone?
                 .evaluation
@@ -257,16 +253,12 @@ impl Run {
             &input,
         )?;
 
-        drop(conn);
-
-        let finish = move |res| async move {
-            match res {
-                Some(_) => TaskStatusKind::Success,
-                None => TaskStatusKind::Error,
-            }
+        let finish = move |res, _: &DbPool| match res {
+            Some(_) => TaskStatusKind::Success,
+            None => TaskStatusKind::Error,
         };
 
-        action.spawn(finish).await?;
+        action.spawn(conn, finish)?;
 
         Ok(action)
     }

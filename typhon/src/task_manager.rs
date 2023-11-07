@@ -15,10 +15,15 @@ impl std::fmt::Display for Error {
     }
 }
 
-enum Msg<Id> {
+enum Msg<Id, St: 'static> {
     Cancel(Id),
     Finish(Id),
-    Run(Id, oneshot::Sender<mpsc::Sender<()>>, oneshot::Sender<()>),
+    Run(
+        Id,
+        oneshot::Sender<mpsc::Sender<()>>,
+        oneshot::Sender<()>,
+        oneshot::Sender<&'static St>,
+    ),
     Shutdown,
     Wait(Id, oneshot::Sender<()>),
 }
@@ -28,15 +33,17 @@ struct TaskHandle {
     waiters: Vec<oneshot::Sender<()>>,
 }
 
-pub struct TaskManager<Id> {
-    msg_send: mpsc::Sender<Msg<Id>>,
+pub struct TaskManager<Id, St: 'static> {
+    msg_send: mpsc::Sender<Msg<Id, St>>,
     shutdown_recv: Mutex<Option<oneshot::Receiver<()>>>,
 }
 
-impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static>
-    TaskManager<Id>
+impl<
+        Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static,
+        St: Send + Sync,
+    > TaskManager<Id, St>
 {
-    pub fn new() -> Self {
+    pub fn new(state: &'static St) -> Self {
         let (msg_send, mut msg_recv) = mpsc::channel(256);
         let (shutdown_send, shutdown_recv) = oneshot::channel();
         tokio::spawn(async move {
@@ -61,8 +68,9 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
                             break;
                         }
                     }
-                    (false, Msg::Run(id, finish_send_send, cancel_send)) => {
+                    (false, Msg::Run(id, finish_send_send, cancel_send, state_send)) => {
                         let _ = finish_send_send.send(finish_send.clone());
+                        let _ = state_send.send(state);
                         let task = TaskHandle {
                             canceler: Some(cancel_send),
                             waiters: Vec::new(),
@@ -112,8 +120,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
     pub fn run<
         T: Send + 'static,
         O: Future<Output = T> + Send + 'static,
-        U: Future<Output = ()> + Send + 'static,
-        F: (FnOnce(Option<T>) -> U) + Send + Sync + 'static,
+        F: (FnOnce(Option<T>, &St) -> ()) + Send + Sync + 'static,
     >(
         &self,
         id: Id,
@@ -122,20 +129,22 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
     ) {
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
         let (finish_send_send, finish_send_recv) = oneshot::channel::<mpsc::Sender<()>>();
+        let (state_send, state_recv) = oneshot::channel::<&'static St>();
         let sender_self = self.msg_send.clone();
         let id_bis = id.clone();
         tokio::spawn(async move {
+            let state = state_recv.await.unwrap(); // FIXME
             let r = tokio::select! {
                 _ = cancel_recv => None,
                 r = run => Some(r),
             };
-            finish(r).await;
+            finish(r, state);
             let _ = sender_self.send(Msg::Finish(id_bis)).await;
             let _ = finish_send_recv.await;
         });
         let _ = self
             .msg_send
-            .try_send(Msg::Run(id, finish_send_send, cancel_send));
+            .try_send(Msg::Run(id, finish_send_send, cancel_send, state_send));
     }
 
     pub fn cancel(&self, id: Id) {

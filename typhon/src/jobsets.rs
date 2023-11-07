@@ -1,10 +1,11 @@
-use crate::connection;
 use crate::error::Error;
 use crate::evaluations;
 use crate::gcroots;
 use crate::models;
 use crate::nix;
 use crate::schema;
+use crate::Conn;
+use crate::DbPool;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 
@@ -25,25 +26,22 @@ pub struct JobsetDecl {
 }
 
 impl Jobset {
-    pub async fn delete(&self) -> Result<(), Error> {
-        let mut conn = connection().await;
-        diesel::delete(schema::jobsets::table.find(&self.jobset.id)).execute(&mut *conn)?;
+    pub fn delete(&self, conn: &mut Conn) -> Result<(), Error> {
+        diesel::delete(schema::jobsets::table.find(&self.jobset.id)).execute(conn)?;
         Ok(())
     }
 
-    pub async fn evaluate(&self, force: bool) -> Result<handles::Evaluation, Error> {
+    pub fn evaluate(&self, conn: &mut Conn, force: bool) -> Result<handles::Evaluation, Error> {
         use crate::tasks;
 
-        let url = nix::lock(&self.jobset.url).await?;
+        let url = nix::lock(&self.jobset.url)?;
 
-        let mut conn = connection().await;
         let preexisting = schema::evaluations::table
             .inner_join(schema::tasks::table)
             .filter(schema::evaluations::jobset_name.eq(&self.jobset.name))
             .filter(schema::evaluations::url.eq(&url))
-            .first::<(models::Evaluation, models::Task)>(&mut *conn)
+            .first::<(models::Evaluation, models::Task)>(conn)
             .optional()?;
-        drop(conn);
 
         let evaluation = match (preexisting, force) {
             (Some((evaluation, task)), false) => evaluations::Evaluation {
@@ -51,7 +49,7 @@ impl Jobset {
                 evaluation,
                 task: tasks::Task { task },
             },
-            _ => self.new_evaluation(&url).await?,
+            _ => self.new_evaluation(conn, &url)?,
         };
 
         Ok(evaluation.handle())
@@ -64,13 +62,12 @@ impl Jobset {
         }
     }
 
-    pub async fn get(handle: &handles::Jobset) -> Result<Self, Error> {
-        let mut conn = connection().await;
+    pub fn get(conn: &mut Conn, handle: &handles::Jobset) -> Result<Self, Error> {
         let (jobset, project) = schema::jobsets::table
             .inner_join(schema::projects::table)
             .filter(schema::projects::name.eq(&handle.project.name))
             .filter(schema::jobsets::name.eq(&handle.name))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .ok_or(Error::JobsetNotFound(handle.clone()))?;
         Ok(Jobset { jobset, project })
@@ -83,10 +80,12 @@ impl Jobset {
         }
     }
 
-    async fn new_evaluation(&self, url: &String) -> Result<evaluations::Evaluation, Error> {
+    fn new_evaluation(
+        &self,
+        conn: &mut Conn,
+        url: &String,
+    ) -> Result<evaluations::Evaluation, Error> {
         use crate::tasks;
-
-        let mut conn = connection().await;
 
         let (evaluation, task) =
             conn.transaction::<(models::Evaluation, tasks::Task), Error, _>(|conn| {
@@ -120,8 +119,6 @@ impl Jobset {
             task,
         };
 
-        drop(conn);
-
         let run = {
             let evaluation = evaluation.clone();
             move |sender| evaluation.run(sender)
@@ -129,14 +126,14 @@ impl Jobset {
 
         let finish = {
             let evaluation = evaluation.clone();
-            move |r| evaluation.finish(r)
+            move |r, pool: &DbPool| evaluation.finish(r, pool)
         };
 
-        evaluation.task.run(run, finish).await?;
+        evaluation.task.run(conn, run, finish)?;
 
         log_event(Event::EvaluationNew(evaluation.handle()));
 
-        gcroots::update().await;
+        gcroots::update(conn);
 
         Ok(evaluation)
     }

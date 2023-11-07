@@ -1,4 +1,4 @@
-use actix_web::{App, HttpServer};
+use actix_web::{web, App, HttpServer};
 use clap::Parser;
 use diesel::connection::SimpleConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -18,23 +18,29 @@ async fn main() -> std::io::Result<()> {
         .init()
         .unwrap();
 
+    // Connect to the sqlite database
+    let mut conn = typhon::POOL.get().unwrap();
+
     // Enable foreign key support
-    let _ = typhon::connection()
-        .await
-        .batch_execute("PRAGMA foreign_keys = ON");
+    let _ = conn.batch_execute("PRAGMA foreign_keys = ON");
 
     // Run diesel migrations
-    let _ = typhon::connection()
-        .await
+    let _ = conn
         .run_pending_migrations(MIGRATIONS)
         .expect("failed to run migrations");
 
+    drop(conn);
+
     // Run actix server
     let actix = tokio::spawn(
-        HttpServer::new(|| App::new().configure(typhon::api::config))
-            .disable_signals()
-            .bind(("127.0.0.1", 8000))?
-            .run(),
+        HttpServer::new(move || {
+            App::new()
+                .configure(typhon::api::config)
+                .app_data(web::Data::new(typhon::POOL.clone()))
+        })
+        .disable_signals()
+        .bind(("127.0.0.1", 8000))?
+        .run(),
     );
 
     // Graceful shutdown

@@ -1,4 +1,3 @@
-use crate::connection;
 use crate::error::Error;
 use crate::handles;
 use crate::log_event;
@@ -6,6 +5,7 @@ use crate::models;
 use crate::responses;
 use crate::runs;
 use crate::schema;
+use crate::Conn;
 
 use typhon_types::*;
 
@@ -20,15 +20,14 @@ pub struct Job {
 }
 
 impl Job {
-    pub async fn get(handle: &handles::Job) -> Result<Self, Error> {
-        let mut conn = connection().await;
+    pub fn get(conn: &mut Conn, handle: &handles::Job) -> Result<Self, Error> {
         let (job, (evaluation, project)) = schema::jobs::table
             .inner_join(schema::evaluations::table.inner_join(schema::projects::table))
             .filter(schema::projects::name.eq(&handle.evaluation.project.name))
             .filter(schema::evaluations::num.eq(handle.evaluation.num as i64))
             .filter(schema::jobs::system.eq(&handle.system))
             .filter(schema::jobs::name.eq(&handle.name))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .ok_or(Error::JobNotFound(handle.clone()))?;
         Ok(Self {
@@ -47,9 +46,7 @@ impl Job {
         }
     }
 
-    pub async fn new_run(self) -> Result<runs::Run, Error> {
-        let mut conn = connection().await;
-
+    pub fn new_run(self, conn: &mut Conn) -> Result<runs::Run, Error> {
         // create a new run in the database
         let run = conn.transaction::<models::Run, Error, _>(|conn| {
             let time_created = OffsetDateTime::now_utc().unix_timestamp();
@@ -78,11 +75,10 @@ impl Job {
             job: self.job.clone(),
             run,
         };
-        drop(conn);
 
         log_event(Event::RunNew(run.handle()));
 
-        run.run().await?;
+        run.run(conn)?;
 
         Ok(run)
     }

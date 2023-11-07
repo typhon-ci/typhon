@@ -374,8 +374,11 @@ pub fn current_system() -> String {
     .unwrap()
 }
 
-pub async fn lock(url: &String) -> Result<String, Error> {
-    let output = Command::nix([
+pub fn lock(url: &String) -> Result<String, Error> {
+    use std::process::Command;
+
+    let mut cmd = Command::new("nix");
+    cmd.args([
         "flake",
         "lock",
         "--output-lock-file",
@@ -384,11 +387,22 @@ pub async fn lock(url: &String) -> Result<String, Error> {
         "x",
         url,
         env!("TYPHON_FLAKE"),
-    ])
-    .sync_stdout()
-    .await?;
-    let locked_info = &serde_json::from_str::<Value>(&output).unwrap()["nodes"]["x"]["locked"];
-    let output = Command::nix([
+    ]);
+    let output = cmd.output().unwrap();
+    let stdout = String::from_utf8(output.stdout)?;
+    let stderr = String::from_utf8(output.stderr)?;
+    if !output.status.success() {
+        return Err(Error::NixCommand {
+            cmd: format!("{:?}", cmd),
+            stdout,
+            stderr,
+        });
+    }
+
+    let locked_info = &serde_json::from_str::<Value>(&stdout).unwrap()["nodes"]["x"]["locked"];
+
+    let mut cmd = Command::new("nix");
+    cmd.args([
         "eval",
         "--raw",
         "--expr",
@@ -396,30 +410,57 @@ pub async fn lock(url: &String) -> Result<String, Error> {
             "builtins.flakeRefToString (builtins.fromJSON ''{}'')",
             locked_info
         ),
-    ])
-    .sync_stdout()
-    .await?;
-    Ok(output)
+    ]);
+    let output = cmd.output().unwrap();
+    let stdout = String::from_utf8(output.stdout)?;
+    let stderr = String::from_utf8(output.stderr)?;
+    if !output.status.success() {
+        return Err(Error::NixCommand {
+            cmd: format!("{:?}", cmd),
+            stdout,
+            stderr,
+        });
+    }
+
+    Ok(stdout)
 }
 
-pub async fn dependencies(drv: &String) -> Result<Vec<String>, Error> {
+pub fn dependencies(drv: &String) -> Result<Vec<String>, Error> {
+    use std::process::Command;
+
     let mut dependencies: Vec<String> = Vec::new();
-    let json: serde_json::Value = serde_json::from_str(
-        &Command::nix(["derivation", "show", &drv])
-            .sync_stdout()
-            .await?,
-    )
-    .unwrap();
+
+    let mut cmd = Command::new("nix");
+    cmd.args(["derivation", "show", &drv]);
+    let output = cmd.output().unwrap();
+    let stdout = String::from_utf8(output.stdout)?;
+    let stderr = String::from_utf8(output.stderr)?;
+    if !output.status.success() {
+        return Err(Error::NixCommand {
+            cmd: format!("{:?}", cmd),
+            stdout,
+            stderr,
+        });
+    }
+
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
 
     let input_drvs = json[&drv]["inputDrvs"].as_object().unwrap();
     for (drv, json) in input_drvs {
         let outputs = json["outputs"].as_array().unwrap();
-        let json: serde_json::Value = serde_json::from_str(
-            &Command::nix(["derivation", "show", &drv])
-                .sync_stdout()
-                .await?,
-        )
-        .unwrap();
+        let mut cmd = Command::new("nix");
+        cmd.args(["derivation", "show", &drv]);
+        let output = cmd.output().unwrap();
+        let stdout = String::from_utf8(output.stdout)?;
+        let stderr = String::from_utf8(output.stderr)?;
+        if !output.status.success() {
+            return Err(Error::NixCommand {
+                cmd: format!("{:?}", cmd),
+                stdout,
+                stderr,
+            });
+        }
+        let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
         for output in outputs {
             dependencies.push(
                 json[&drv]["outputs"][output.as_str().unwrap()]["path"]

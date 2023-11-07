@@ -1,9 +1,10 @@
-use crate::connection;
 use crate::error;
 use crate::models;
 use crate::projects;
 use crate::schema;
 use crate::tasks;
+use crate::Conn;
+use crate::DbPool;
 
 use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
@@ -11,7 +12,6 @@ use typhon_types::*;
 use diesel::prelude::*;
 use serde_json::{json, Value};
 use std::fs::File;
-use std::future::Future;
 use std::io::Read;
 use std::iter;
 use std::process::Stdio;
@@ -144,14 +144,13 @@ pub struct Action {
 }
 
 impl Action {
-    pub async fn get(handle: &handles::Action) -> Result<Self, error::Error> {
-        let mut conn = connection().await;
+    pub fn get(conn: &mut Conn, handle: &handles::Action) -> Result<Self, error::Error> {
         let (action, project, task) = schema::actions::table
             .inner_join(schema::projects::table)
             .inner_join(schema::tasks::table)
             .filter(schema::projects::name.eq(&handle.project.name))
             .filter(schema::actions::num.eq(handle.num as i64))
-            .first(&mut *conn)
+            .first(conn)
             .optional()?
             .ok_or(error::Error::ActionNotFound(handle.clone()))?;
         Ok(Self {
@@ -173,14 +172,14 @@ impl Action {
         }
     }
 
-    pub async fn log(&self) -> Result<Option<String>, error::Error> {
-        self.task.log().await
+    pub fn log(&self, conn: &mut Conn) -> Result<Option<String>, error::Error> {
+        self.task.log(conn)
     }
 
-    pub async fn search(
+    pub fn search(
+        conn: &mut Conn,
         search: &requests::ActionSearch,
     ) -> Result<Vec<(handles::Action, OffsetDateTime)>, error::Error> {
-        let mut conn = connection().await;
         let mut query = schema::actions::table
             .inner_join(schema::projects::table)
             .inner_join(schema::tasks::table)
@@ -195,9 +194,7 @@ impl Action {
             .order(schema::actions::time_created.desc())
             .offset(search.offset as i64)
             .limit(search.limit as i64);
-        let mut actions =
-            query.load::<(models::Action, models::Project, models::Task)>(&mut *conn)?;
-        drop(conn);
+        let mut actions = query.load::<(models::Action, models::Project, models::Task)>(conn)?;
         let mut res = Vec::new();
         for (action, project, _) in actions.drain(..) {
             res.push((
@@ -208,12 +205,10 @@ impl Action {
         Ok(res)
     }
 
-    pub async fn spawn<
-        U: Future<Output = TaskStatusKind> + Send + 'static,
-        G: (FnOnce(Option<String>) -> U) + Send + Sync + 'static,
-    >(
+    pub fn spawn<F: (FnOnce(Option<String>, &DbPool) -> TaskStatusKind) + Send + Sync + 'static>(
         &self,
-        finish: G,
+        conn: &mut Conn,
+        finish: F,
     ) -> Result<(), error::Error> {
         let run = {
             let self_ = self.clone();
@@ -233,21 +228,19 @@ impl Action {
             }
         };
 
-        let finish = move |res: Option<Result<String, error::Error>>| async move {
-            match res {
-                Some(Err(_)) => {
-                    let _ = finish(None).await;
-                    TaskStatusKind::Error
-                }
-                Some(Ok(stdout)) => finish(Some(stdout)).await,
-                None => {
-                    let _ = finish(None).await;
-                    TaskStatusKind::Canceled
-                }
+        let finish = move |res: Option<Result<String, error::Error>>, pool: &DbPool| match res {
+            Some(Err(_)) => {
+                let _ = finish(None, pool);
+                TaskStatusKind::Error
+            }
+            Some(Ok(stdout)) => finish(Some(stdout), pool),
+            None => {
+                let _ = finish(None, pool);
+                TaskStatusKind::Canceled
             }
         };
 
-        self.task.run(run, finish).await?;
+        self.task.run(conn, run, finish)?;
 
         Ok(())
     }

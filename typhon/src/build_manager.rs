@@ -1,11 +1,13 @@
 use crate::builds;
-use crate::connection;
 use crate::error::Error;
 use crate::models;
 use crate::nix;
 use crate::nix::DrvPath;
 use crate::schema;
 use crate::tasks;
+use crate::Conn;
+use crate::DbPool;
+use crate::POOL;
 
 use typhon_types::data::TaskStatusKind;
 
@@ -49,6 +51,7 @@ struct Build {
 }
 
 struct State {
+    pub conn: Conn,
     pub builds: HashMap<DrvPath, Build>,
     pub join_set: JoinSet<()>,
 }
@@ -56,6 +59,7 @@ struct State {
 impl State {
     fn new() -> Self {
         Self {
+            conn: POOL.get().unwrap(),
             builds: HashMap::new(),
             join_set: JoinSet::new(),
         }
@@ -68,28 +72,28 @@ impl State {
         abort_receiver: oneshot::Receiver<()>,
         res_sender: oneshot::Sender<Output>,
     ) -> Result<i32, Error> {
-        let mut conn = connection().await;
-        let (build, task) = conn.transaction::<(models::Build, tasks::Task), Error, _>(|conn| {
-            let max = schema::builds::table
-                .filter(schema::builds::drv.eq(drv.to_string()))
-                .select(diesel::dsl::max(schema::builds::num))
-                .first::<Option<i64>>(conn)?
-                .unwrap_or(0);
-            let num = max + 1;
-            let task = tasks::Task::new(conn)?;
-            let new_build = models::NewBuild {
-                drv: &drv.to_string(),
-                num,
-                task_id: task.task.id,
-                time_created: OffsetDateTime::now_utc().unix_timestamp(),
-            };
-            let build = diesel::insert_into(schema::builds::table)
-                .values(&new_build)
-                .get_result::<models::Build>(conn)?;
+        let (build, task) = self
+            .conn
+            .transaction::<(models::Build, tasks::Task), Error, _>(|conn| {
+                let max = schema::builds::table
+                    .filter(schema::builds::drv.eq(drv.to_string()))
+                    .select(diesel::dsl::max(schema::builds::num))
+                    .first::<Option<i64>>(conn)?
+                    .unwrap_or(0);
+                let num = max + 1;
+                let task = tasks::Task::new(conn)?;
+                let new_build = models::NewBuild {
+                    drv: &drv.to_string(),
+                    num,
+                    task_id: task.task.id,
+                    time_created: OffsetDateTime::now_utc().unix_timestamp(),
+                };
+                let build = diesel::insert_into(schema::builds::table)
+                    .values(&new_build)
+                    .get_result::<models::Build>(conn)?;
 
-            Ok((build, task))
-        })?;
-        drop(conn);
+                Ok((build, task))
+            })?;
         let build = builds::Build { build, task };
 
         self.builds.insert(
@@ -116,16 +120,16 @@ impl State {
         let finish = {
             let drv = drv.clone();
             let sender = sender.clone();
-            |res| finish_build(drv, sender, res)
+            |res, _: &DbPool| finish_build(drv, sender, res)
         };
-        build.task.run(run, finish).await?;
+        build.task.run(&mut self.conn, run, finish)?;
 
         Ok(build.build.id)
     }
 }
 
-async fn finish_build(drv: DrvPath, sender: mpsc::Sender<Msg>, res: Output) -> TaskStatusKind {
-    let _ = sender.send(Msg::Finished(drv, res.clone())).await;
+fn finish_build(drv: DrvPath, sender: mpsc::Sender<Msg>, res: Output) -> TaskStatusKind {
+    let _ = sender.try_send(Msg::Finished(drv, res.clone()));
     match res {
         Some(Some(())) => TaskStatusKind::Success,
         Some(None) => TaskStatusKind::Error,
@@ -195,7 +199,8 @@ async fn main_thread(
                     build.active_waiters = build.active_waiters + 1;
                     build.build.build.id
                 } else {
-                    let maybe_build: Option<builds::Build> = builds::Build::last(&drv).await?;
+                    let maybe_build: Option<builds::Build> =
+                        builds::Build::last(&mut state.conn, &drv)?;
                     match maybe_build {
                         Some(build) => {
                             if build.task.status().kind() == TaskStatusKind::Success
