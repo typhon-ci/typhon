@@ -7,6 +7,11 @@ pub mod live {
 
     #[derive(Debug)]
     enum Msg<Id> {
+        Dump {
+            id: Id,
+            dump_sender: oneshot::Sender<String>,
+            not_found_sender: oneshot::Sender<bool>,
+        },
         Reset {
             id: Id,
         },
@@ -39,6 +44,23 @@ pub mod live {
                 let mut state: HashMap<Id, (Vec<String>, Listeners)> = HashMap::new();
                 while let Some(msg) = receiver.recv().await {
                     match msg {
+                        Msg::Dump {
+                            id,
+                            dump_sender,
+                            not_found_sender,
+                        } => {
+                            if let Some((lines, _listeners)) = state.get_mut(&id) {
+                                not_found_sender.send(false).unwrap();
+                                let mut dump: Vec<String> = Vec::new();
+                                for line in lines {
+                                    dump.push(line.to_string());
+                                }
+                                dump_sender.send(dump.join("\n")).unwrap();
+                            } else {
+                                not_found_sender.send(true).unwrap();
+                                drop(dump_sender);
+                            }
+                        }
                         Msg::Reset { id } => {
                             state.remove(&id);
                         }
@@ -81,6 +103,24 @@ pub mod live {
             Self {
                 sender,
                 handle: Mutex::new(Some(handle)),
+            }
+        }
+
+        pub fn dump(&self, id: &Id) -> Option<String> {
+            let (dump_sender, dump_receiver) = oneshot::channel();
+            let (not_found_sender, not_found_receiver) = oneshot::channel();
+            self.sender
+                .try_send(Msg::Dump {
+                    id: id.clone(),
+                    dump_sender,
+                    not_found_sender,
+                })
+                .unwrap();
+
+            if not_found_receiver.blocking_recv().unwrap() {
+                None
+            } else {
+                Some(dump_receiver.blocking_recv().unwrap())
             }
         }
 
