@@ -3,7 +3,7 @@ use crate::error;
 use crate::projects;
 use crate::requests::*;
 use crate::DbPool;
-use crate::{handle_request, handles, Response, ResponseError, User};
+use crate::{handle_request, handles, Msg, Response, ResponseError, User};
 use crate::{EVENT_LOGGER, LOGS, SETTINGS};
 
 use actix_cors::Cors;
@@ -11,6 +11,7 @@ use actix_files::NamedFile;
 use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
 };
+use tokio::sync::mpsc;
 
 use std::collections::HashMap;
 
@@ -76,11 +77,8 @@ macro_rules! r {
     ($name: ident($($i: ident : $t: ty),*) => $e: expr
      ;$($rest: tt)*
     ) => {
-    async fn $name (pool: web::Data<DbPool>, user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
-        web::block(move || {
-          let mut conn = pool.get().unwrap();
-          handle_request(&mut conn, user, $e).map(ResponseWrapper).map_err(ResponseErrorWrapper)
-        }).await?
+    async fn $name (sender: web::Data<mpsc::Sender<Msg>>, user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
+        handle_request((**sender).clone(), user, $e).await.map(ResponseWrapper).map_err(ResponseErrorWrapper)
     } r!( $($rest)* );
     };
     (  ) => {}
@@ -211,22 +209,20 @@ r!(
 );
 
 async fn dist(
-    pool: web::Data<DbPool>,
+    sender: web::Data<mpsc::Sender<Msg>>,
     user: User,
     path: web::Path<(String, u64, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
     let (project, evaluation, system, job, path) = path.into_inner();
-    let info = web::block(move || {
-        let mut conn = pool.get().unwrap();
-        let handle = handles::job((project, evaluation, system, job));
-        let req = Request::Job(handle, Job::Info);
-        let rsp = handle_request(&mut conn, user, req).map_err(ResponseErrorWrapper)?;
-        match rsp {
-            Response::JobInfo(info) => Ok(info),
-            _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
-        }
-    })
-    .await??;
+    let handle = handles::job((project, evaluation, system, job));
+    let req = Request::Job(handle, Job::Info);
+    let rsp = handle_request((**sender).clone(), user, req)
+        .await
+        .map_err(ResponseErrorWrapper)?;
+    let info = match rsp {
+        Response::JobInfo(info) => Ok(info),
+        _ => Err(ResponseErrorWrapper(ResponseError::InternalError)),
+    }?;
     if info.dist {
         Ok(NamedFile::open_async(format!("{}/{}", info.out, path)).await)
     } else {
@@ -285,15 +281,11 @@ async fn action_live_log(
 }
 
 async fn raw_request(
-    pool: web::Data<DbPool>,
+    sender: web::Data<mpsc::Sender<Msg>>,
     user: User,
     body: web::Json<Request>,
-) -> actix_web::Result<web::Json<Result<Response, ResponseError>>> {
-    Ok(web::block(move || {
-        let mut conn = pool.get().unwrap();
-        web::Json(handle_request(&mut conn, user, body.into_inner()))
-    })
-    .await?)
+) -> web::Json<Result<Response, ResponseError>> {
+    web::Json(handle_request((**sender).clone(), user, body.into_inner()).await)
 }
 
 async fn events() -> Option<HttpResponse> {
@@ -308,6 +300,7 @@ async fn events() -> Option<HttpResponse> {
 }
 
 async fn webhook(
+    sender: web::Data<mpsc::Sender<Msg>>,
     pool: web::Data<DbPool>,
     path: web::Path<String>,
     req: HttpRequest,
@@ -333,7 +326,7 @@ async fn webhook(
         body,
     };
 
-    web::block(move || {
+    let requests = web::block(move || {
         let mut conn = pool.get().unwrap();
 
         log::info!("handling webhook {:?}", input);
@@ -356,13 +349,13 @@ async fn webhook(
             })?
             .into_iter();
 
-        for req in requests {
-            let _ = handle_request(&mut conn, User::Admin, req);
-        }
-
-        Ok::<_, error::Error>(())
+        Ok::<_, error::Error>(requests)
     })
     .await??;
+
+    for req in requests {
+        let _ = handle_request((**sender).clone(), User::Admin, req).await;
+    }
 
     Ok(HttpResponse::Ok().finish())
 }

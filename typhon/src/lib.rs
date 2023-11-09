@@ -38,6 +38,9 @@ use diesel::prelude::*;
 use diesel::r2d2;
 use once_cell::sync::Lazy;
 use sha256::digest;
+use tokio::sync::mpsc;
+use tokio::sync::oneshot;
+
 use std::future::Future;
 use std::pin::Pin;
 
@@ -273,23 +276,14 @@ pub fn handle_request_aux(
 }
 
 /// Main entry point for Typhon requests
-pub fn handle_request(
-    conn: &mut Conn,
+pub async fn handle_request(
+    sender: mpsc::Sender<Msg>,
     user: User,
     req: requests::Request,
 ) -> Result<Response, ResponseError> {
-    log::info!("handling request {} for user {:?}", req, user);
-    Ok(handle_request_aux(conn, &user, &req).map_err(|e| {
-        if e.is_internal() {
-            log::error!(
-                "request {:?} for user {:?} raised error: {:?}",
-                req,
-                user,
-                e
-            );
-        }
-        e.into()
-    })?)
+    let (send, recv) = oneshot::channel();
+    let _ = sender.send(Msg { send, user, req }).await;
+    recv.await.unwrap()
 }
 
 pub fn log_event(event: Event) {
@@ -307,4 +301,29 @@ pub async fn shutdown() {
         build_manager::BUILDS.shutdown(),
     );
     eprintln!("Good bye!");
+}
+
+pub struct Msg {
+    pub user: User,
+    pub req: requests::Request,
+    pub send: oneshot::Sender<Result<Response, ResponseError>>,
+}
+
+pub async fn handler(mut recv: mpsc::Receiver<Msg>) {
+    let mut conn = POOL.get().unwrap();
+    while let Some(msg) = recv.recv().await {
+        log::info!("handling request {} for user {:?}", msg.req, msg.user);
+        let rsp = handle_request_aux(&mut conn, &msg.user, &msg.req).map_err(|e| {
+            if e.is_internal() {
+                log::error!(
+                    "request {:?} for user {:?} raised error: {:?}",
+                    msg.req,
+                    msg.user,
+                    e
+                );
+            }
+            e.into()
+        });
+        let _ = msg.send.send(rsp);
+    }
 }

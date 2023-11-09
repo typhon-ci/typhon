@@ -2,6 +2,7 @@ use actix_web::{web, App, HttpServer};
 use clap::Parser;
 use diesel::connection::SimpleConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use tokio::sync::mpsc;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
@@ -19,7 +20,8 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
 
     // Connect to the sqlite database
-    let mut conn = typhon::POOL.get().unwrap();
+    let pool = typhon::POOL.clone();
+    let mut conn = pool.get().unwrap();
 
     // Enable foreign key support
     let _ = conn.batch_execute("PRAGMA foreign_keys = ON");
@@ -31,22 +33,27 @@ async fn main() -> std::io::Result<()> {
 
     drop(conn);
 
+    // Run typhon
+    let (send, recv) = mpsc::channel(256);
+    let typhon = tokio::spawn(typhon::handler(recv));
+
     // Run actix server
     let actix = tokio::spawn(
         HttpServer::new(move || {
             App::new()
                 .configure(typhon::api::config)
-                .app_data(web::Data::new(typhon::POOL.clone()))
+                .app_data(web::Data::new(send.clone()))
+                .app_data(web::Data::new(pool.clone()))
         })
         .disable_signals()
         .bind(("127.0.0.1", 8000))?
         .run(),
     );
 
-    // Graceful shutdown
+    // Graceful shutdown (FIXME)
     let _ = tokio::signal::ctrl_c().await;
     actix.abort();
-    typhon::shutdown().await;
+    typhon.abort();
 
     Ok(())
 }
