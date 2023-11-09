@@ -294,8 +294,6 @@ impl Project {
 
         action.spawn(conn, finish)?;
 
-        log_event(Event::ProjectUpdated(self.handle()));
-
         Ok(())
     }
 
