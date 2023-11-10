@@ -338,7 +338,14 @@ pub async fn handler(mut recv: mpsc::Receiver<Msg>) {
                     "request {:?} for user {:?} raised error: {:?}",
                     msg.req,
                     msg.user,
-                    e
+                    e,
+                );
+            } else {
+                log::info!(
+                    "request {:?} for user {:?} raised error: {:?}",
+                    msg.req,
+                    msg.user,
+                    e,
                 );
             }
             e.into()
