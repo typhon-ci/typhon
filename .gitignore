@@ -1,3 +1,5 @@
 target
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
 dist

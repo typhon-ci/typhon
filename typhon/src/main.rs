@@ -1,6 +1,5 @@
 use actix_web::{web, App, HttpServer};
 use clap::Parser;
-use diesel::connection::SimpleConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use tokio::sync::mpsc;
 
@@ -22,9 +21,6 @@ async fn main() -> std::io::Result<()> {
     // Connect to the sqlite database
     let pool = typhon::POOL.clone();
     let mut conn = pool.get().unwrap();
-
-    // Enable foreign key support
-    let _ = conn.batch_execute("PRAGMA foreign_keys = ON");
 
     // Run diesel migrations
     let _ = conn

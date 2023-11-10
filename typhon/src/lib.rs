@@ -80,11 +80,30 @@ pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
 pub type Conn =
     diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::SqliteConnection>>;
 
+#[derive(Debug)]
+pub struct ConnectionCustomizer {}
+
+impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::Error>
+    for ConnectionCustomizer
+{
+    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
+        use diesel::connection::SimpleConnection;
+        (|| {
+            conn.batch_execute("PRAGMA foreign_keys = ON;")?;
+            conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;")?;
+            conn.batch_execute("PRAGMA busy_timeout = 10000;")?;
+            Ok(())
+        })()
+        .map_err(diesel::r2d2::Error::QueryError)
+    }
+}
+
 // Typhon's state
 pub static POOL: Lazy<DbPool> = Lazy::new(|| {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = diesel::r2d2::ConnectionManager::<SqliteConnection>::new(database_url);
     diesel::r2d2::Pool::builder()
+        .connection_customizer(Box::new(ConnectionCustomizer {}))
         .build(manager)
         .expect("database URL should be valid path to SQLite DB file")
 });
