@@ -126,7 +126,8 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | ProjectNotFound(_)
             | ActionNotFound(_)
             | BuildNotFound(_)
-            | RunNotFound(_) => ResourceNotFound(format!("{}", self)),
+            | RunNotFound(_)
+            | LogNotFound(_) => ResourceNotFound(format!("{}", self)),
             AccessDenied
             | ActionError(_)
             | BadJobsetDecl(_)
@@ -134,7 +135,6 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | NixError(_)
             | ProjectAlreadyExists(_)
             | LoginError
-            | LogNotFound(_)
             | BadWebhookOutput => BadRequest(format!("{}", self)),
         }
     }
