@@ -329,27 +329,31 @@ pub struct Msg {
 }
 
 pub async fn handler(mut recv: mpsc::Receiver<Msg>) {
-    let mut conn = POOL.get().unwrap();
+    use tokio::task::spawn_blocking;
+
     while let Some(msg) = recv.recv().await {
-        log::info!("handling request {} for user {:?}", msg.req, msg.user);
-        let rsp = handle_request_aux(&mut conn, &msg.user, &msg.req).map_err(|e| {
-            if e.is_internal() {
-                log::error!(
-                    "request {:?} for user {:?} raised error: {:?}",
-                    msg.req,
-                    msg.user,
-                    e,
-                );
-            } else {
-                log::info!(
-                    "request {:?} for user {:?} raised error: {:?}",
-                    msg.req,
-                    msg.user,
-                    e,
-                );
-            }
-            e.into()
+        spawn_blocking(move || {
+            let mut conn = POOL.get().unwrap();
+            log::info!("handling request {} for user {:?}", msg.req, msg.user);
+            let rsp = handle_request_aux(&mut conn, &msg.user, &msg.req).map_err(|e| {
+                if e.is_internal() {
+                    log::error!(
+                        "request {:?} for user {:?} raised error: {:?}",
+                        msg.req,
+                        msg.user,
+                        e,
+                    );
+                } else {
+                    log::info!(
+                        "request {:?} for user {:?} raised error: {:?}",
+                        msg.req,
+                        msg.user,
+                        e,
+                    );
+                }
+                e.into()
+            });
+            let _ = msg.send.send(rsp);
         });
-        let _ = msg.send.send(rsp);
     }
 }

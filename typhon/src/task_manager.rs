@@ -127,6 +127,8 @@ impl<
         run: O,
         finish: F,
     ) {
+        use tokio::task::spawn_blocking;
+
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
         let (finish_send_send, finish_send_recv) = oneshot::channel::<mpsc::Sender<()>>();
         let (state_send, state_recv) = oneshot::channel::<&'static St>();
@@ -138,7 +140,7 @@ impl<
                 _ = cancel_recv => None,
                 r = run => Some(r),
             };
-            finish(r, state);
+            let _ = spawn_blocking(move || finish(r, state)).await;
             let _ = sender_self.send(Msg::Finish(id_bis)).await;
             let _ = finish_send_recv.await;
         });
