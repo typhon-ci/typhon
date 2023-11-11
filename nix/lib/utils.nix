@@ -5,9 +5,9 @@
   self = rec {
     inherit systems;
 
-    lib = sources.nixpkgs.lib;
+    lib = import "${sources.nixpkgs}/lib";
 
-    pkgs = lib.genAttrs systems (system: import ../nixpkgs.nix {inherit sources system;});
+    pkgs = lib.genAttrs systems (system: import sources.nixpkgs {inherit system;});
 
     unionOfDisjoint = x: y:
       if builtins.intersectAttrs x y == {}
