@@ -234,7 +234,7 @@ async fn dist(
 
 async fn live_log(task_id: i32) -> Option<HttpResponse> {
     use futures::stream::StreamExt;
-    match LOGS.listen(&task_id) {
+    match LOGS.listen_async(&task_id).await {
         Some(stream) => {
             let stream = stream.map(|x: String| {
                 Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
