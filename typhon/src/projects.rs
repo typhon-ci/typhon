@@ -404,8 +404,6 @@ impl Project {
 
         gcroots::update(&mut conn);
 
-        log_event(Event::ProjectJobsetsUpdated(self.handle()));
-
         Ok(TaskStatusKind::Success)
     }
 }
