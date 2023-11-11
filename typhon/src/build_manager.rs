@@ -1,5 +1,6 @@
 use crate::builds;
 use crate::error::Error;
+use crate::log_event;
 use crate::models;
 use crate::nix;
 use crate::nix::DrvPath;
@@ -10,6 +11,7 @@ use crate::DbPool;
 use crate::POOL;
 
 use typhon_types::data::TaskStatusKind;
+use typhon_types::*;
 
 use diesel::prelude::*;
 use once_cell::sync::Lazy;
@@ -104,6 +106,8 @@ impl State {
                 active_waiters: 1,
             },
         );
+
+        log_event(Event::BuildNew(build.handle()));
 
         let abort = {
             let drv = drv.clone();
@@ -230,6 +234,7 @@ async fn main_thread(
             }
             Msg::Finished(drv, res) => {
                 if let Some(build) = state.builds.remove(&drv) {
+                    log_event(Event::BuildFinished(build.build.handle()));
                     for sender in build.senders {
                         let _ = sender.send(res.clone());
                     }

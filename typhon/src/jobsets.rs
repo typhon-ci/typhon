@@ -126,12 +126,17 @@ impl Jobset {
 
         let finish = {
             let evaluation = evaluation.clone();
-            move |r, pool: &DbPool| evaluation.finish(r, pool)
+            move |r, pool: &DbPool| {
+                let handle = evaluation.handle();
+                let status = evaluation.finish(r, pool);
+                log_event(Event::EvaluationFinished(handle));
+                status
+            }
         };
 
-        evaluation.task.run(conn, run, finish)?;
-
         log_event(Event::EvaluationNew(evaluation.handle()));
+
+        evaluation.task.run(conn, run, finish)?;
 
         gcroots::update(conn);
 

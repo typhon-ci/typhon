@@ -214,6 +214,8 @@ impl Action {
         conn: &mut Conn,
         finish: F,
     ) -> Result<(), error::Error> {
+        use crate::log_event;
+
         let run = {
             let self_ = self.clone();
             move |sender| async move {
@@ -232,17 +234,26 @@ impl Action {
             }
         };
 
-        let finish = move |res: Option<Result<String, error::Error>>, pool: &DbPool| match res {
-            Some(Err(_)) => {
-                let _ = finish(None, pool);
-                TaskStatusKind::Error
-            }
-            Some(Ok(stdout)) => finish(Some(stdout), pool),
-            None => {
-                let _ = finish(None, pool);
-                TaskStatusKind::Canceled
+        let finish = {
+            let handle = self.handle();
+            move |res: Option<Result<String, error::Error>>, pool: &DbPool| {
+                let status = match res {
+                    Some(Err(_)) => {
+                        let _ = finish(None, pool);
+                        TaskStatusKind::Error
+                    }
+                    Some(Ok(stdout)) => finish(Some(stdout), pool),
+                    None => {
+                        let _ = finish(None, pool);
+                        TaskStatusKind::Canceled
+                    }
+                };
+                log_event(Event::ActionFinished(handle));
+                status
             }
         };
+
+        log_event(Event::ActionNew(self.handle()));
 
         self.task.run(conn, run, finish)?;
 

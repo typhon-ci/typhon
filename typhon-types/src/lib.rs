@@ -540,9 +540,10 @@ pub enum Event {
     ProjectUpdated(handles::Project),
     EvaluationNew(handles::Evaluation),
     EvaluationFinished(handles::Evaluation),
-    BuildNew(String, handles::Build),
-    BuildFinished(String, handles::Build),
+    BuildNew(handles::Build),
+    BuildFinished(handles::Build),
     RunNew(handles::Run),
     RunUpdated(handles::Run),
-    ActionUpdated(handles::Action),
+    ActionNew(handles::Action),
+    ActionFinished(handles::Action),
 }
