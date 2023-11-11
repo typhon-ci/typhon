@@ -3,6 +3,7 @@ pub mod live {
     use tokio::sync::mpsc;
     use tokio::sync::oneshot;
     use tokio::sync::Mutex;
+    use tokio::task::block_in_place;
     use tokio::task::JoinHandle;
 
     #[derive(Debug)]
@@ -117,10 +118,10 @@ pub mod live {
                 })
                 .unwrap();
 
-            if not_found_receiver.blocking_recv().unwrap() {
+            if block_in_place(|| not_found_receiver.blocking_recv()).unwrap() {
                 None
             } else {
-                Some(dump_receiver.blocking_recv().unwrap())
+                Some(block_in_place(|| dump_receiver.blocking_recv()).unwrap())
             }
         }
 
@@ -135,7 +136,7 @@ pub mod live {
                 })
                 .unwrap();
 
-            if not_found_receiver.blocking_recv().unwrap() {
+            if block_in_place(|| not_found_receiver.blocking_recv().unwrap()) {
                 None
             } else {
                 Some(async_stream::stream! {

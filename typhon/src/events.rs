@@ -3,6 +3,7 @@ use typhon_types::Event;
 use futures_core::stream::Stream;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use tokio::task::block_in_place;
 use tokio::task::JoinHandle;
 
 pub enum Msg {
@@ -53,7 +54,7 @@ impl EventLogger {
         let (sender, mut receiver) = mpsc::channel(256);
         let _ = self.sender.try_send(Msg::Listen(sender));
         Some(async_stream::stream! {
-            while let Some(e) = receiver.blocking_recv() {
+            while let Some(e) = block_in_place(|| receiver.blocking_recv()) {
                 yield e;
             }
         })

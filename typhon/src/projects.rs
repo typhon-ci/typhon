@@ -21,6 +21,7 @@ use diesel::prelude::*;
 use serde::Deserialize;
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
+use tokio::task::block_in_place;
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -338,7 +339,7 @@ impl Project {
 
         action.spawn(conn, finish)?;
 
-        Ok(receiver.blocking_recv().map_err(|_| Error::Todo)?)
+        Ok(block_in_place(|| receiver.blocking_recv()).map_err(|_| Error::Todo)?)
     }
 
     fn finish_refresh(

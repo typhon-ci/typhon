@@ -17,6 +17,7 @@ use time::OffsetDateTime;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
+use tokio::task::block_in_place;
 use tokio::task::JoinHandle;
 use tokio::task::JoinSet;
 
@@ -274,7 +275,7 @@ impl Builder {
         self.sender
             .try_send(Msg::Build(drv, handle_sender))
             .unwrap(); // FIXME
-        handle_receiver.blocking_recv().unwrap() // FIXME
+        block_in_place(|| handle_receiver.blocking_recv()).unwrap() // FIXME
     }
 
     pub async fn shutdown(&self) {
