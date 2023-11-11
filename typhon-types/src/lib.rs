@@ -415,6 +415,13 @@ pub mod responses {
         }
     }
 
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct SearchResult<T> {
+        pub count: u8,
+        pub list: Vec<T>,
+        pub total: u64,
+    }
+
     #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectMetadata {
         #[serde(default)]
@@ -491,10 +498,10 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Response {
         Ok,
-        ListEvaluations(Vec<(handles::Evaluation, OffsetDateTime)>),
-        ListBuilds(Vec<(handles::Build, OffsetDateTime)>),
-        ListActions(Vec<(handles::Action, OffsetDateTime)>),
-        ListRuns(Vec<(handles::Run, OffsetDateTime)>),
+        ListEvaluations(SearchResult<handles::Evaluation>),
+        ListBuilds(SearchResult<handles::Build>),
+        ListActions(SearchResult<handles::Action>),
+        ListRuns(SearchResult<handles::Run>),
         ListProjects(Vec<(String, ProjectMetadata)>),
         ProjectInfo(ProjectInfo),
         JobsetEvaluate(crate::handles::Evaluation),

@@ -8,7 +8,6 @@ use crate::Conn;
 use typhon_types::*;
 
 use diesel::prelude::*;
-use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Build {
@@ -62,34 +61,33 @@ impl Build {
     pub fn search(
         conn: &mut Conn,
         search: &requests::BuildSearch,
-    ) -> Result<Vec<(handles::Build, OffsetDateTime)>, Error> {
-        let mut query = schema::builds::table
-            .inner_join(schema::tasks::table)
-            .into_boxed();
-        if let Some(drv) = &search.drv {
-            query = query.filter(schema::builds::drv.eq(drv));
-        }
-        if let Some(status) = search.status {
-            query = query.filter(schema::tasks::status.eq(status.to_i32()));
-        }
-        query = query
-            .order(schema::builds::time_created.desc())
-            .offset(search.offset as i64)
-            .limit(search.limit as i64);
-        let builds = query
-            .load::<(models::Build, models::Task)>(conn)?
+    ) -> Result<responses::SearchResult<handles::Build>, Error> {
+        let query = || {
+            let mut query = schema::builds::table
+                .inner_join(schema::tasks::table)
+                .into_boxed();
+            if let Some(drv) = &search.drv {
+                query = query.filter(schema::builds::drv.eq(drv));
+            }
+            if let Some(status) = search.status {
+                query = query.filter(schema::tasks::status.eq(status.to_i32()));
+            }
+            query.order(schema::builds::time_created.desc())
+        };
+        let (builds, total): (Vec<_>, i64) = conn.transaction::<_, Error, _>(|conn| {
+            let total = query().count().get_result(conn)?;
+            let builds = query()
+                .offset(search.offset as i64)
+                .limit(search.limit as i64)
+                .load::<(models::Build, models::Task)>(conn)?;
+            Ok((builds, total))
+        })?;
+        let count = builds.len() as u8;
+        let total = total as u64;
+        let list = builds
             .into_iter()
-            .map(|(build, task)| Self {
-                build,
-                task: tasks::Task { task },
-            });
-        let mut res = Vec::new();
-        for build in builds {
-            res.push((
-                build.handle(),
-                OffsetDateTime::from_unix_timestamp(build.build.time_created)?,
-            ));
-        }
-        Ok(res)
+            .map(|(build, _)| handles::build((build.drv, build.num as u64)))
+            .collect();
+        Ok(responses::SearchResult { count, list, total })
     }
 }
