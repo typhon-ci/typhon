@@ -300,7 +300,7 @@ impl Project {
         &self,
         conn: &mut Conn,
         input: actions::webhooks::Input,
-    ) -> Result<Vec<requests::Request>, Error> {
+    ) -> Result<Option<Vec<requests::Request>>, Error> {
         let (sender, receiver) = oneshot::channel();
 
         let input = serde_json::to_value(input).unwrap();
@@ -325,12 +325,18 @@ impl Project {
                             .into_iter()
                             .map(|cmd| cmd.lift(handle.clone()))
                             .collect();
-                        let _ = sender.send(cmds);
+                        let _ = sender.send(Some(cmds));
                         TaskStatusKind::Success
                     }
-                    Err(_) => TaskStatusKind::Error,
+                    Err(_) => {
+                        let _ = sender.send(None);
+                        TaskStatusKind::Error
+                    }
                 },
-                None => TaskStatusKind::Error,
+                None => {
+                    let _ = sender.send(None);
+                    TaskStatusKind::Error
+                }
             }
         };
 

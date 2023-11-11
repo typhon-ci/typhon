@@ -326,7 +326,7 @@ async fn webhook(
         body,
     };
 
-    let requests = web::block(move || {
+    let res = web::block(move || {
         let mut conn = pool.get().unwrap();
 
         log::info!("handling webhook {:?}", input);
@@ -339,25 +339,30 @@ async fn webhook(
             e
         })?;
 
-        let requests = project
-            .webhook(&mut conn, input)
-            .map_err(|e| {
-                if e.is_internal() {
-                    log::error!("webhook raised error: {:?}", e);
-                }
-                e
-            })?
-            .into_iter();
+        let res = project.webhook(&mut conn, input).map_err(|e| {
+            if e.is_internal() {
+                log::error!("webhook raised error: {:?}", e);
+            }
+            e
+        })?;
 
-        Ok::<_, error::Error>(requests)
+        if res.is_none() {
+            log::warn!("bad webhook for project {}", project_handle);
+        }
+
+        Ok::<_, error::Error>(res)
     })
     .await??;
 
-    for req in requests {
-        let _ = handle_request((**sender).clone(), User::Admin, req).await;
+    match res {
+        Some(requests) => {
+            for req in requests {
+                let _ = handle_request((**sender).clone(), User::Admin, req).await;
+            }
+            Ok(HttpResponse::Ok().finish())
+        }
+        None => Err(error::Error::BadWebhookOutput)?,
     }
-
-    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {

@@ -24,6 +24,7 @@ pub enum Error {
     UnexpectedTimeError(time::error::ComponentRange),
     LoginError,
     TaskError(task_manager::Error),
+    BadWebhookOutput,
 }
 
 impl Error {
@@ -75,6 +76,7 @@ impl std::fmt::Display for Error {
             UnexpectedDatabaseError(e) => write!(f, "Database error: {}", e),
             UnexpectedTimeError(e) => write!(f, "Time error: {}", e),
             TaskError(e) => write!(f, "Task error: {}", e),
+            BadWebhookOutput => write!(f, "Bad webhook output"),
         }
     }
 }
@@ -132,7 +134,8 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | NixError(_)
             | ProjectAlreadyExists(_)
             | LoginError
-            | LogNotFound(_) => BadRequest(format!("{}", self)),
+            | LogNotFound(_)
+            | BadWebhookOutput => BadRequest(format!("{}", self)),
         }
     }
 }
