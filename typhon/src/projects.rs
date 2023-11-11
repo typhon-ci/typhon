@@ -206,10 +206,12 @@ impl Project {
             let self_ = self.clone();
             move |res: Option<Result<(String, ProjectMetadata, Option<String>), Error>>,
                   pool: &DbPool| {
-                // TODO: log error?
                 let status = match res {
                     Some(Ok(x)) => self_.finish_refresh(x, pool),
-                    Some(Err(_)) => Ok(TaskStatusKind::Error),
+                    Some(Err(e)) => {
+                        log::warn!("refresh error for project {}: {}", self_.handle(), e);
+                        Ok(TaskStatusKind::Error)
+                    }
                     None => Ok(TaskStatusKind::Canceled),
                 };
                 log_event(Event::ProjectUpdated(self_.handle()));
