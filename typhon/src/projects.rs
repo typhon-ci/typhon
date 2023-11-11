@@ -222,9 +222,9 @@ impl Project {
             .set(schema::projects::last_refresh_task_id.eq(task.task.id))
             .execute(conn)?;
 
-        task.run(conn, run, finish)?;
-
         log_event(Event::ProjectUpdated(self.handle()));
+
+        task.run(conn, run, finish)?;
 
         Ok(())
     }
