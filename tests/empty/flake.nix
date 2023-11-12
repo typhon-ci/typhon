@@ -1,6 +1,0 @@
-{
-  outputs = {self}: {
-    typhonProject = {};
-    typhonJobs = {};
-  };
-}
