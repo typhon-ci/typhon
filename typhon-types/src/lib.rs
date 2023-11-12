@@ -547,3 +547,41 @@ pub enum Event {
     ActionNew(handles::Action),
     ActionFinished(handles::Action),
 }
+
+impl Event {
+    pub fn invalidates(&self, req: &requests::Request) -> bool {
+        use requests::*;
+        use Event::*;
+        match (self, req) {
+            (ProjectNew(_), Request::ListProjects) => true,
+            (ProjectDeleted(_), Request::ListProjects) => true,
+            (ProjectUpdated(_), Request::ListProjects) => true,
+            (ProjectUpdated(handle1), Request::Project(handle2, Project::Info)) => {
+                handle1 == handle2
+            }
+            (ProjectUpdated(handle1), Request::Jobset(handle2, Jobset::Info)) => {
+                *handle1 == handle2.project
+            }
+            (EvaluationNew(_), Request::ListEvaluations(_)) => true,
+            (EvaluationFinished(_), Request::ListEvaluations(_)) => true,
+            (EvaluationFinished(handle1), Request::Evaluation(handle2, Evaluation::Info)) => {
+                handle1 == handle2
+            }
+            (EvaluationFinished(handle1), Request::Evaluation(handle2, Evaluation::Log)) => {
+                handle1 == handle2
+            }
+            (BuildNew(_), Request::ListBuilds(_)) => true,
+            (BuildFinished(_), Request::ListBuilds(_)) => true,
+            (BuildFinished(handle1), Request::Build(handle2, Build::Info)) => handle1 == handle2,
+            (BuildFinished(handle1), Request::Build(handle2, Build::Log)) => handle1 == handle2,
+            (RunNew(_), Request::ListRuns(_)) => true,
+            (RunUpdated(_), Request::ListRuns(_)) => true,
+            (RunUpdated(handle1), Request::Run(handle2, Run::Info)) => handle1 == handle2,
+            (ActionNew(_), Request::ListActions(_)) => true,
+            (ActionFinished(_), Request::ListActions(_)) => true,
+            (ActionFinished(handle1), Request::Action(handle2, Action::Info)) => handle1 == handle2,
+            (ActionFinished(handle1), Request::Action(handle2, Action::Log)) => handle1 == handle2,
+            (_, _) => false,
+        }
+    }
+}
