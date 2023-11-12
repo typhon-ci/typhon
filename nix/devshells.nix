@@ -48,9 +48,4 @@ in rec {
     name = "typhon-doc-devshell";
     packages = [pkgs.mdbook];
   };
-
-  test-api = pkgs.mkShell {
-    name = "typhon-test-api-devshell";
-    packages = rustPackages ++ [pkgs.openssl];
-  };
 }

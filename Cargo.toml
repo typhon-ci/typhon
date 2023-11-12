@@ -3,7 +3,6 @@ members = [
   "typhon",
   "typhon-types",
   "typhon-webapp",
-  "typhon-api-client-test",
 ]
 default-members = [
   "typhon"
@@ -20,7 +19,6 @@ age = { version = "0.8", features = ["armor"] }
 async-stream = "0.3"
 async-trait = "0.1"
 clap = { version = "4.4", features = ["derive"] }
-colored = "2"
 diesel = { version = "2.1", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "r2d2"] }
 diesel_migrations = "2.1"
 futures = "0.3"
@@ -41,7 +39,6 @@ serde_repr = "0.1"
 sha256 = "1.4"
 stderrlog = "0.5"
 substring = "1.4"
-surf = "2.3"
 time = { version = "0.3", features = ["serde"] }
 tokio = { version = "1.33", features = ["full"] }
 tokio-stream = "0.1"
