@@ -1,8 +1,14 @@
+use crate::secrets::get_token;
+use crate::settings::Settings;
+
+use typhon_types::*;
+
+use async_stream::stream;
 use futures_core::stream::Stream;
+use gloo_console::log;
 use gloo_net::http;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Promise;
-
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(inline_js = "export async function read_chunk_by_chunk(reader) {
@@ -17,9 +23,8 @@ extern "C" {
     fn read_chunk_by_chunk(reader: js_sys::Object) -> Promise;
 }
 
-pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> {
+pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'static {
     use crate::*;
-    use async_stream::stream;
     stream! {
         let res = req
             .send()
@@ -49,4 +54,43 @@ pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> {
             }
         }
     }
+}
+
+pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
+    let settings = Settings::load();
+    let req = http::RequestBuilder::new(&format!("{}/events", settings.api_url))
+        .method(http::Method::GET);
+    let req = match get_token() {
+        None => req,
+        Some(token) => req.header(&"token", &token),
+    };
+    let req = req.build().unwrap();
+    let s = stream! {
+        for await chunk in fetch_as_stream(req) {
+            let deserializer = serde_json::Deserializer::from_str(&chunk);
+            for maybe_event in deserializer.into_iter() {
+                match maybe_event {
+                    Ok(event) => yield event,
+                    Err(e) => log!(format!("failed to parse event: {:?}", e)),
+                }
+            }
+        }
+    };
+    Box::pin(s)
+}
+
+pub fn filter_events(
+    req: requests::Request,
+    event: impl Stream<Item = Option<Event>> + 'static,
+) -> impl Stream<Item = bool> + Unpin + 'static {
+    let s = stream! {
+        let mut x = false;
+        for await maybe_event in event {
+            if maybe_event.map(|event| event.invalidates(&req)).unwrap_or(false) {
+                yield x;
+                x = !x;
+            }
+        }
+    };
+    Box::pin(s)
 }

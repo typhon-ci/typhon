@@ -3441,6 +3441,7 @@ version = "0.0.1"
 dependencies = [
  "async-stream",
  "async-trait",
+ "futures",
  "futures-core",
  "gloo-console",
  "gloo-net 0.4.0",
