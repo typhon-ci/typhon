@@ -5,7 +5,7 @@ utils: lib: {
     secrets ? null,
   }: {
     inherit meta;
-    actions = utils.lib.genAttrs lib.systems (
+    actions = lib.eachSystem (
       system: let
         pkgs = utils.pkgs.${system};
         linkAction = name:
