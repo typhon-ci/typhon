@@ -17,6 +17,9 @@ utils: lib: {
     pkgs.writeShellApplication {
       name = "action";
       runtimeInputs = [pkgs.jq];
-      text = "cat | jq '.input.body' -r";
+      text = ''
+        cat | jq '.input' -r >&2"
+        echo '[]'
+      '';
     });
 }
