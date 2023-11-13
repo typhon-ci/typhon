@@ -1,9 +1,11 @@
 use actix_web::{App, HttpServer};
 use clap::Parser;
 
+mod api;
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let args = typhon::Args::parse();
+    let args = typhon_lib::Args::parse();
 
     // Setup logger
     stderrlog::new()
@@ -15,7 +17,7 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
 
     // Run actix server
-    HttpServer::new(move || App::new().configure(typhon::api::config))
+    HttpServer::new(move || App::new().configure(api::config))
         .bind(("127.0.0.1", 8000))?
         .run()
         .await?;

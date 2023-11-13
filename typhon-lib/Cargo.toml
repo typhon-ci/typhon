@@ -1,0 +1,23 @@
+[package]
+name = "typhon-lib"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+typhon-types.workspace = true
+age.workspace = true
+async-stream.workspace = true
+async-trait.workspace = true
+clap.workspace = true
+diesel.workspace = true
+diesel_migrations.workspace = true
+futures-core.workspace = true
+log.workspace = true
+once_cell.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_repr.workspace = true
+sha256.workspace = true
+stderrlog.workspace = true
+time.workspace = true
+tokio.workspace = true

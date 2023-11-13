@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "typhon",
+  "typhon-lib",
   "typhon-types",
   "typhon-webapp",
 ]
@@ -14,6 +15,7 @@ version = "0.0.1"
 edition = "2021"
 
 [workspace.dependencies]
+typhon-lib = { path = "./typhon-lib" }
 typhon-types = { path = "./typhon-types" }
 actix = "0.13"
 actix-cors = "0.6"

@@ -1,6 +1,5 @@
 mod actions;
 mod builds;
-mod error;
 mod evaluations;
 mod events;
 mod gcroots;
@@ -13,14 +12,16 @@ mod runs;
 mod schema;
 mod tasks;
 
-pub mod api;
 pub mod build_manager;
+pub mod error;
 pub mod logs;
 pub mod task_manager;
 
 pub use typhon_types::{
     handles, requests, responses, responses::Response, responses::ResponseError, Event,
 };
+
+pub use crate::actions::webhooks;
 
 use actions::Action;
 use builds::Build;
@@ -365,7 +366,7 @@ pub struct Msg {
     pub send: oneshot::Sender<Result<Response, ResponseError>>,
 }
 
-pub async fn handler(mut recv: mpsc::Receiver<Msg>) {
+async fn handler(mut recv: mpsc::Receiver<Msg>) {
     use tokio::task::spawn_blocking;
 
     while let Some(msg) = recv.recv().await {

@@ -1,9 +1,11 @@
-use crate::actions::webhooks;
-use crate::error;
-use crate::requests::*;
-use crate::{handle_request, handles, Response, ResponseError, User};
-use crate::{live_log_action, live_log_build};
-use crate::{EVENT_LOGGER, SETTINGS};
+use typhon_lib::error;
+use typhon_lib::handle_request;
+use typhon_lib::User;
+use typhon_lib::{live_log_action, live_log_build};
+use typhon_lib::{EVENT_LOGGER, SETTINGS};
+use typhon_types::handles;
+use typhon_types::requests::*;
+use typhon_types::responses::{Response, ResponseError};
 
 use actix_cors::Cors;
 use actix_files::NamedFile;
@@ -16,9 +18,9 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
-struct ResponseWrapper(crate::Response);
+struct ResponseWrapper(Response);
 #[derive(Debug)]
-struct ResponseErrorWrapper(crate::ResponseError);
+struct ResponseErrorWrapper(ResponseError);
 
 impl From<actix_web::error::BlockingError> for ResponseErrorWrapper {
     fn from(_: actix_web::error::BlockingError) -> ResponseErrorWrapper {
@@ -41,7 +43,7 @@ impl std::fmt::Display for ResponseErrorWrapper {
 impl Responder for ResponseWrapper {
     type Body = EitherBody<String>;
     fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
-        use crate::Response::*;
+        use Response::*;
         match self.0 {
             Ok => web::Json(true).respond_to(req),
             ListEvaluations(payload) => web::Json(payload).respond_to(req),
@@ -294,7 +296,7 @@ async fn webhook(
     req: HttpRequest,
     body: String,
 ) -> Result<HttpResponse, ResponseErrorWrapper> {
-    let input = webhooks::Input {
+    let input = typhon_lib::webhooks::Input {
         headers: req
             .headers()
             .into_iter()
@@ -315,7 +317,7 @@ async fn webhook(
     };
 
     let handle = handles::project(path.into_inner());
-    let requests = crate::webhook(handle, input)?;
+    let requests = typhon_lib::webhook(handle, input)?;
     for req in requests {
         handle_request(User::Admin, req)
             .await
