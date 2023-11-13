@@ -292,9 +292,10 @@ async fn events() -> Option<HttpResponse> {
     use futures::StreamExt;
     EVENT_LOGGER.listen_async().await.map(|stream| {
         HttpResponse::Ok().streaming(stream.map(|x: typhon_types::Event| {
-            Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(
-                serde_json::to_string(&x).unwrap(),
-            ))
+            Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!(
+                "{}\n",
+                serde_json::to_string(&x).unwrap()
+            )))
         }))
     })
 }
