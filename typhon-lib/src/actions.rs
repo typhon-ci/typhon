@@ -188,7 +188,7 @@ impl Action {
                 query = query.filter(schema::projects::name.eq(name));
             }
             if let Some(status) = search.status {
-                query = query.filter(schema::tasks::status.eq(status.to_i32()));
+                query = query.filter(schema::tasks::status.eq(i32::from(status)));
             }
             query.order(schema::actions::time_created.desc())
         };

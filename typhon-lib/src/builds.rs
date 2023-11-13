@@ -70,7 +70,7 @@ impl Build {
                 query = query.filter(schema::builds::drv.eq(drv));
             }
             if let Some(status) = search.status {
-                query = query.filter(schema::tasks::status.eq(status.to_i32()));
+                query = query.filter(schema::tasks::status.eq(i32::from(status)));
             }
             query.order(schema::builds::time_created.desc())
         };

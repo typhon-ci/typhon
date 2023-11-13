@@ -213,7 +213,7 @@ async fn main_thread(
                         builds::Build::last(&mut state.conn, &drv)?;
                     match maybe_build {
                         Some(build) => {
-                            if build.task.status().kind() == TaskStatusKind::Success
+                            if TaskStatusKind::from(&build.task.status()) == TaskStatusKind::Success
                                 && nix::is_built(&drv).await?
                             {
                                 let _ = res_sender.send(Some(Some(())));

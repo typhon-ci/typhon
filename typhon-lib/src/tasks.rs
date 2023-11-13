@@ -39,7 +39,7 @@ impl Task {
             .get_result::<models::Log>(conn)?;
         let new_task = models::NewTask {
             log_id: log.id,
-            status: TaskStatusKind::Pending.to_i32(),
+            status: TaskStatusKind::Pending.into(),
         };
         let task = diesel::insert_into(schema::tasks::dsl::tasks)
             .values(new_task)
@@ -58,12 +58,10 @@ impl Task {
         run: F,
         finish: G,
     ) -> Result<(), Error> {
-        let time_started = OffsetDateTime::now_utc();
-
-        let _ = self.set_status(conn, TaskStatus::Pending(Some(time_started)));
-
+        let start = Some(OffsetDateTime::now_utc());
         let id = self.task.id;
-        let task_1 = self.clone();
+
+        self.set_status(conn, TaskStatus::Pending { start })?;
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let run = async move {
@@ -74,26 +72,22 @@ impl Task {
             },);
             res
         };
-        let finish = move |res: Option<T>, pool: &DbPool| {
-            let mut conn = pool.get().unwrap();
-            let (status_kind, event) = finish(res, pool);
-            let time_finished = OffsetDateTime::now_utc();
-            let stderr = LOGS.dump(&id).unwrap_or(String::new()); // FIXME
-            LOGS.reset(&id);
-            let status = match status_kind {
-                TaskStatusKind::Pending => TaskStatus::Pending(Some(time_started)), // should not happen
-                TaskStatusKind::Success => TaskStatus::Success(time_started, time_finished),
-                TaskStatusKind::Error => TaskStatus::Error(time_started, time_finished),
-                TaskStatusKind::Canceled => {
-                    TaskStatus::Canceled(Some((time_started, time_finished)))
-                }
-            };
-            let _ = task_1.set_status(&mut conn, status);
-            let _ =
-                diesel::update(schema::logs::table.filter(schema::logs::id.eq(task_1.task.log_id)))
+        let finish = {
+            let task = self.clone();
+            move |res: Option<T>, pool: &DbPool| {
+                let mut conn = pool.get().unwrap();
+                let (status_kind, event) = finish(res, pool);
+                let time_finished = OffsetDateTime::now_utc();
+                let stderr = LOGS.dump(&id).unwrap_or(String::new()); // FIXME
+                let status = status_kind.into_task_status(start, Some(time_finished));
+                LOGS.reset(&id);
+                task.set_status(&mut conn, status).unwrap();
+                diesel::update(schema::logs::table.filter(schema::logs::id.eq(task.task.log_id)))
                     .set(schema::logs::stderr.eq(stderr))
-                    .execute(&mut conn);
-            log_event(event);
+                    .execute(&mut conn)
+                    .unwrap(); // TODO: handle error properly
+                log_event(event);
+            }
         };
 
         TASKS.run(id, run, finish);
@@ -101,21 +95,24 @@ impl Task {
         Ok(())
     }
 
+    pub fn status_kind(&self) -> TaskStatusKind {
+        self.task.status.try_into().unwrap()
+    }
     pub fn status(&self) -> TaskStatus {
-        TaskStatus::from_data(
-            self.task.status,
-            self.task.time_started,
-            self.task.time_finished,
+        let from_timestamp = |t| OffsetDateTime::from_unix_timestamp(t).unwrap();
+        self.status_kind().into_task_status(
+            self.task.time_started.map(from_timestamp),
+            self.task.time_finished.map(from_timestamp),
         )
     }
 
     fn set_status(&self, conn: &mut Conn, status: TaskStatus) -> Result<(), Error> {
-        let (kind, started, finished) = status.to_data();
+        let (started, finished) = status.times();
         let _ = diesel::update(&self.task)
             .set((
-                schema::tasks::status.eq(kind),
-                schema::tasks::time_started.eq(started),
-                schema::tasks::time_finished.eq(finished),
+                schema::tasks::status.eq(i32::from(TaskStatusKind::from(&status))),
+                schema::tasks::time_started.eq(started.map(OffsetDateTime::unix_timestamp)),
+                schema::tasks::time_finished.eq(finished.map(OffsetDateTime::unix_timestamp)),
             ))
             .execute(conn)?;
         Ok(())

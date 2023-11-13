@@ -65,7 +65,7 @@ impl Evaluation {
     pub fn info(&self, conn: &mut Conn) -> Result<responses::EvaluationInfo, Error> {
         use typhon_types::responses::JobSystemName;
 
-        let jobs = if TaskStatusKind::from_i32(self.task.task.status) == TaskStatusKind::Success {
+        let jobs = if self.task.status_kind() == TaskStatusKind::Success {
             let jobs = schema::jobs::table
                 .filter(schema::jobs::evaluation_id.eq(self.evaluation.id))
                 .load::<models::Job>(conn)?;
@@ -131,7 +131,7 @@ impl Evaluation {
                 query = query.filter(schema::evaluations::jobset_name.eq(name));
             }
             if let Some(status) = search.status {
-                query = query.filter(schema::tasks::status.eq(status.to_i32()));
+                query = query.filter(schema::tasks::status.eq(i32::from(status)));
             }
             query.order(schema::evaluations::time_created.desc())
         };

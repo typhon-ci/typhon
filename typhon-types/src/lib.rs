@@ -168,30 +168,24 @@ pub mod data {
     use serde::{Deserialize, Serialize};
 
     #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+    #[repr(u8)]
     pub enum TaskStatusKind {
         #[default]
-        Pending,
-        Success,
-        Error,
-        Canceled,
+        Pending = 0,
+        Success = 1,
+        Error = 2,
+        Canceled = 3,
     }
-    impl TaskStatusKind {
-        pub fn from_i32(i: i32) -> Self {
-            match i {
-                0 => Self::Pending,
-                1 => Self::Success,
-                2 => Self::Error,
-                3 => Self::Canceled,
-                _ => panic!(),
-            }
+    impl TryFrom<i32> for TaskStatusKind {
+        type Error = ();
+        fn try_from(n: i32) -> Result<TaskStatusKind, ()> {
+            let arr = [Self::Pending, Self::Success, Self::Error, Self::Canceled];
+            arr.get(n as usize).ok_or(()).copied()
         }
-        pub fn to_i32(&self) -> i32 {
-            match self {
-                Self::Pending => 0,
-                Self::Success => 1,
-                Self::Error => 2,
-                Self::Canceled => 3,
-            }
+    }
+    impl From<TaskStatusKind> for i32 {
+        fn from(x: TaskStatusKind) -> i32 {
+            (x as u8) as i32
         }
     }
     impl std::fmt::Display for TaskStatusKind {
@@ -366,59 +360,51 @@ pub mod responses {
     use time::OffsetDateTime;
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct TimeRange {
+        pub start: OffsetDateTime,
+        pub end: OffsetDateTime,
+    }
+
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum TaskStatus {
-        Pending(Option<OffsetDateTime>),
-        Success(OffsetDateTime, OffsetDateTime),
-        Error(OffsetDateTime, OffsetDateTime),
-        Canceled(Option<(OffsetDateTime, OffsetDateTime)>),
+        Pending { start: Option<OffsetDateTime> },
+        Success(TimeRange),
+        Error(TimeRange),
+        Canceled(Option<TimeRange>),
+    }
+    impl From<&TaskStatus> for TaskStatusKind {
+        fn from(status: &TaskStatus) -> Self {
+            match status {
+                TaskStatus::Pending { .. } => Self::Pending,
+                TaskStatus::Success(..) => Self::Success,
+                TaskStatus::Error(..) => Self::Error,
+                TaskStatus::Canceled(..) => Self::Canceled,
+            }
+        }
+    }
+    impl TaskStatusKind {
+        pub fn into_task_status(
+            self,
+            start: Option<OffsetDateTime>,
+            end: Option<OffsetDateTime>,
+        ) -> TaskStatus {
+            let range = start.zip(end).map(|(start, end)| TimeRange { start, end });
+            match self {
+                Self::Pending => TaskStatus::Pending { start },
+                Self::Success => TaskStatus::Success(range.expect("Broken invariant: a `TaskStatusKind::Success` needs a `time_started` and a `time_ended`")),
+                Self::Error => TaskStatus::Error(range.expect("Broken invariant: a `TaskStatusKind::Error` needs a `time_started` and a `time_ended`")),
+                Self::Canceled => TaskStatus::Canceled(range)
+            }
+        }
     }
     impl TaskStatus {
-        pub fn kind(&self) -> TaskStatusKind {
+        pub fn times(self) -> (Option<OffsetDateTime>, Option<OffsetDateTime>) {
             match self {
-                Self::Pending(_) => TaskStatusKind::Pending,
-                Self::Success(_, _) => TaskStatusKind::Success,
-                Self::Error(_, _) => TaskStatusKind::Error,
-                Self::Canceled(_) => TaskStatusKind::Canceled,
-            }
-        }
-        pub fn from_data(kind: i32, time_started: Option<i64>, time_finished: Option<i64>) -> Self {
-            let time_started =
-                time_started.map(|i| OffsetDateTime::from_unix_timestamp(i).unwrap());
-            let time_finished =
-                time_finished.map(|i| OffsetDateTime::from_unix_timestamp(i).unwrap());
-            match TaskStatusKind::from_i32(kind) {
-                TaskStatusKind::Pending => Self::Pending(time_started),
-                TaskStatusKind::Success => {
-                    Self::Success(time_started.unwrap(), time_finished.unwrap())
+                Self::Pending { start } => (start, None),
+                Self::Success(range) | Self::Error(range) | Self::Canceled(Some(range)) => {
+                    (Some(range.start), Some(range.end))
                 }
-                TaskStatusKind::Error => Self::Error(time_started.unwrap(), time_finished.unwrap()),
-                TaskStatusKind::Canceled => Self::Canceled(
-                    time_started.map(|time_started| (time_started, time_finished.unwrap())),
-                ),
-            }
-        }
-        pub fn to_data(&self) -> (i32, Option<i64>, Option<i64>) {
-            let kind = self.kind().to_i32();
-            match *self {
-                TaskStatus::Pending(time_started) => {
-                    (kind, time_started.map(|t| t.unix_timestamp()), None)
-                }
-                TaskStatus::Success(time_started, time_finished) => (
-                    kind,
-                    Some(time_started.unix_timestamp()),
-                    Some(time_finished.unix_timestamp()),
-                ),
-                TaskStatus::Error(time_started, time_finished) => (
-                    kind,
-                    Some(time_started.unix_timestamp()),
-                    Some(time_finished.unix_timestamp()),
-                ),
-                TaskStatus::Canceled(None) => (kind, None, None),
-                TaskStatus::Canceled(Some((time_started, time_finished))) => (
-                    kind,
-                    Some(time_started.unix_timestamp()),
-                    Some(time_finished.unix_timestamp()),
-                ),
+                Self::Canceled(None) => (None, None),
             }
         }
     }
