@@ -1,10 +1,9 @@
 use crate::actions::webhooks;
 use crate::error;
-use crate::projects;
 use crate::requests::*;
-use crate::DbPool;
 use crate::{handle_request, handles, Msg, Response, ResponseError, User};
-use crate::{EVENT_LOGGER, LOGS, SETTINGS};
+use crate::{live_log_action, live_log_build};
+use crate::{EVENT_LOGGER, SETTINGS};
 
 use actix_cors::Cors;
 use actix_files::NamedFile;
@@ -232,52 +231,30 @@ async fn dist(
     }
 }
 
-async fn live_log(task_id: i32) -> Option<HttpResponse> {
+fn streaming_response(
+    stream: impl futures_core::stream::Stream<Item = String> + 'static,
+) -> HttpResponse {
     use futures::stream::StreamExt;
-    match LOGS.listen_async(&task_id).await {
-        Some(stream) => {
-            let stream = stream.map(|x: String| {
-                Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
-            });
-            Some(HttpResponse::Ok().streaming(stream))
-        }
-        None => None,
-    }
+    let stream = stream.map(|x: String| {
+        Ok::<_, actix_web::Error>(actix_web::web::Bytes::from(format!("{}\n", x)))
+    });
+    HttpResponse::Ok().streaming(stream)
 }
 
 async fn build_live_log(
-    pool: web::Data<DbPool>,
     path: web::Path<(String, u64)>,
 ) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
-    use crate::builds;
-
     let handle = handles::build(path.into_inner());
-
-    let id = web::block(move || {
-        let mut conn = pool.get().unwrap();
-        let build = builds::Build::get(&mut conn, &handle)?;
-        Ok::<_, error::Error>(build.task.task.id)
-    })
-    .await??;
-
-    Ok(live_log(id).await)
+    let maybe_stream = web::block(move || live_log_build(handle)).await??;
+    Ok(maybe_stream.map(streaming_response))
 }
 
 async fn action_live_log(
-    pool: web::Data<DbPool>,
     path: web::Path<(String, u64)>,
 ) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
-    use crate::actions;
-
-    let id = web::block(move || {
-        let mut conn = pool.get().unwrap();
-        let handle = handles::action(path.into_inner());
-        let action = actions::Action::get(&mut conn, &handle)?;
-        Ok::<_, error::Error>(action.task.task.id)
-    })
-    .await??;
-
-    Ok(live_log(id).await)
+    let handle = handles::action(path.into_inner());
+    let maybe_stream = web::block(move || live_log_action(handle)).await??;
+    Ok(maybe_stream.map(streaming_response))
 }
 
 async fn raw_request(
@@ -302,7 +279,6 @@ async fn events() -> Option<HttpResponse> {
 
 async fn webhook(
     sender: web::Data<mpsc::Sender<Msg>>,
-    pool: web::Data<DbPool>,
     path: web::Path<String>,
     req: HttpRequest,
     body: String,
@@ -327,43 +303,14 @@ async fn webhook(
         body,
     };
 
-    let res = web::block(move || {
-        let mut conn = pool.get().unwrap();
-
-        log::info!("handling webhook {:?}", input);
-
-        let project_handle = handles::project(path.into_inner().to_string());
-        let project = projects::Project::get(&mut conn, &project_handle).map_err(|e| {
-            if e.is_internal() {
-                log::error!("webhook raised error: {:?}", e);
-            }
-            e
-        })?;
-
-        let res = project.webhook(&mut conn, input).map_err(|e| {
-            if e.is_internal() {
-                log::error!("webhook raised error: {:?}", e);
-            }
-            e
-        })?;
-
-        if res.is_none() {
-            log::warn!("bad webhook for project {}", project_handle);
-        }
-
-        Ok::<_, error::Error>(res)
-    })
-    .await??;
-
-    match res {
-        Some(requests) => {
-            for req in requests {
-                let _ = handle_request((**sender).clone(), User::Admin, req).await;
-            }
-            Ok(HttpResponse::Ok().finish())
-        }
-        None => Err(error::Error::BadWebhookOutput)?,
+    let handle = handles::project(path.into_inner());
+    let requests = crate::webhook(handle, input)?;
+    for req in requests {
+        handle_request((**sender).clone(), User::Admin, req)
+            .await
+            .map_err(ResponseErrorWrapper)?;
     }
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {

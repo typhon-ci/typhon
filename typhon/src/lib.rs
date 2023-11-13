@@ -310,6 +310,54 @@ pub fn log_event(event: Event) {
     EVENT_LOGGER.log(event);
 }
 
+pub fn live_log_build(
+    handle: handles::Build,
+) -> Result<Option<impl futures_core::stream::Stream<Item = String>>, Error> {
+    let mut conn = POOL.get().unwrap();
+    let build = builds::Build::get(&mut conn, &handle)?;
+    Ok(LOGS.listen(&build.task.task.id))
+}
+
+pub fn live_log_action(
+    handle: handles::Action,
+) -> Result<Option<impl futures_core::stream::Stream<Item = String>>, Error> {
+    let mut conn = POOL.get().unwrap();
+    let action = actions::Action::get(&mut conn, &handle)?;
+    Ok(LOGS.listen(&action.task.task.id))
+}
+
+pub fn webhook(
+    project_handle: handles::Project,
+    input: actions::webhooks::Input,
+) -> Result<Vec<requests::Request>, Error> {
+    let mut conn = POOL.get().unwrap();
+
+    log::info!("handling webhook {:?}", input);
+
+    let project = projects::Project::get(&mut conn, &project_handle).map_err(|e| {
+        if e.is_internal() {
+            log::error!("webhook raised error: {:?}", e);
+        }
+        e
+    })?;
+
+    let res = project.webhook(&mut conn, input).map_err(|e| {
+        if e.is_internal() {
+            log::error!("webhook raised error: {:?}", e);
+        }
+        e
+    })?;
+
+    if res.is_none() {
+        log::warn!("bad webhook for project {}", project_handle);
+    }
+
+    match res {
+        Some(requests) => Ok(requests),
+        None => Err(error::Error::BadWebhookOutput)?,
+    }
+}
+
 pub async fn shutdown() {
     eprintln!("Typhon is shutting down...");
     tokio::join!(

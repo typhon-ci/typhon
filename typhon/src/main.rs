@@ -39,7 +39,6 @@ async fn main() -> std::io::Result<()> {
             App::new()
                 .configure(typhon::api::config)
                 .app_data(web::Data::new(send.clone()))
-                .app_data(web::Data::new(pool.clone()))
         })
         .disable_signals()
         .bind(("127.0.0.1", 8000))?
