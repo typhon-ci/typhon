@@ -5,7 +5,7 @@
   utils = import ./utils.nix {inherit sources systems;};
   self =
     utils.importer null [
-      ./dummyWebhook.nix
+      ./dummy.nix
       ./github
       ./mkGitJobsets.nix
       ./mkProject.nix
