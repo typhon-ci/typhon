@@ -6,7 +6,6 @@
   self =
     utils.importer null [
       ./dummyWebhook.nix
-      ./eachSystem.nix
       ./github
       ./mkGitJobsets.nix
       ./mkProject.nix
