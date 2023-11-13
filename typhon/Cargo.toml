@@ -1,8 +1,7 @@
 [package]
 name = "typhon"
-version = "0.0.1"
-edition = "2021"
-authors = [ "Paul-Nicolas Madelaine <pnm@pnm.tf>" ]
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 typhon-types.workspace = true
