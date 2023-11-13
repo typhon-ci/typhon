@@ -59,6 +59,16 @@ impl EventLogger {
         })
     }
 
+    pub async fn listen_async(&self) -> Option<impl Stream<Item = Event>> {
+        let (sender, mut receiver) = mpsc::channel(256);
+        let _ = self.sender.try_send(Msg::Listen(sender));
+        Some(async_stream::stream! {
+            while let Some(e) = receiver.recv().await {
+                yield e;
+            }
+        })
+    }
+
     pub async fn shutdown(&self) {
         let handle = self.handle.lock().await.take();
         if let Some(handle) = handle {
