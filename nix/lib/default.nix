@@ -9,6 +9,8 @@
       ./github
       ./mkGitJobsets.nix
       ./mkProject.nix
+      ./mkSimpleJobsets.nix
+      ./mkSimpleProject.nix
       ./schemas.nix
       ./systems.nix
     ]
