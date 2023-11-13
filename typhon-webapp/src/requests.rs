@@ -12,22 +12,13 @@ pub fn resource(
     use crate::streams::filter_events;
     let source = create_signal_from_stream(filter_events(req.clone(), event.to_stream()));
     let fetcher = {
-        // FIXME
-        // what is this witchcraft?
-        // why does the fetcher below not work?
-        fn aux(
-            req: &requests::Request,
-        ) -> Pin<Box<dyn Future<Output = Result<responses::Response, responses::ResponseError>>>>
-        {
-            let req = req.clone();
-            Box::pin(async move { handle_request(&req).await })
+        async fn aux(
+            req: requests::Request,
+        ) -> Result<responses::Response, responses::ResponseError> {
+            handle_request(&req).await
         }
-        move |_| aux(&req)
+        move |_| aux(req.clone())
     };
-    //let fetcher = {
-    //    let req = req.clone();
-    //    move |_| handle_request(&req)
-    //};
     create_resource(source, fetcher)
 }
 
