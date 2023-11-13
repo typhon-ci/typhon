@@ -26,14 +26,9 @@
     chown typhon:typhon ${gcrootsDir}
   '';
 
-  protocol =
-    if cfg.https
-    then "https"
-    else "http";
-
   typhon-execstart = pkgs.writeShellScript "typhon-execstart" ''
     cd ${cfg.home}
-    DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -w "${cfg.webroot}"
+    DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword}
   '';
 in {
   options.services.typhon = {
@@ -42,11 +37,6 @@ in {
       type = types.package;
       description = "Which package to use for the Typhon instance";
       default = typhonPackages.typhon;
-    };
-    webapp = mkOption {
-      type = types.package;
-      description = "Which webapp to use for the Typhon instance";
-      default = typhonPackages.typhon-webapp;
     };
     home = mkOption {
       type = types.str;
@@ -60,14 +50,6 @@ in {
     domain = mkOption {
       type = types.str;
       description = "Domain name for the Typhon instance";
-    };
-    webroot = mkOption {
-      type = types.str;
-      description = "Web root for the Typhon instance";
-    };
-    https = mkOption {
-      type = types.bool;
-      description = "Enable https for the Typhon instance";
     };
   };
 
@@ -107,21 +89,9 @@ in {
     services.nginx = {
       enable = true;
       virtualHosts.${cfg.domain} = {
-        locations."${cfg.webroot}/api" = {
-          proxyPass = "http://127.0.0.1:8000";
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:3000";
           recommendedProxySettings = true;
-          proxyWebsockets = true;
-        };
-        locations."${
-          if cfg.webroot == ""
-          then "/"
-          else cfg.webroot
-        }" = {
-          root = cfg.webapp.override {
-            inherit (cfg) webroot;
-            api_url = "${protocol}://${cfg.domain}${cfg.webroot}/api";
-          };
-          tryFiles = "$uri $uri/ ${cfg.webroot}/index.html =404";
         };
       };
     };

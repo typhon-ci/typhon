@@ -6,11 +6,8 @@ edition.workspace = true
 [lib]
 crate-type = [ "cdylib", "rlib" ]
 
-[[bin]]
-name = "typhon-webapp"
-path = "src/main.rs"
-
 [dependencies]
+typhon-lib = { workspace = true, optional = true }
 typhon-types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
@@ -20,7 +17,7 @@ gloo-net.workspace = true
 gloo-storage.workspace = true
 gloo-utils.workspace = true
 js-sys.workspace = true
-leptos.workspace = true
+leptos = { workspace = true, features = ["nightly"] }
 serde-wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -28,3 +25,8 @@ time.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
+
+[features]
+default = []
+hydrate = ["leptos/hydrate"]
+ssr = ["dep:typhon-lib", "leptos/ssr"]

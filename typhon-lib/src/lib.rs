@@ -48,19 +48,15 @@ use tokio::sync::oneshot;
 #[command(about = "Nix-based continuous integration", long_about = None)]
 pub struct Args {
     /// Hashed password
-    #[arg(long, short)]
+    #[arg(long, short, env)]
     pub password: String,
-
-    /// Webroot
-    #[arg(long, short)]
-    pub webroot: String,
 
     /// Silence all output
     #[arg(long, short)]
     pub quiet: bool,
 
     /// Verbose mode (-v, -vv, -vvv, etc)
-    #[arg(long, short, action = clap::ArgAction::Count)]
+    #[arg(long, short, action = clap::ArgAction::Count, env)]
     pub verbose: u8,
 
     /// Timestamp (sec, ms, ns, none)
@@ -71,7 +67,6 @@ pub struct Args {
 #[derive(Debug)]
 pub struct Settings {
     pub hashed_password: String,
-    pub webroot: String,
 }
 
 pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
@@ -112,7 +107,6 @@ pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
     let args = Args::parse();
     Settings {
         hashed_password: args.password.clone(),
-        webroot: args.webroot.clone(),
     }
 });
 pub static RUNS: Lazy<TaskManager<i32, DbPool>> = Lazy::new(|| TaskManager::new(&POOL));

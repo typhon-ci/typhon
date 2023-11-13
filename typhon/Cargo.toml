@@ -6,12 +6,15 @@ edition.workspace = true
 [dependencies]
 typhon-lib.workspace = true
 typhon-types.workspace = true
+typhon-webapp = { workspace = true, features = ["ssr"] }
 actix-cors.workspace = true
 actix-files.workspace = true
 actix-web.workspace = true
 clap.workspace = true
 futures-core.workspace = true
 futures.workspace = true
+leptos = { workspace = true, features = ["ssr"] }
+leptos_actix.workspace = true
 serde_json.workspace = true
 stderrlog.workspace = true
 tokio.workspace = true

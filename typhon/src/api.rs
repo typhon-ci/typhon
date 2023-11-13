@@ -1,8 +1,8 @@
 use typhon_lib::error;
 use typhon_lib::handle_request;
 use typhon_lib::User;
+use typhon_lib::EVENT_LOGGER;
 use typhon_lib::{live_log_action, live_log_build};
-use typhon_lib::{EVENT_LOGGER, SETTINGS};
 use typhon_types::handles;
 use typhon_types::requests::*;
 use typhon_types::responses::{Response, ResponseError};
@@ -329,7 +329,7 @@ async fn webhook(
 pub fn config(cfg: &mut web::ServiceConfig) {
     let cors = Cors::permissive(); // TODO: configure
     cfg.service(
-        web::scope(&format!("{}/api", SETTINGS.webroot))
+        web::scope("/api")
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
             .route("/evaluations", web::post().to(list_evaluations))

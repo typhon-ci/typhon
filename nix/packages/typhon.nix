@@ -1,0 +1,41 @@
+{
+  sources ? import ../sources.nix,
+  system ? builtins.currentSystem or "unknown-system",
+  pkgs ? import ../nixpkgs.nix {inherit sources system;},
+  rust ? import ../rust.nix {inherit sources system;},
+}: let
+  inherit (rust) craneLib;
+
+  cargoToml = builtins.fromTOML (builtins.readFile ../../Cargo.toml);
+
+  args = {
+    pname = "typhon";
+    inherit (cargoToml.workspace.package) version;
+    src = pkgs.lib.sourceByRegex ../.. [
+      "Cargo.toml"
+      "Cargo.lock"
+      "typhon.*"
+    ];
+  };
+
+  cargoArtifacts = craneLib.buildDepsOnly args;
+in
+  craneLib.buildPackage (args
+    // {
+      inherit cargoArtifacts;
+      nativeBuildInputs = [
+        pkgs.cargo-leptos
+        pkgs.sqlite.dev
+        pkgs.binaryen
+        pkgs.makeWrapper
+      ];
+      buildPhaseCargoCommand = "cargo leptos build --release -vvv";
+      installPhaseCommand = ''
+        mkdir -p $out/bin
+        cp target/release/typhon $out/bin/
+        cp -r target/site $out/bin/
+        wrapProgram $out/bin/typhon --set LEPTOS_SITE_ROOT $out/bin/site
+      '';
+      TYPHON_FLAKE = ../../typhon-flake;
+      doNotLinkInheritedArtifacts = true;
+    })
