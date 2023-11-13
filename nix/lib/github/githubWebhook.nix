@@ -1,10 +1,5 @@
-utils: lib: let
-  inherit
-    (lib)
-    eachSystem
-    ;
-in {
-  githubWebhook = eachSystem (system: let
+utils: lib: {
+  githubWebhook = lib.eachSystem (system: let
     pkgs = utils.pkgs.${system};
   in
     pkgs.writeShellApplication {

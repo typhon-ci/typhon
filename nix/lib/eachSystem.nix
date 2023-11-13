@@ -1,8 +1,3 @@
-utils: lib: let
-  inherit
-    (lib)
-    systems
-    ;
-in {
-  eachSystem = utils.lib.genAttrs systems;
+utils: lib: {
+  eachSystem = utils.lib.genAttrs lib.systems;
 }

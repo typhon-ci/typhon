@@ -1,16 +1,11 @@
-utils: lib: let
-  inherit
-    (lib)
-    systems
-    ;
-in {
+utils: lib: {
   mkProject = args @ {
     actions ? {},
     meta ? {},
     secrets ? null,
   }: {
     inherit meta;
-    actions = utils.lib.genAttrs systems (
+    actions = utils.lib.genAttrs lib.systems (
       system: let
         pkgs = utils.pkgs.${system};
         linkAction = name:

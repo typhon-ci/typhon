@@ -1,15 +1,10 @@
-utils: lib: let
-  inherit
-    (lib)
-    eachSystem
-    ;
-in {
+utils: lib: {
   mkGithubJobsets = {
     owner,
     repo,
     flake ? true,
   }:
-    eachSystem (system: let
+    lib.eachSystem (system: let
       pkgs = utils.pkgs.${system};
     in
       pkgs.writeShellApplication {
