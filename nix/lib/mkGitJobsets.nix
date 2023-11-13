@@ -1,4 +1,4 @@
-utils: lib:  {
+utils: lib: {
   mkGitJobsets = {
     url,
     flake ? true,
