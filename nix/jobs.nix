@@ -1,9 +1,9 @@
-{sources ? import ./sources.nix}: let
+{inputs ? import ./inputs.nix}: let
   system = "x86_64-linux";
 in {
   ${system} = {
-    build = import ./packages/typhon.nix {inherit sources system;};
-    formatted = import ./checks/formatted.nix {inherit sources system;};
-    nixos = import ./checks/nixos.nix {inherit sources system;};
+    build = import ./packages/typhon.nix {inherit inputs system;};
+    formatted = import ./checks/formatted.nix {inherit inputs system;};
+    nixos = import ./checks/nixos.nix {inherit inputs system;};
   };
 }

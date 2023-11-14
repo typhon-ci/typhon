@@ -1,8 +1,8 @@
 {
-  sources ? import ../sources.nix,
+  inputs ? import ../inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ../nixpkgs.nix {inherit sources system;},
-  rust ? import ../rust.nix {inherit sources system;},
+  pkgs ? import ../nixpkgs.nix {inherit inputs system;},
+  rust ? import ../rust.nix {inherit inputs system;},
 }:
 pkgs.stdenv.mkDerivation {
   name = "formatted";

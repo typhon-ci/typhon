@@ -1,8 +1,8 @@
 {
-  sources ? import ../sources.nix,
+  inputs ? import ../inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ../nixpkgs.nix {inherit sources system;},
-  typhon ? import ../nixos/typhon.nix {inherit sources;},
+  pkgs ? import ../nixpkgs.nix {inherit inputs system;},
+  typhon ? import ../nixos/typhon.nix {inherit inputs;},
 }:
 pkgs.testers.nixosTest ({pkgs, ...}: {
   name = "typhon-test";

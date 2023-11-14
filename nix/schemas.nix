@@ -1,8 +1,8 @@
 {
-  sources ? import ./sources.nix,
+  inputs ? import ./inputs.nix,
   systems ? import ./systems.nix,
-  lib ? import ./lib {inherit sources systems;},
-  flake-schemas ? sources.flake-schemas,
+  lib ? import ./lib {inherit inputs systems;},
+  flake-schemas ? inputs.flake-schemas,
 }: {
   inherit
     (lib.schemas)

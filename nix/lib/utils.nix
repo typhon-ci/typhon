@@ -1,13 +1,13 @@
 {
-  sources ? import ../sources.nix,
+  inputs ? import ../inputs.nix,
   systems ? import ../systems.nix,
 }: let
   self = rec {
     inherit systems;
 
-    lib = import "${sources.nixpkgs}/lib";
+    lib = import "${inputs.nixpkgs}/lib";
 
-    pkgs = lib.genAttrs systems (system: import sources.nixpkgs {inherit system;});
+    pkgs = lib.genAttrs systems (system: import inputs.nixpkgs {inherit system;});
 
     unionOfDisjoint = x: y:
       if builtins.intersectAttrs x y == {}

@@ -1,10 +1,10 @@
 {
-  sources ? import ./sources.nix,
+  inputs ? import ./inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
 }:
-import sources.nixpkgs {
+import inputs.nixpkgs {
   inherit system;
   overlays = [
-    (import sources.rust-overlay)
+    (import inputs.rust-overlay)
   ];
 }

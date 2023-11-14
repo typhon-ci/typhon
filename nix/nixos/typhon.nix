@@ -1,4 +1,4 @@
-{sources ? import ../sources.nix}: {
+{inputs ? import ../inputs.nix}: {
   config,
   lib,
   pkgs,
@@ -22,7 +22,7 @@ in {
       type = types.package;
       description = "Which package to use for the Typhon instance";
       default = import ../packages/typhon.nix {
-        inherit sources;
+        inherit inputs;
         inherit (config.nixpkgs) system;
       };
     };
