@@ -17,7 +17,6 @@ edition = "2021"
 [workspace.dependencies]
 typhon-lib = { path = "./typhon-lib" }
 typhon-types = { path = "./typhon-types" }
-actix = "0.13"
 actix-cors = "0.6"
 actix-files = "0.6"
 actix-web = "4.4"
@@ -45,7 +44,6 @@ serde_json = "1.0"
 serde_repr = "0.1"
 sha256 = "1.4"
 stderrlog = "0.5"
-substring = "1.4"
 time = { version = "0.3", features = ["serde"] }
 tokio = { version = "1.33", features = ["full"] }
 tokio-stream = "0.1"
