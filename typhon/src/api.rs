@@ -10,8 +10,11 @@ use actix_files::NamedFile;
 use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
 };
+use actix_web::{dev::Payload, FromRequest};
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 struct ResponseWrapper(crate::Response);
 #[derive(Debug)]
@@ -60,6 +63,18 @@ impl Responder for ResponseWrapper {
     }
 }
 
+struct UserWrapper(User);
+
+impl FromRequest for UserWrapper {
+    type Error = actix_web::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<UserWrapper, actix_web::Error>>>>;
+
+    fn from_request(req: &HttpRequest, _pl: &mut Payload) -> Self::Future {
+        let user = User::from_token(req.headers().get("token").map(|value| value.as_bytes()));
+        Box::pin(async move { Ok(UserWrapper(user)) })
+    }
+}
+
 impl actix_web::ResponseError for ResponseErrorWrapper {
     fn status_code(&self) -> StatusCode {
         match self.0 {
@@ -75,8 +90,8 @@ macro_rules! r {
     ($name: ident($($i: ident : $t: ty),*) => $e: expr
      ;$($rest: tt)*
     ) => {
-    async fn $name (user: User, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
-        handle_request(user, $e).await.map(ResponseWrapper).map_err(ResponseErrorWrapper)
+    async fn $name (user: UserWrapper, $($i : $t),*) -> Result<ResponseWrapper, ResponseErrorWrapper> {
+        handle_request(user.0, $e).await.map(ResponseWrapper).map_err(ResponseErrorWrapper)
     } r!( $($rest)* );
     };
     (  ) => {}
@@ -207,13 +222,13 @@ r!(
 );
 
 async fn dist(
-    user: User,
+    user: UserWrapper,
     path: web::Path<(String, u64, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
     let (project, evaluation, system, job, path) = path.into_inner();
     let handle = handles::job((project, evaluation, system, job));
     let req = Request::Job(handle, Job::Info);
-    let rsp = handle_request(user, req)
+    let rsp = handle_request(user.0, req)
         .await
         .map_err(ResponseErrorWrapper)?;
     let info = match rsp {
@@ -256,10 +271,10 @@ async fn action_live_log(
 }
 
 async fn raw_request(
-    user: User,
+    user: UserWrapper,
     body: web::Json<Request>,
 ) -> web::Json<Result<Response, ResponseError>> {
-    web::Json(handle_request(user, body.into_inner()).await)
+    web::Json(handle_request(user.0, body.into_inner()).await)
 }
 
 async fn events() -> Option<HttpResponse> {

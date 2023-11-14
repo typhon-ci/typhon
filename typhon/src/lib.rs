@@ -32,7 +32,6 @@ use projects::Project;
 use runs::Run;
 use task_manager::TaskManager;
 
-use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use clap::Parser;
 use diesel::prelude::*;
 use diesel::r2d2;
@@ -41,9 +40,6 @@ use once_cell::sync::Lazy;
 use sha256::digest;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
-
-use std::future::Future;
-use std::pin::Pin;
 
 /// Typhon, Nix-based continuous integration
 #[derive(Parser, Debug)]
@@ -137,25 +133,18 @@ impl User {
             _ => false,
         }
     }
-}
-
-impl FromRequest for User {
-    type Error = actix_web::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<User, actix_web::Error>>>>;
-
-    fn from_request(req: &HttpRequest, _pl: &mut Payload) -> Self::Future {
-        let user = req
-            .headers()
-            .get("token")
-            .map_or(User::Anonymous, |password| {
-                let hash = digest(password.as_bytes());
+    pub fn from_token(token: Option<&[u8]>) -> Self {
+        match token {
+            Some(password) => {
+                let hash = digest(password);
                 if hash == SETTINGS.hashed_password {
                     User::Admin
                 } else {
                     User::Anonymous
                 }
-            });
-        Box::pin(async move { Ok(user) })
+            }
+            None => User::Anonymous,
+        }
     }
 }
 
