@@ -9,4 +9,5 @@ pkgs.stdenv.mkDerivation {
   nativeBuildInputs = [pkgs.mdbook];
   buildPhase = "mdbook build";
   installPhase = "cp -r book $out";
+  passthru.typhonDist = true;
 }
