@@ -4,11 +4,6 @@
   pkgs,
   ...
 }: let
-  typhonPackages = import ../packages {
-    inherit sources;
-    inherit (config.nixpkgs) system;
-  };
-
   inherit
     (lib)
     mkEnableOption
@@ -20,23 +15,16 @@
   cfg = config.services.typhon;
 
   gcrootsDir = "/nix/var/nix/gcroots/typhon";
-
-  init-execstart = pkgs.writeShellScript "typhon-init" ''
-    [ -e ${gcrootsDir} ] || mkdir ${gcrootsDir}
-    chown typhon:typhon ${gcrootsDir}
-  '';
-
-  typhon-execstart = pkgs.writeShellScript "typhon-execstart" ''
-    cd ${cfg.home}
-    DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword}
-  '';
 in {
   options.services.typhon = {
     enable = mkEnableOption "typhon";
     package = mkOption {
       type = types.package;
       description = "Which package to use for the Typhon instance";
-      default = typhonPackages.typhon;
+      default = import ../packages/typhon.nix {
+        inherit sources;
+        inherit (config.nixpkgs) system;
+      };
     };
     home = mkOption {
       type = types.str;
@@ -66,7 +54,10 @@ in {
       description = "Typhon init";
       wantedBy = ["multi-user.target"];
       serviceConfig = {
-        ExecStart = init-execstart;
+        ExecStart = pkgs.writeShellScript "typhon-init" ''
+          [ -e ${gcrootsDir} ] || mkdir ${gcrootsDir}
+          chown typhon:typhon ${gcrootsDir}
+        '';
         RemainAfterExit = true;
         Type = "oneshot";
       };
@@ -77,7 +68,10 @@ in {
       wantedBy = ["multi-user.target"];
       path = [pkgs.nixVersions.nix_2_18 pkgs.git pkgs.bubblewrap];
       serviceConfig = {
-        ExecStart = typhon-execstart;
+        ExecStart = pkgs.writeShellScript "typhon-start" ''
+          cd ${cfg.home}
+          DATABASE_URL="sqlite:typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword}
+        '';
         Type = "simple";
         User = "typhon";
         Group = "typhon";
