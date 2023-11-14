@@ -9,6 +9,7 @@ use crate::tasks;
 use crate::Conn;
 use crate::DbPool;
 use crate::POOL;
+use crate::RUNTIME;
 
 use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
@@ -263,7 +264,7 @@ impl Builder {
         let (sender, receiver) = mpsc::channel(256);
         let handle = {
             let sender = sender.clone();
-            tokio::spawn(async move {
+            RUNTIME.spawn(async move {
                 let res = main_thread(sender, receiver).await;
                 if let Err(e) = res {
                     log::error!("Build manager's main thread raised an error: {}", e);

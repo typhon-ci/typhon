@@ -1,8 +1,11 @@
-use std::collections::HashMap;
-use std::future::Future;
+use crate::RUNTIME;
+
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
+
+use std::collections::HashMap;
+use std::future::Future;
 
 #[derive(Debug)]
 pub enum Error {
@@ -46,7 +49,7 @@ impl<
     pub fn new(state: &'static St) -> Self {
         let (msg_send, mut msg_recv) = mpsc::channel(256);
         let (shutdown_send, shutdown_recv) = oneshot::channel();
-        tokio::spawn(async move {
+        RUNTIME.spawn(async move {
             let _shutdown_send = shutdown_send;
             let (finish_send, mut finish_recv) = mpsc::channel(1);
             let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();

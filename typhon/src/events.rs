@@ -1,3 +1,5 @@
+use crate::RUNTIME;
+
 use typhon_types::Event;
 
 use futures_core::stream::Stream;
@@ -20,7 +22,7 @@ impl EventLogger {
     pub fn new() -> Self {
         use Msg::*;
         let (sender, mut receiver) = mpsc::channel(256);
-        let handle = tokio::spawn(async move {
+        let handle = RUNTIME.spawn(async move {
             let mut senders: Vec<mpsc::Sender<Event>> = Vec::new();
             while let Some(msg) = receiver.recv().await {
                 match msg {

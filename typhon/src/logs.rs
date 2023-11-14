@@ -1,9 +1,12 @@
 pub mod live {
-    use std::collections::HashMap;
+    use crate::RUNTIME;
+
     use tokio::sync::mpsc;
     use tokio::sync::oneshot;
     use tokio::sync::Mutex;
     use tokio::task::JoinHandle;
+
+    use std::collections::HashMap;
 
     #[derive(Debug)]
     enum Msg<Id> {
@@ -39,7 +42,7 @@ pub mod live {
     {
         pub fn new() -> Self {
             let (sender, mut receiver) = mpsc::channel(32);
-            let handle = tokio::spawn(async move {
+            let handle = RUNTIME.spawn(async move {
                 type Listeners = Vec<mpsc::Sender<String>>;
                 let mut state: HashMap<Id, (Vec<String>, Listeners)> = HashMap::new();
                 while let Some(msg) = receiver.recv().await {

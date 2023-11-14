@@ -36,6 +36,7 @@ use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use clap::Parser;
 use diesel::prelude::*;
 use diesel::r2d2;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use once_cell::sync::Lazy;
 use sha256::digest;
 use tokio::sync::mpsc;
@@ -99,6 +100,9 @@ impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::E
 }
 
 // Typhon's state
+pub static SENDER: Lazy<mpsc::Sender<Msg>> = Lazy::new(init);
+pub static RUNTIME: Lazy<tokio::runtime::Runtime> =
+    Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
 pub static POOL: Lazy<DbPool> = Lazy::new(|| {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = diesel::r2d2::ConnectionManager::<SqliteConnection>::new(database_url);
@@ -295,13 +299,9 @@ pub fn handle_request_aux(
 }
 
 /// Main entry point for Typhon requests
-pub async fn handle_request(
-    sender: mpsc::Sender<Msg>,
-    user: User,
-    req: requests::Request,
-) -> Result<Response, ResponseError> {
+pub async fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
     let (send, recv) = oneshot::channel();
-    let _ = sender.send(Msg { send, user, req }).await;
+    let _ = SENDER.send(Msg { send, user, req }).await;
     recv.await.unwrap()
 }
 
@@ -404,4 +404,23 @@ pub async fn handler(mut recv: mpsc::Receiver<Msg>) {
             let _ = msg.send.send(rsp);
         });
     }
+}
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+
+fn init() -> mpsc::Sender<Msg> {
+    // Connect to the sqlite database
+    let pool = POOL.clone();
+    let mut conn = pool.get().unwrap();
+
+    // Run diesel migrations
+    let _ = conn
+        .run_pending_migrations(MIGRATIONS)
+        .expect("failed to run migrations");
+
+    let (send, recv) = mpsc::channel(256);
+
+    let _ = RUNTIME.spawn(handler(recv));
+
+    send
 }
