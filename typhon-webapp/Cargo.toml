@@ -20,6 +20,7 @@ gloo-utils.workspace = true
 js-sys.workspace = true
 leptos = { workspace = true, features = ["nightly"] }
 leptos_actix = { workspace = true, optional = true }
+leptos_router.workspace = true
 serde-wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -30,10 +31,14 @@ web-sys.workspace = true
 
 [features]
 default = []
-hydrate = ["leptos/hydrate"]
+hydrate = [
+    "leptos/hydrate",
+    "leptos_router/hydrate",
+]
 ssr = [
     "dep:typhon-lib",
     "dep:actix-session",
     "dep:leptos_actix",
     "leptos/ssr",
+    "leptos_router/ssr",
 ]

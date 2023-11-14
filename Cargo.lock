@@ -3701,6 +3701,7 @@ dependencies = [
  "js-sys",
  "leptos",
  "leptos_actix",
+ "leptos_router",
  "serde",
  "serde-wasm-bindgen 0.4.5",
  "serde_json",

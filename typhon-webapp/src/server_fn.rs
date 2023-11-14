@@ -58,3 +58,25 @@ pub async fn logout() -> Result<(), ServerFnError> {
     redirect("/");
     Ok(())
 }
+
+#[server(CreateProject, "/leptos")]
+pub async fn create_project(
+    name: String,
+    url: String,
+    flake: Option<String>,
+) -> Result<Result<(), responses::ResponseError>, ServerFnError> {
+    let flake = flake.is_some();
+    let res = handle_request(requests::Request::CreateProject {
+        name,
+        decl: requests::ProjectDecl { url, flake },
+    })
+    .await;
+    match res {
+        Ok(Ok(responses::Response::Ok)) => Ok(Ok(())),
+        Ok(Ok(_)) => Err(ServerFnError::ServerError(
+            "inconsistant server response".to_string(),
+        )),
+        Ok(Err(e)) => Ok(Err(e)),
+        Err(e) => Err(e),
+    }
+}

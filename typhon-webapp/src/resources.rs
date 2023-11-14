@@ -5,7 +5,6 @@ use typhon_types::*;
 
 use leptos::*;
 
-#[allow(dead_code)]
 pub fn request(
     req: requests::Request,
 ) -> Resource<

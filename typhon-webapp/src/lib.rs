@@ -1,3 +1,5 @@
+mod home;
+mod login;
 mod resources;
 mod server_fn;
 mod streams;
