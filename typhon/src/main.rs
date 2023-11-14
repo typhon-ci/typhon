@@ -10,6 +10,7 @@ async fn main() -> std::io::Result<()> {
     // Setup logger
     stderrlog::new()
         .module(module_path!())
+        .module("typhon_lib")
         .quiet(args.quiet)
         .verbosity(usize::from(args.verbose))
         .timestamp(args.ts.unwrap_or(stderrlog::Timestamp::Off))
