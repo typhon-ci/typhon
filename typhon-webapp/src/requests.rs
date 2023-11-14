@@ -2,6 +2,7 @@ use typhon_types::*;
 
 use leptos::*;
 
+#[allow(dead_code)]
 pub fn resource(
     event: ReadSignal<Option<Event>>,
     req: requests::Request,

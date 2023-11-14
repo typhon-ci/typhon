@@ -55,6 +55,7 @@ pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'stat
     }
 }
 
+#[allow(dead_code)]
 pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
     let settings = Settings::load();
     let req = http::RequestBuilder::new(&format!("{}/events", settings.api_url))
@@ -78,6 +79,7 @@ pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
     Box::pin(s)
 }
 
+#[allow(dead_code)]
 pub fn filter_events(
     req: requests::Request,
     event: impl Stream<Item = Option<Event>> + 'static,
