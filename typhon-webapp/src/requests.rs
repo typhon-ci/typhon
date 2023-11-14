@@ -1,9 +1,6 @@
 use typhon_types::*;
 
-use futures::Future;
 use leptos::*;
-
-use std::pin::Pin;
 
 pub fn resource(
     event: ReadSignal<Option<Event>>,

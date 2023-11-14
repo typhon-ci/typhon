@@ -24,7 +24,6 @@ extern "C" {
 }
 
 pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'static {
-    use crate::*;
     stream! {
         let res = req
             .send()
