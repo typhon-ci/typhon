@@ -84,7 +84,7 @@ pub fn filter_events(
     let s = stream! {
         let mut x = false;
         for await maybe_event in event {
-            if maybe_event.map(|event| event.invalidates(&req)).unwrap_or(false) {
+            if maybe_event.map(|event| event.invalidates(&req)).unwrap_or(true) {
                 yield x;
                 x = !x;
             }
