@@ -12,7 +12,7 @@ utils: lib: {
         runtimeInputs = [
           pkgs.curl
           pkgs.jq
-          pkgs.nixVersions.nix_2_18
+          pkgs.nix
         ];
         text = ''
           input=$(cat)

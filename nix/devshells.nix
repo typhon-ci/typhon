@@ -7,7 +7,7 @@
   default = pkgs.mkShell {
     name = "typhon-devshell";
     packages = builtins.attrValues {
-      inherit (pkgs.nixVersions) nix_2_18;
+      inherit (pkgs) nix;
       inherit (rust) rustToolchain;
       inherit
         (pkgs)
