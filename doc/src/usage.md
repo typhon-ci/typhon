@@ -27,8 +27,8 @@ string `$secret` and add a webhook to `$project` with the following settings:
 
 ## The configuration flake
 
-Let's create a flake in the `$config` repository, then add a `typhonProject`
-attribute. We're going to import `typhon` as a flake input and use the
+Let's create a flake in the `$config` repository, then add an output
+`typhonProject`. We are going to import `typhon` as a flake input and use the
 `mkGithubProject` helper function from the library:
 
 ```nix

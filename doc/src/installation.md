@@ -21,8 +21,10 @@ let typhon = builtins.getFlake "github:typhon-ci/typhon";
 in {
   imports = [ typhon.nixosModules.default ];
 
-  # install Nix 2.18 with experimental features
+  # enable experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  # install Nix >= 2.18 if necessary
   nix.package = pkgs.nixVersions.nix_2_18;
 
   # enable Typhon
@@ -30,18 +32,12 @@ in {
     enable = true;
 
     # the admin password
-    # $ echo -n hello | sha256sum | head -c 64
+    # $ echo -n "password" | sha256sum | head -c 64
     hashedPassword =
-      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+      "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
 
     # the domain of your instance
     domain = "typhon-ci.org";
-
-    # the webroot at wich the instance is served
-    webroot = "";
-
-    # enable https, you must configure it manually in nginx
-    https = true;
   };
 
   # configure https
@@ -64,11 +60,6 @@ Mandatory:
   password. Use `sha256sum` to compute this value.
 - `services.typhon.domain`: a string containing the domain at which the Typhon
   instance is served.
-- `services.typhon.webroot`: a string containing the webroot at wich the Typhon
-  instance is served. To serve at the top-level, simply use an empty string,
-  otherwise use a path with no trailing slash (for example "/typhon/webroot").
-- `services.typhon.https`: a boolean to set if the instance is served with
-  https. At the moment this does not automatically configure nginx to use https.
 
 Optional:
 
@@ -76,5 +67,3 @@ Optional:
   instance.
 - `services.typhon.package`: a derivation to override the package used for the
   Typhon instance.
-- `services.typhon.webapp`: a derivation to override the package used for the
-  webapp.
