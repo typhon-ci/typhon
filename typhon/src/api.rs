@@ -8,6 +8,7 @@ use typhon_types::requests::*;
 use typhon_types::responses::{Response, ResponseError};
 
 use actix_files::NamedFile;
+use actix_session::Session;
 use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
 };
@@ -59,7 +60,7 @@ impl Responder for ResponseWrapper {
             ActionInfo(payload) => web::Json(payload).respond_to(req),
             RunInfo(payload) => web::Json(payload).respond_to(req),
             Log(payload) => web::Json(payload).respond_to(req),
-            Login { token } => web::Json(token).respond_to(req),
+            User(payload) => web::Json(payload).respond_to(req),
         }
     }
 }
@@ -70,9 +71,26 @@ impl FromRequest for UserWrapper {
     type Error = actix_web::Error;
     type Future = Pin<Box<dyn Future<Output = Result<UserWrapper, actix_web::Error>>>>;
 
-    fn from_request(req: &HttpRequest, _pl: &mut Payload) -> Self::Future {
-        let user = User::from_token(req.headers().get("token").map(|value| value.as_bytes()));
-        Box::pin(async move { Ok(UserWrapper(user)) })
+    fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
+        let maybe_user = req
+            .headers()
+            .get("password")
+            .map(|value| value.as_bytes())
+            .as_ref()
+            .map(|password| User::from_password(password));
+        let session = Session::from_request(req, pl);
+        Box::pin(async move {
+            match maybe_user {
+                Some(user) => Ok(UserWrapper(user)),
+                None => {
+                    let user = session
+                        .await?
+                        .get::<User>("user")?
+                        .unwrap_or(User::Anonymous);
+                    Ok(UserWrapper(user))
+                }
+            }
+        })
     }
 }
 
@@ -219,7 +237,7 @@ r!(
         );
 
     login(body: web::Json<String>) =>
-        Request::Login(body.into_inner());
+        Request::Login { password: body.into_inner() };
 );
 
 async fn dist(

@@ -204,6 +204,11 @@ pub mod data {
             }
         }
     }
+
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum User {
+        Admin,
+    }
 }
 
 pub mod requests {
@@ -317,7 +322,8 @@ pub mod requests {
         Build(handles::Build, Build),
         Action(handles::Action, Action),
         Run(handles::Run, Run),
-        Login(String),
+        Login { password: String },
+        User,
     }
 
     impl std::fmt::Display for Request {
@@ -344,13 +350,15 @@ pub mod requests {
                 Request::Build(h, req) => write!(f, "{:?} for build {}", req, h),
                 Request::Action(h, req) => write!(f, "{:?} for action {}", req, h),
                 Request::Run(h, req) => write!(f, "{:?} for run {}", req, h),
-                Request::Login(_) => write!(f, "Log in"),
+                Request::Login { .. } => write!(f, "Log in"),
+                Request::User => write!(f, "Get current user"),
             }
         }
     }
 }
 
 pub mod responses {
+    use crate::data;
     use crate::data::TaskStatusKind;
     use crate::handles;
 
@@ -512,7 +520,7 @@ pub mod responses {
         ActionInfo(ActionInfo),
         RunInfo(RunInfo),
         Log(Option<String>),
-        Login { token: String },
+        User(Option<data::User>),
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -9,6 +9,7 @@ typhon-types.workspace = true
 typhon-webapp = { workspace = true, features = ["ssr"] }
 actix-cors.workspace = true
 actix-files.workspace = true
+actix-session.workspace = true
 actix-web.workspace = true
 clap.workspace = true
 futures-core.workspace = true

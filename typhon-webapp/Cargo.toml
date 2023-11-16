@@ -9,6 +9,7 @@ crate-type = [ "cdylib", "rlib" ]
 [dependencies]
 typhon-lib = { workspace = true, optional = true }
 typhon-types.workspace = true
+actix-session = { workspace = true, optional = true }
 async-stream.workspace = true
 async-trait.workspace = true
 futures-core.workspace = true
@@ -18,6 +19,7 @@ gloo-storage.workspace = true
 gloo-utils.workspace = true
 js-sys.workspace = true
 leptos = { workspace = true, features = ["nightly"] }
+leptos_actix = { workspace = true, optional = true }
 serde-wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -29,4 +31,9 @@ web-sys.workspace = true
 [features]
 default = []
 hydrate = ["leptos/hydrate"]
-ssr = ["dep:typhon-lib", "leptos/ssr"]
+ssr = [
+    "dep:typhon-lib",
+    "dep:actix-session",
+    "dep:leptos_actix",
+    "leptos/ssr",
+]

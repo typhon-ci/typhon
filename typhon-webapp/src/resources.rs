@@ -1,4 +1,3 @@
-use crate::secrets::get_token;
 use crate::server_fn;
 
 use typhon_types::*;
@@ -19,7 +18,7 @@ pub fn request(
         async fn aux(
             req: requests::Request,
         ) -> Result<Result<responses::Response, responses::ResponseError>, ServerFnError> {
-            server_fn::handle_request(get_token(), req).await
+            server_fn::handle_request(req).await
         }
         move |_| aux(req.clone())
     };

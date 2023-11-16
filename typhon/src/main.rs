@@ -5,6 +5,9 @@ use clap::Parser;
 mod api;
 
 use actix_cors::Cors;
+use actix_session::storage::CookieSessionStore;
+use actix_session::SessionMiddleware;
+use actix_web::cookie::Key;
 use leptos::*;
 use leptos_actix::{generate_route_list, LeptosRoutes};
 
@@ -13,6 +16,9 @@ use typhon_webapp::app::App;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let args = typhon_lib::Args::parse();
+
+    // Session key
+    let secret_key = Key::generate();
 
     // Setup logger
     stderrlog::new()
@@ -42,6 +48,10 @@ async fn main() -> std::io::Result<()> {
             // server
             .configure(api::config)
             .wrap(cors)
+            .wrap(SessionMiddleware::new(
+                CookieSessionStore::default(),
+                secret_key.clone(),
+            ))
     })
     .bind(&addr)?
     .run()

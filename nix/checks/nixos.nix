@@ -21,7 +21,7 @@ pkgs.testers.nixosTest ({pkgs, ...}: {
   };
 
   testScript = {nodes, ...}: let
-    curl = "${pkgs.curl}/bin/curl -sf -H 'token: hello'";
+    curl = "${pkgs.curl}/bin/curl -sf -H 'password: hello'";
     url = "http://127.0.0.1/api";
   in ''
     typhon.start()

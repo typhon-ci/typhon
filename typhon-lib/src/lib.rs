@@ -17,6 +17,7 @@ pub mod error;
 pub mod logs;
 pub mod task_manager;
 
+pub use typhon_types::data;
 pub use typhon_types::{
     handles, requests, responses, responses::Response, responses::ResponseError, Event,
 };
@@ -38,6 +39,7 @@ use diesel::prelude::*;
 use diesel::r2d2;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use sha256::digest;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -115,7 +117,7 @@ pub static LOGS: Lazy<logs::live::Cache<i32>> = Lazy::new(logs::live::Cache::new
 pub static EVENT_LOGGER: Lazy<events::EventLogger> = Lazy::new(events::EventLogger::new);
 pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum User {
     Admin,
     Anonymous,
@@ -128,17 +130,12 @@ impl User {
             _ => false,
         }
     }
-    pub fn from_token(token: Option<&[u8]>) -> Self {
-        match token {
-            Some(password) => {
-                let hash = digest(password);
-                if hash == SETTINGS.hashed_password {
-                    User::Admin
-                } else {
-                    User::Anonymous
-                }
-            }
-            None => User::Anonymous,
+    pub fn from_password(password: &[u8]) -> Self {
+        let hash = digest(password);
+        if hash == SETTINGS.hashed_password {
+            User::Admin
+        } else {
+            User::Anonymous
         }
     }
 }
@@ -161,7 +158,8 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
         | Request::Build(_, Build::Log)
         | Request::Action(_, Action::Info)
         | Request::Action(_, Action::Log)
-        | Request::Login(_) => true,
+        | Request::Login { .. }
+        | Request::User => true,
         _ => user.is_admin(),
     }
 }
@@ -265,17 +263,18 @@ pub fn handle_request_aux(
                     requests::Run::Info => Response::RunInfo(run.info()),
                 }
             }
-            requests::Request::Login(password) => {
+            requests::Request::Login { password } => {
                 let hash = digest(password.as_bytes());
                 if hash == SETTINGS.hashed_password {
-                    Response::Login {
-                        // TODO: manage session tokens instead of just returning the password
-                        token: password.clone(),
-                    }
+                    Response::Ok
                 } else {
                     Err(Error::LoginError)?
                 }
             }
+            requests::Request::User => Response::User(match user {
+                User::Admin => Some(data::User::Admin),
+                User::Anonymous => None,
+            }),
         })
     } else {
         Err(Error::AccessDenied)

@@ -1,5 +1,3 @@
-use crate::secrets::get_token;
-
 use typhon_types::*;
 
 use async_stream::stream;
@@ -57,10 +55,6 @@ pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'stat
 #[allow(dead_code)]
 pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
     let req = http::RequestBuilder::new("/api/events").method(http::Method::GET);
-    let req = match get_token() {
-        None => req,
-        Some(token) => req.header(&"token", &token),
-    };
     let req = req.build().unwrap();
     let s = stream! {
         for await chunk in fetch_as_stream(req) {
