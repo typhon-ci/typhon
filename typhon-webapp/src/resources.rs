@@ -1,11 +1,12 @@
 use crate::secrets::get_token;
+use crate::server_fn;
 
 use typhon_types::*;
 
 use leptos::*;
 
 #[allow(dead_code)]
-pub fn resource(
+pub fn request(
     event: ReadSignal<Option<Event>>,
     req: requests::Request,
 ) -> Resource<
@@ -18,19 +19,9 @@ pub fn resource(
         async fn aux(
             req: requests::Request,
         ) -> Result<Result<responses::Response, responses::ResponseError>, ServerFnError> {
-            handle_request(get_token(), req).await
+            server_fn::handle_request(get_token(), req).await
         }
         move |_| aux(req.clone())
     };
     create_resource(source, fetcher)
-}
-
-#[server(HandleRequest, "/leptos")]
-pub async fn handle_request(
-    token: Option<String>,
-    request: requests::Request,
-) -> Result<Result<responses::Response, responses::ResponseError>, ServerFnError> {
-    let token: Option<&[u8]> = token.as_ref().map(|password| password.as_bytes());
-    let user = typhon_lib::User::from_token(token);
-    Ok(typhon_lib::handle_request(user, request).await)
 }
