@@ -7,7 +7,6 @@ use typhon_types::handles;
 use typhon_types::requests::*;
 use typhon_types::responses::{Response, ResponseError};
 
-use actix_cors::Cors;
 use actix_files::NamedFile;
 use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
@@ -327,7 +326,6 @@ async fn webhook(
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    let cors = Cors::permissive(); // TODO: configure
     cfg.service(
         web::scope("/api")
             .route("", web::post().to(raw_request))
@@ -384,7 +382,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::route()
                     .guard(guard::Options())
                     .to(|| HttpResponse::Ok()),
-            )
-            .wrap(cors),
+            ),
     );
 }
