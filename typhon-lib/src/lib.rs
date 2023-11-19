@@ -369,14 +369,14 @@ async fn handler(mut recv: mpsc::Receiver<Msg>) {
             let rsp = handle_request_aux(&mut conn, &msg.user, &msg.req).map_err(|e| {
                 if e.is_internal() {
                     log::error!(
-                        "request {:?} for user {:?} raised error: {:?}",
+                        "request {} for user {:?} raised error: {:?}",
                         msg.req,
                         msg.user,
                         e,
                     );
                 } else {
                     log::info!(
-                        "request {:?} for user {:?} raised error: {:?}",
+                        "request {} for user {:?} raised error: {:?}",
                         msg.req,
                         msg.user,
                         e,
