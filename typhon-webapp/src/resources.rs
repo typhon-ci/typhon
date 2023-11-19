@@ -1,3 +1,4 @@
+use crate::app::AllEvents;
 use crate::server_fn;
 
 use typhon_types::*;
@@ -6,13 +7,13 @@ use leptos::*;
 
 #[allow(dead_code)]
 pub fn request(
-    event: ReadSignal<Option<Event>>,
     req: requests::Request,
 ) -> Resource<
     Option<bool>,
     Result<Result<responses::Response, responses::ResponseError>, ServerFnError>,
 > {
     use crate::streams::filter_events;
+    let event: ReadSignal<Option<Event>> = use_context::<AllEvents>().unwrap().inner();
     let source = create_signal_from_stream(filter_events(req.clone(), event.to_stream()));
     let fetcher = {
         async fn aux(

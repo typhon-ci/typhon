@@ -2,8 +2,11 @@ use typhon_types::*;
 
 use async_stream::stream;
 use futures_core::stream::Stream;
+#[cfg(feature = "hydrate")]
 use gloo_console::log;
+#[cfg(feature = "hydrate")]
 use gloo_net::http;
+#[cfg(feature = "hydrate")]
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Promise;
 use wasm_bindgen::prelude::*;
@@ -20,6 +23,7 @@ extern "C" {
     fn read_chunk_by_chunk(reader: js_sys::Object) -> Promise;
 }
 
+#[cfg(feature = "hydrate")]
 pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'static {
     stream! {
         let res = req
@@ -52,7 +56,7 @@ pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'stat
     }
 }
 
-#[allow(dead_code)]
+#[cfg(feature = "hydrate")]
 pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
     let req = http::RequestBuilder::new("/api/events").method(http::Method::GET);
     let req = req.build().unwrap();
@@ -70,7 +74,6 @@ pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
     Box::pin(s)
 }
 
-#[allow(dead_code)]
 pub fn filter_events(
     req: requests::Request,
     event: impl Stream<Item = Option<Event>> + 'static,
