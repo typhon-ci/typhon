@@ -21,7 +21,7 @@
         sqlite
         ;
     };
-    DATABASE_URL = "sqlite:typhon.sqlite";
+    DATABASE_URL = "typhon.sqlite";
     TYPHON_FLAKE = ../typhon-flake;
   };
 
