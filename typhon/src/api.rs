@@ -334,7 +334,7 @@ async fn webhook(
     };
 
     let handle = handles::project(path.into_inner());
-    let requests = typhon_lib::webhook(handle, input)?;
+    let requests = web::block(move || typhon_lib::webhook(handle, input)).await??;
     for req in requests {
         handle_request(User::Admin, req)
             .await
