@@ -138,13 +138,19 @@ async fn handle_logs(
 
 /// Runs `nix build` on a derivation path
 pub async fn build(path: &DrvPath, sender: mpsc::Sender<String>) -> Result<DrvOutputs, Error> {
-    let mut child = Command::nix(["build", "--log-format", "internal-json", "--json"])
-        .arg(format!("{}^*", path))
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect(RUNNING_NIX_FAILED);
+    let mut child = Command::nix([
+        "build",
+        "--log-format",
+        "internal-json",
+        "--json",
+        "--no-link",
+    ])
+    .arg(format!("{}^*", path))
+    .stdin(Stdio::inherit())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .expect(RUNNING_NIX_FAILED);
     handle_logs(path, BufReader::new(child.stderr.take().unwrap()), sender).await;
     let mut stdout = String::new();
     child
