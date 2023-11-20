@@ -41,8 +41,6 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
 
 /// Typhon, Nix-based continuous integration
 #[derive(Parser, Debug)]
@@ -94,17 +92,9 @@ impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::E
 }
 
 // Typhon's state
-pub static SENDER: Lazy<mpsc::Sender<Msg>> = Lazy::new(init);
 pub static RUNTIME: Lazy<tokio::runtime::Runtime> =
     Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
-pub static POOL: Lazy<DbPool> = Lazy::new(|| {
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let manager = diesel::r2d2::ConnectionManager::<SqliteConnection>::new(database_url);
-    diesel::r2d2::Pool::builder()
-        .connection_customizer(Box::new(ConnectionCustomizer {}))
-        .build(manager)
-        .expect("database URL should be valid path to SQLite DB file")
-});
+pub static POOL: Lazy<DbPool> = Lazy::new(pool);
 pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
     let args = Args::parse();
     Settings {
@@ -283,9 +273,21 @@ pub fn handle_request_aux(
 
 /// Main entry point for Typhon requests
 pub async fn handle_request(user: User, req: requests::Request) -> Result<Response, ResponseError> {
-    let (send, recv) = oneshot::channel();
-    let _ = SENDER.send(Msg { send, user, req }).await;
-    recv.await.unwrap()
+    RUNTIME
+        .spawn_blocking(move || {
+            let mut conn = POOL.get().unwrap();
+            log::info!("handling request {} for user {:?}", req, user);
+            handle_request_aux(&mut conn, &user, &req).map_err(|e| {
+                if e.is_internal() {
+                    log::error!("request {} for user {:?} raised error: {:?}", req, user, e,);
+                } else {
+                    log::info!("request {} for user {:?} raised error: {:?}", req, user, e,);
+                }
+                e.into()
+            })
+        })
+        .await
+        .unwrap()
 }
 
 pub fn log_event(event: Event) {
@@ -353,57 +355,21 @@ pub async fn shutdown() {
     eprintln!("Good bye!");
 }
 
-pub struct Msg {
-    pub user: User,
-    pub req: requests::Request,
-    pub send: oneshot::Sender<Result<Response, ResponseError>>,
-}
-
-async fn handler(mut recv: mpsc::Receiver<Msg>) {
-    use tokio::task::spawn_blocking;
-
-    while let Some(msg) = recv.recv().await {
-        spawn_blocking(move || {
-            let mut conn = POOL.get().unwrap();
-            log::info!("handling request {} for user {:?}", msg.req, msg.user);
-            let rsp = handle_request_aux(&mut conn, &msg.user, &msg.req).map_err(|e| {
-                if e.is_internal() {
-                    log::error!(
-                        "request {} for user {:?} raised error: {:?}",
-                        msg.req,
-                        msg.user,
-                        e,
-                    );
-                } else {
-                    log::info!(
-                        "request {} for user {:?} raised error: {:?}",
-                        msg.req,
-                        msg.user,
-                        e,
-                    );
-                }
-                e.into()
-            });
-            let _ = msg.send.send(rsp);
-        });
-    }
-}
-
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
-fn init() -> mpsc::Sender<Msg> {
-    // Connect to the sqlite database
-    let pool = POOL.clone();
-    let mut conn = pool.get().unwrap();
+fn pool() -> DbPool {
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let manager = diesel::r2d2::ConnectionManager::<SqliteConnection>::new(database_url);
+    let pool = diesel::r2d2::Pool::builder()
+        .connection_customizer(Box::new(ConnectionCustomizer {}))
+        .build(manager)
+        .expect("database URL should be valid path to SQLite DB file");
 
-    // Run diesel migrations
+    // Run migrations
+    let mut conn = pool.get().unwrap();
     let _ = conn
         .run_pending_migrations(MIGRATIONS)
         .expect("failed to run migrations");
 
-    let (send, recv) = mpsc::channel(256);
-
-    let _ = RUNTIME.spawn(handler(recv));
-
-    send
+    pool
 }
