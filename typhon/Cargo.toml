@@ -7,7 +7,6 @@ edition.workspace = true
 typhon-lib.workspace = true
 typhon-types.workspace = true
 typhon-webapp = { workspace = true, features = ["ssr"] }
-actix-cors.workspace = true
 actix-files.workspace = true
 actix-session.workspace = true
 actix-web.workspace = true

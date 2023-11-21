@@ -25,7 +25,6 @@ separate-front-target-dir = true
 typhon-lib = { path = "./typhon-lib" }
 typhon-types = { path = "./typhon-types" }
 typhon-webapp = { path = "./typhon-webapp" }
-actix-cors = "0.6"
 actix-files = "0.6"
 actix-session = { version = "0.8", features = ["cookie-session"] }
 actix-web = "4.4"
