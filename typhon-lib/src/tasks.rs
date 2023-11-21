@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::log_event;
 use crate::models;
 use crate::schema;
 use crate::Conn;
@@ -7,6 +8,7 @@ use crate::{LOGS, TASKS};
 
 use typhon_types::data::TaskStatusKind;
 use typhon_types::responses::TaskStatus;
+use typhon_types::Event;
 
 use diesel::prelude::*;
 use std::future::Future;
@@ -49,7 +51,7 @@ impl Task {
         T: Send + 'static,
         O: Future<Output = T> + Send + 'static,
         F: (FnOnce(mpsc::Sender<String>) -> O) + Send + 'static,
-        G: (FnOnce(Option<T>, &DbPool) -> TaskStatusKind) + Send + Sync + 'static,
+        G: (FnOnce(Option<T>, &DbPool) -> (TaskStatusKind, Event)) + Send + Sync + 'static,
     >(
         &self,
         conn: &mut Conn,
@@ -74,7 +76,7 @@ impl Task {
         };
         let finish = move |res: Option<T>, pool: &DbPool| {
             let mut conn = pool.get().unwrap();
-            let status_kind = finish(res, pool);
+            let (status_kind, event) = finish(res, pool);
             let time_finished = OffsetDateTime::now_utc();
             let stderr = LOGS.dump(&id).unwrap_or(String::new()); // FIXME
             LOGS.reset(&id);
@@ -91,6 +93,7 @@ impl Task {
                 diesel::update(schema::logs::table.filter(schema::logs::id.eq(task_1.task.log_id)))
                     .set(schema::logs::stderr.eq(stderr))
                     .execute(&mut conn);
+            log_event(event);
         };
 
         TASKS.run(id, run, finish);

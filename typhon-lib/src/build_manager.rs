@@ -124,8 +124,12 @@ impl State {
         };
         let finish = {
             let drv = drv.clone();
+            let handle = build.handle();
             let sender = sender.clone();
-            |res, _: &DbPool| finish_build(drv, sender, res)
+            |res, _: &DbPool| {
+                let status = finish_build(drv, sender, res);
+                (status, Event::BuildFinished(handle))
+            }
         };
         build.task.run(&mut self.conn, run, finish)?;
 
@@ -235,7 +239,6 @@ async fn main_thread(
             }
             Msg::Finished(drv, res) => {
                 if let Some(build) = state.builds.remove(&drv) {
-                    log_event(Event::BuildFinished(build.build.handle()));
                     for sender in build.senders {
                         let _ = sender.send(res.clone());
                     }

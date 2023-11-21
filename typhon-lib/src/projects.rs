@@ -214,8 +214,10 @@ impl Project {
                     }
                     None => Ok(TaskStatusKind::Canceled),
                 };
-                log_event(Event::ProjectUpdated(self_.handle()));
-                status.unwrap_or(TaskStatusKind::Error)
+                (
+                    status.unwrap_or(TaskStatusKind::Error),
+                    Event::ProjectUpdated(self_.handle()),
+                )
             }
         };
 

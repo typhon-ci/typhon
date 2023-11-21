@@ -248,8 +248,7 @@ impl Action {
                         TaskStatusKind::Canceled
                     }
                 };
-                log_event(Event::ActionFinished(handle));
-                status
+                (status, Event::ActionFinished(handle))
             }
         };
 

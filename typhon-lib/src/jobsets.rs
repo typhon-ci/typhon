@@ -129,8 +129,7 @@ impl Jobset {
             move |r, pool: &DbPool| {
                 let handle = evaluation.handle();
                 let status = evaluation.finish(r, pool);
-                log_event(Event::EvaluationFinished(handle));
-                status
+                (status, Event::EvaluationFinished(handle))
             }
         };
 
