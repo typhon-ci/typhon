@@ -36,7 +36,7 @@ have write access to the directory. Then go to the root of the project and run:
 
 ```shell
 nix-shell
-export PASSWORD=$(echo -n "password" | sha256sum | head -c 64)
+export HASHED_PASSWORD=$(echo -n "password" | sha256sum | head -c 64)
 export VERBOSE=3
 cargo leptos serve
 ```

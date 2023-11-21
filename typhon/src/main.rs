@@ -11,9 +11,31 @@ use leptos_actix::{generate_route_list, LeptosRoutes};
 
 use typhon_webapp::app::App;
 
+/// Typhon, Nix-based continuous integration
+#[derive(Parser, Debug)]
+#[command(name = "Typhon")]
+pub struct Args {
+    /// Hashed password
+    #[arg(long, short = 'p', env)]
+    pub hashed_password: String,
+
+    /// Silence all output
+    #[arg(long, short, env)]
+    pub quiet: bool,
+
+    /// Verbose mode (-v, -vv, -vvv, etc)
+    #[arg(long, short, action = clap::ArgAction::Count, env)]
+    pub verbose: u8,
+
+    /// Timestamp (sec, ms, ns, none)
+    #[arg(long, short, env)]
+    pub timestamp: Option<stderrlog::Timestamp>,
+}
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let args = typhon_lib::Args::parse();
+    let args = Args::parse();
+    std::env::set_var("HASHED_PASSWORD", args.hashed_password);
 
     // Session key
     let secret_key = Key::generate();
@@ -24,7 +46,7 @@ async fn main() -> std::io::Result<()> {
         .module("typhon_lib")
         .quiet(args.quiet)
         .verbosity(usize::from(args.verbose))
-        .timestamp(args.ts.unwrap_or(stderrlog::Timestamp::Off))
+        .timestamp(args.timestamp.unwrap_or(stderrlog::Timestamp::Off))
         .init()
         .unwrap();
 

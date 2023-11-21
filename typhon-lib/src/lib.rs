@@ -34,35 +34,12 @@ use projects::Project;
 use runs::Run;
 use task_manager::TaskManager;
 
-use clap::Parser;
 use diesel::prelude::*;
 use diesel::r2d2;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-
-/// Typhon, Nix-based continuous integration
-#[derive(Parser, Debug)]
-#[command(name = "Typhon")]
-#[command(about = "Nix-based continuous integration", long_about = None)]
-pub struct Args {
-    /// Hashed password
-    #[arg(long, short, env)]
-    pub password: String,
-
-    /// Silence all output
-    #[arg(long, short)]
-    pub quiet: bool,
-
-    /// Verbose mode (-v, -vv, -vvv, etc)
-    #[arg(long, short, action = clap::ArgAction::Count, env)]
-    pub verbose: u8,
-
-    /// Timestamp (sec, ms, ns, none)
-    #[arg(long, short)]
-    pub ts: Option<stderrlog::Timestamp>,
-}
 
 #[derive(Debug)]
 pub struct Settings {
@@ -95,11 +72,8 @@ impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::E
 pub static RUNTIME: Lazy<tokio::runtime::Runtime> =
     Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
 pub static POOL: Lazy<DbPool> = Lazy::new(pool);
-pub static SETTINGS: Lazy<Settings> = Lazy::new(|| {
-    let args = Args::parse();
-    Settings {
-        hashed_password: args.password.clone(),
-    }
+pub static SETTINGS: Lazy<Settings> = Lazy::new(|| Settings {
+    hashed_password: std::env::var("HASHED_PASSWORD").unwrap(),
 });
 pub static RUNS: Lazy<TaskManager<i32, DbPool>> = Lazy::new(|| TaskManager::new(&POOL));
 pub static TASKS: Lazy<TaskManager<i32, DbPool>> = Lazy::new(|| TaskManager::new(&POOL));
