@@ -1,12 +1,11 @@
-use actix_files::Files;
-use actix_web::*;
-use clap::Parser;
-
 mod api;
 
+use actix_files::Files;
 use actix_session::storage::CookieSessionStore;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
+use actix_web::*;
+use clap::Parser;
 use leptos::*;
 use leptos_actix::{generate_route_list, LeptosRoutes};
 
