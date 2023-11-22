@@ -25,8 +25,7 @@ with [Leptos](https://leptos.dev/). Typhon is built with `cargo-leptos`.
 To build Typhon, go to the root of the project and run:
 
 ```shell
-nix-shell
-cargo leptos build
+nix-shell --run build
 ```
 
 ## Testing
@@ -35,13 +34,11 @@ To run Typhon, create `/nix/var/nix/gcroots/typhon/` and make sure that you
 have write access to the directory. Then go to the root of the project and run:
 
 ```shell
-nix-shell
-export HASHED_PASSWORD=$(echo -n "password" | sha256sum | head -c 64)
-export VERBOSE=3
-cargo leptos serve
+nix-shell --run serve
 ```
 
-The server will be available at `http://localhost:3000`.
+The server will be available at `http://localhost:3000`, the admin password is
+`password`.
 
-You can also run `cargo leptos watch` to re-compile the server automatically at
-each modification of the code.
+You can also run `nix-shell --run watch` to re-compile the server automatically
+at each modification of the code.
