@@ -61,8 +61,12 @@ fn update_aux(conn: &mut Conn) -> Result<(), Error> {
         .load::<Option<String>>(conn)?;
 
     for (path, drv, _, _) in res_1.drain(..) {
-        for dep in nix::dependencies(&drv)? {
-            gcroots.insert(dep);
+        if let Ok(deps) = nix::dependencies(&drv) {
+            for dep in deps {
+                gcroots.insert(dep);
+            }
+        } else {
+            log::warn!("gcroots: missing derivation {}", drv);
         }
         gcroots.insert(drv);
         gcroots.insert(path);
