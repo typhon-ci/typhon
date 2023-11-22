@@ -2,7 +2,7 @@ use crate::RUNTIME;
 
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
-use tokio::sync::Mutex;
+use tokio::sync::watch;
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -38,7 +38,7 @@ struct TaskHandle {
 
 pub struct TaskManager<Id, St: 'static> {
     msg_send: mpsc::UnboundedSender<Msg<Id, St>>,
-    shutdown_recv: Mutex<Option<oneshot::Receiver<()>>>,
+    watch: watch::Receiver<()>,
 }
 
 impl<
@@ -48,9 +48,8 @@ impl<
 {
     pub fn new(state: &'static St) -> Self {
         let (msg_send, mut msg_recv) = mpsc::unbounded_channel();
-        let (shutdown_send, shutdown_recv) = oneshot::channel();
+        let (watch_send, watch) = watch::channel(());
         RUNTIME.spawn(async move {
-            let _shutdown_send = shutdown_send;
             let (finish_send, mut finish_recv) = mpsc::unbounded_channel();
             let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();
             let mut shutdown = false;
@@ -105,12 +104,9 @@ impl<
             }
             drop(finish_send);
             let _ = finish_recv.recv().await;
+            let _watch_send = watch_send;
         });
-        let shutdown_recv = Mutex::new(Some(shutdown_recv));
-        Self {
-            msg_send,
-            shutdown_recv,
-        }
+        Self { msg_send, watch }
     }
 
     pub async fn wait(&self, id: &Id) -> () {
@@ -157,9 +153,7 @@ impl<
     }
 
     pub async fn shutdown(&'static self) {
-        if let Some(shutdown_recv) = self.shutdown_recv.lock().await.take() {
-            let _ = self.msg_send.send(Msg::Shutdown);
-            let _ = shutdown_recv.await;
-        }
+        let _ = self.msg_send.send(Msg::Shutdown);
+        while self.watch.clone().changed().await.is_ok() {}
     }
 }

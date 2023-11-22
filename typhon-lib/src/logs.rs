@@ -3,8 +3,7 @@ pub mod live {
 
     use tokio::sync::mpsc;
     use tokio::sync::oneshot;
-    use tokio::sync::Mutex;
-    use tokio::task::JoinHandle;
+    use tokio::sync::watch;
 
     use std::collections::HashMap;
 
@@ -33,7 +32,7 @@ pub mod live {
     #[derive(Debug)]
     pub struct Cache<Id> {
         sender: mpsc::UnboundedSender<Msg<Id>>,
-        handle: Mutex<Option<JoinHandle<()>>>,
+        watch: watch::Receiver<()>,
     }
 
     impl<Id: Clone + Eq + PartialEq + Send + std::fmt::Debug + std::hash::Hash + 'static> Cache<Id>
@@ -42,7 +41,8 @@ pub mod live {
     {
         pub fn new() -> Self {
             let (sender, mut receiver) = mpsc::unbounded_channel();
-            let handle = RUNTIME.spawn(async move {
+            let (watch_send, watch) = watch::channel(());
+            RUNTIME.spawn(async move {
                 type Listeners = Vec<mpsc::UnboundedSender<String>>;
                 let mut state: HashMap<Id, (Vec<String>, Listeners)> = HashMap::new();
                 while let Some(msg) = receiver.recv().await {
@@ -102,11 +102,9 @@ pub mod live {
                         Msg::Shutdown => break,
                     }
                 }
+                let _watch_send = watch_send;
             });
-            Self {
-                sender,
-                handle: Mutex::new(Some(handle)),
-            }
+            Self { sender, watch }
         }
 
         pub fn dump(&self, id: &Id) -> Option<String> {
@@ -163,14 +161,8 @@ pub mod live {
         }
 
         pub async fn shutdown(&self) {
-            let handle = self.handle.lock().await.take();
-            if let Some(handle) = handle {
-                if self.sender.send(Msg::Shutdown).is_ok() {
-                    let _ = handle.await;
-                } else {
-                    handle.abort();
-                }
-            }
+            let _ = self.sender.send(Msg::Shutdown);
+            while self.watch.clone().changed().await.is_ok() {}
         }
     }
 }

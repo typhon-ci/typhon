@@ -19,8 +19,7 @@ use once_cell::sync::Lazy;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
-use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
+use tokio::sync::watch;
 use tokio::task::JoinSet;
 
 use std::collections::HashMap;
@@ -260,24 +259,25 @@ async fn main_thread(
 }
 
 pub struct Builder {
-    handle: Mutex<Option<JoinHandle<()>>>,
     sender: mpsc::UnboundedSender<Msg>,
+    watch: watch::Receiver<()>,
 }
 
 impl Builder {
     fn new() -> Self {
         let (sender, receiver) = mpsc::unbounded_channel();
-        let handle = {
+        let (watch_send, watch) = watch::channel(());
+        {
             let sender = sender.clone();
             RUNTIME.spawn(async move {
                 let res = main_thread(sender, receiver).await;
                 if let Err(e) = res {
                     log::error!("Build manager's main thread raised an error: {}", e);
                 }
-            })
-        };
-        let handle = Mutex::new(Some(handle));
-        Self { handle, sender }
+                let _watch_send = watch_send;
+            });
+        }
+        Self { sender, watch }
     }
 
     pub fn run(&self, drv: DrvPath) -> BuildHandle {
@@ -287,14 +287,8 @@ impl Builder {
     }
 
     pub async fn shutdown(&self) {
-        let handle = self.handle.lock().await.take();
-        if let Some(handle) = handle {
-            if self.sender.send(Msg::Shutdown).is_ok() {
-                let _ = handle.await;
-            } else {
-                handle.abort();
-            }
-        }
+        let _ = self.sender.send(Msg::Shutdown);
+        while self.watch.clone().changed().await.is_ok() {}
     }
 }
 

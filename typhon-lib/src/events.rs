@@ -4,8 +4,7 @@ use typhon_types::Event;
 
 use futures_core::stream::Stream;
 use tokio::sync::mpsc;
-use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
+use tokio::sync::watch;
 
 pub enum Msg {
     Emit(Event),
@@ -15,14 +14,15 @@ pub enum Msg {
 
 pub struct EventLogger {
     sender: mpsc::UnboundedSender<Msg>,
-    handle: Mutex<Option<JoinHandle<()>>>,
+    watch: watch::Receiver<()>,
 }
 
 impl EventLogger {
     pub fn new() -> Self {
         use Msg::*;
         let (sender, mut receiver) = mpsc::unbounded_channel();
-        let handle = RUNTIME.spawn(async move {
+        let (watch_send, watch) = watch::channel(());
+        RUNTIME.spawn(async move {
             let mut senders: Vec<mpsc::UnboundedSender<Event>> = Vec::new();
             while let Some(msg) = receiver.recv().await {
                 match msg {
@@ -40,11 +40,9 @@ impl EventLogger {
                     Shutdown => break,
                 }
             }
+            let _watch = watch_send;
         });
-        Self {
-            sender,
-            handle: Mutex::new(Some(handle)),
-        }
+        Self { sender, watch }
     }
 
     pub fn log(&self, event: Event) {
@@ -62,13 +60,7 @@ impl EventLogger {
     }
 
     pub async fn shutdown(&self) {
-        let handle = self.handle.lock().await.take();
-        if let Some(handle) = handle {
-            if self.sender.send(Msg::Shutdown).is_ok() {
-                let _ = handle.await;
-            } else {
-                handle.abort();
-            }
-        }
+        let _ = self.sender.send(Msg::Shutdown);
+        while self.watch.clone().changed().await.is_ok() {}
     }
 }
