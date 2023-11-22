@@ -1,16 +1,12 @@
 utils: lib: rec {
   mkDummyAction = {output ? "null"}:
-    lib.eachSystem (system: let
-      pkgs = utils.pkgs.${system};
-    in
-      pkgs.writeShellApplication {
-        name = "action";
-        runtimeInputs = [pkgs.jq];
-        text = ''
-          cat | jq '.input' -r >&2
-          echo '${output}'
-        '';
-      });
+    lib.mkActionScript {
+      mkPath = pkgs: [pkgs.jq];
+      script = ''
+        cat | jq '.input' -r >&2
+        echo '${output}'
+      '';
+    };
 
   dummyStatus = mkDummyAction {};
 

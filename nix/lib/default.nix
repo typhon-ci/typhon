@@ -8,6 +8,7 @@
       ./dummy.nix
       ./github
       ./mkGitJobsets.nix
+      ./mkActionScript.nix
       ./mkProject.nix
       ./mkSimpleJobsets.nix
       ./mkSimpleProject.nix
