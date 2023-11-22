@@ -250,12 +250,12 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
     RUNTIME
         .spawn_blocking(move || {
             let mut conn = POOL.get().unwrap();
-            log::info!("handling request {} for user {:?}", req, user);
+            log::trace!("handling request {} for user {:?}", req, user);
             handle_request_aux(&mut conn, &user, &req).map_err(|e| {
                 if e.is_internal() {
                     log::error!("request {} for user {:?} raised error: {:?}", req, user, e,);
                 } else {
-                    log::info!("request {} for user {:?} raised error: {:?}", req, user, e,);
+                    log::debug!("request {} for user {:?} raised error: {:?}", req, user, e,);
                 }
                 e.into()
             })
@@ -265,7 +265,7 @@ pub async fn handle_request(user: User, req: requests::Request) -> Result<Respon
 }
 
 pub fn log_event(event: Event) {
-    log::info!("event: {:?}", event);
+    log::trace!("event: {:?}", event);
     EVENT_LOGGER.log(event);
 }
 
@@ -291,7 +291,7 @@ pub fn webhook(
 ) -> Result<Vec<requests::Request>, Error> {
     let mut conn = POOL.get().unwrap();
 
-    log::info!("handling webhook {:?}", input);
+    log::debug!("handling webhook {:?}", input);
 
     let project = projects::Project::get(&mut conn, &project_handle).map_err(|e| {
         if e.is_internal() {
