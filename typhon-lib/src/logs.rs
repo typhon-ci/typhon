@@ -149,31 +149,6 @@ pub mod live {
             }
         }
 
-        pub async fn listen_async(
-            &self,
-            id: &Id,
-        ) -> Option<impl futures_core::stream::Stream<Item = String>> {
-            let (lines_sender, mut lines_receiver) = mpsc::unbounded_channel();
-            let (not_found_sender, not_found_receiver) = oneshot::channel();
-            self.sender
-                .send(Msg::Listen {
-                    id: id.clone(),
-                    lines_sender,
-                    not_found_sender,
-                })
-                .unwrap();
-
-            if not_found_receiver.await.unwrap() {
-                None
-            } else {
-                Some(async_stream::stream! {
-                    while let Some(i) = lines_receiver.recv().await {
-                        yield i;
-                    }
-                })
-            }
-        }
-
         pub fn send_line(&self, id: &Id, line: String) {
             self.sender
                 .send(Msg::Line {
