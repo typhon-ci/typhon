@@ -10,6 +10,7 @@ pub enum Error {
     ActionNotFound(handles::Action),
     BuildNotFound(handles::Build),
     RunNotFound(handles::Run),
+    BadProjectDecl,
     BadJobsetDecl(String),
     EvaluationNotFound(handles::Evaluation),
     IllegalProjectHandle(handles::Project),
@@ -50,6 +51,7 @@ impl std::fmt::Display for Error {
             ActionNotFound(h) => write!(f, "Action not found: {}", h),
             BuildNotFound(h) => write!(f, "Build not found: {}", h),
             RunNotFound(h) => write!(f, "Run not found: {}", h),
+            BadProjectDecl => write!(f, "Bad project declaration"),
             BadJobsetDecl(s) => write!(f, "Bad jobset declaration: {}", s),
             IllegalProjectHandle(handle) => {
                 write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contain dashes [-] or underscores [_].", handle.name)
@@ -130,6 +132,7 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | LogNotFound(_) => ResourceNotFound(format!("{}", self)),
             AccessDenied
             | ActionError(_)
+            | BadProjectDecl
             | BadJobsetDecl(_)
             | IllegalProjectHandle(_)
             | NixError(_)

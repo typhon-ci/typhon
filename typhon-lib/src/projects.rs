@@ -184,7 +184,7 @@ impl Project {
 
                 let TyphonProject { actions, meta } =
                     serde_json::from_value(nix::eval(&url_locked, &"typhonProject", flake).await?)
-                        .expect("TODO");
+                        .map_err(|_| Error::BadProjectDecl)?;
 
                 let actions: Option<&String> =
                     actions.as_ref().map(|m| m.get(&*CURRENT_SYSTEM)).flatten();
