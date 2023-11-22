@@ -24,7 +24,7 @@ pub mod live {
         },
         Listen {
             id: Id,
-            lines_sender: mpsc::Sender<String>,
+            lines_sender: mpsc::UnboundedSender<String>,
             not_found_sender: oneshot::Sender<bool>,
         },
         Shutdown,
@@ -32,7 +32,7 @@ pub mod live {
 
     #[derive(Debug)]
     pub struct Cache<Id> {
-        sender: mpsc::Sender<Msg<Id>>,
+        sender: mpsc::UnboundedSender<Msg<Id>>,
         handle: Mutex<Option<JoinHandle<()>>>,
     }
 
@@ -41,9 +41,9 @@ pub mod live {
         for<'a> &'a Id: Send,
     {
         pub fn new() -> Self {
-            let (sender, mut receiver) = mpsc::channel(32);
+            let (sender, mut receiver) = mpsc::unbounded_channel();
             let handle = RUNTIME.spawn(async move {
-                type Listeners = Vec<mpsc::Sender<String>>;
+                type Listeners = Vec<mpsc::UnboundedSender<String>>;
                 let mut state: HashMap<Id, (Vec<String>, Listeners)> = HashMap::new();
                 while let Some(msg) = receiver.recv().await {
                     match msg {
@@ -76,7 +76,7 @@ pub mod live {
 
                             let mut new_listeners: Listeners = Vec::new();
                             for listener in listeners.drain(..) {
-                                match listener.send(line.clone()).await {
+                                match listener.send(line.clone()) {
                                     Ok(()) => new_listeners.push(listener),
                                     Err(_) => (),
                                 }
@@ -91,7 +91,7 @@ pub mod live {
                             if let Some((lines, listeners)) = state.get_mut(&id) {
                                 not_found_sender.send(false).unwrap();
                                 for line in lines {
-                                    lines_sender.send(line.clone()).await.unwrap();
+                                    lines_sender.send(line.clone()).unwrap();
                                 }
                                 listeners.push(lines_sender);
                             } else {
@@ -113,7 +113,7 @@ pub mod live {
             let (dump_sender, dump_receiver) = oneshot::channel();
             let (not_found_sender, not_found_receiver) = oneshot::channel();
             self.sender
-                .try_send(Msg::Dump {
+                .send(Msg::Dump {
                     id: id.clone(),
                     dump_sender,
                     not_found_sender,
@@ -128,10 +128,10 @@ pub mod live {
         }
 
         pub fn listen(&self, id: &Id) -> Option<impl futures_core::stream::Stream<Item = String>> {
-            let (lines_sender, mut lines_receiver) = mpsc::channel(32);
+            let (lines_sender, mut lines_receiver) = mpsc::unbounded_channel();
             let (not_found_sender, not_found_receiver) = oneshot::channel();
             self.sender
-                .try_send(Msg::Listen {
+                .send(Msg::Listen {
                     id: id.clone(),
                     lines_sender,
                     not_found_sender,
@@ -153,10 +153,10 @@ pub mod live {
             &self,
             id: &Id,
         ) -> Option<impl futures_core::stream::Stream<Item = String>> {
-            let (lines_sender, mut lines_receiver) = mpsc::channel(32);
+            let (lines_sender, mut lines_receiver) = mpsc::unbounded_channel();
             let (not_found_sender, not_found_receiver) = oneshot::channel();
             self.sender
-                .try_send(Msg::Listen {
+                .send(Msg::Listen {
                     id: id.clone(),
                     lines_sender,
                     not_found_sender,
@@ -176,7 +176,7 @@ pub mod live {
 
         pub fn send_line(&self, id: &Id, line: String) {
             self.sender
-                .try_send(Msg::Line {
+                .send(Msg::Line {
                     id: id.clone(),
                     line,
                 })
@@ -184,13 +184,13 @@ pub mod live {
         }
 
         pub fn reset(&self, id: &Id) {
-            self.sender.try_send(Msg::Reset { id: id.clone() }).unwrap()
+            self.sender.send(Msg::Reset { id: id.clone() }).unwrap()
         }
 
         pub async fn shutdown(&self) {
             let handle = self.handle.lock().await.take();
             if let Some(handle) = handle {
-                if self.sender.send(Msg::Shutdown).await.is_ok() {
+                if self.sender.send(Msg::Shutdown).is_ok() {
                     let _ = handle.await;
                 } else {
                     handle.abort();

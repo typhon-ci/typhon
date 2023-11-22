@@ -71,7 +71,7 @@ impl State {
     async fn new_build(
         &mut self,
         drv: DrvPath,
-        sender: &mpsc::Sender<Msg>,
+        sender: &mpsc::UnboundedSender<Msg>,
         abort_receiver: oneshot::Receiver<()>,
         res_sender: oneshot::Sender<Output>,
     ) -> Result<i32, Error> {
@@ -137,8 +137,8 @@ impl State {
     }
 }
 
-fn finish_build(drv: DrvPath, sender: mpsc::Sender<Msg>, res: Output) -> TaskStatusKind {
-    let _ = sender.try_send(Msg::Finished(drv, res.clone()));
+fn finish_build(drv: DrvPath, sender: mpsc::UnboundedSender<Msg>, res: Output) -> TaskStatusKind {
+    let _ = sender.send(Msg::Finished(drv, res.clone()));
     match res {
         Some(Some(())) => TaskStatusKind::Success,
         Some(None) => TaskStatusKind::Error,
@@ -148,8 +148,8 @@ fn finish_build(drv: DrvPath, sender: mpsc::Sender<Msg>, res: Output) -> TaskSta
 
 async fn run_build(
     drv: DrvPath,
-    sender: mpsc::Sender<Msg>,
-    sender_log: mpsc::Sender<String>,
+    sender: mpsc::UnboundedSender<Msg>,
+    sender_log: mpsc::UnboundedSender<String>,
 ) -> Option<()> {
     if nix::is_cached(&drv).await == Ok(false) {
         let json: serde_json::Value = nix::derivation_json(&nix::Expr::Path(drv.to_string()))
@@ -159,9 +159,7 @@ async fn run_build(
         let mut handle_receivers: Vec<oneshot::Receiver<BuildHandle>> = Vec::new();
         for (drv, _) in input_drvs {
             let (handle_sender, handle_receiver) = oneshot::channel();
-            let _ = sender
-                .send(Msg::Build(DrvPath::new(drv), handle_sender))
-                .await;
+            let _ = sender.send(Msg::Build(DrvPath::new(drv), handle_sender));
             handle_receivers.push(handle_receiver);
         }
         let mut join_set = JoinSet::new();
@@ -180,14 +178,18 @@ async fn run_build(
     Some(())
 }
 
-async fn abort_thread(drv: DrvPath, sender: mpsc::Sender<Msg>, receiver: oneshot::Receiver<()>) {
+async fn abort_thread(
+    drv: DrvPath,
+    sender: mpsc::UnboundedSender<Msg>,
+    receiver: oneshot::Receiver<()>,
+) {
     let _ = receiver.await;
     let _ = sender.send(Msg::Abort(drv));
 }
 
 async fn main_thread(
-    sender: mpsc::Sender<Msg>,
-    mut receiver: mpsc::Receiver<Msg>,
+    sender: mpsc::UnboundedSender<Msg>,
+    mut receiver: mpsc::UnboundedReceiver<Msg>,
 ) -> Result<(), Error> {
     let mut state = State::new();
     while let Some(msg) = receiver.recv().await {
@@ -259,12 +261,12 @@ async fn main_thread(
 
 pub struct Builder {
     handle: Mutex<Option<JoinHandle<()>>>,
-    sender: mpsc::Sender<Msg>,
+    sender: mpsc::UnboundedSender<Msg>,
 }
 
 impl Builder {
     fn new() -> Self {
-        let (sender, receiver) = mpsc::channel(256);
+        let (sender, receiver) = mpsc::unbounded_channel();
         let handle = {
             let sender = sender.clone();
             RUNTIME.spawn(async move {
@@ -280,16 +282,14 @@ impl Builder {
 
     pub fn run(&self, drv: DrvPath) -> BuildHandle {
         let (handle_sender, handle_receiver) = oneshot::channel();
-        self.sender
-            .try_send(Msg::Build(drv, handle_sender))
-            .unwrap(); // FIXME
+        self.sender.send(Msg::Build(drv, handle_sender)).unwrap(); // FIXME
         handle_receiver.blocking_recv().unwrap() // FIXME
     }
 
     pub async fn shutdown(&self) {
         let handle = self.handle.lock().await.take();
         if let Some(handle) = handle {
-            if self.sender.send(Msg::Shutdown).await.is_ok() {
+            if self.sender.send(Msg::Shutdown).is_ok() {
                 let _ = handle.await;
             } else {
                 handle.abort();

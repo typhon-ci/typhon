@@ -23,7 +23,7 @@ enum Msg<Id, St: 'static> {
     Finish(Id),
     Run(
         Id,
-        oneshot::Sender<mpsc::Sender<()>>,
+        oneshot::Sender<mpsc::UnboundedSender<()>>,
         oneshot::Sender<()>,
         oneshot::Sender<&'static St>,
     ),
@@ -37,7 +37,7 @@ struct TaskHandle {
 }
 
 pub struct TaskManager<Id, St: 'static> {
-    msg_send: mpsc::Sender<Msg<Id, St>>,
+    msg_send: mpsc::UnboundedSender<Msg<Id, St>>,
     shutdown_recv: Mutex<Option<oneshot::Receiver<()>>>,
 }
 
@@ -47,11 +47,11 @@ impl<
     > TaskManager<Id, St>
 {
     pub fn new(state: &'static St) -> Self {
-        let (msg_send, mut msg_recv) = mpsc::channel(256);
+        let (msg_send, mut msg_recv) = mpsc::unbounded_channel();
         let (shutdown_send, shutdown_recv) = oneshot::channel();
         RUNTIME.spawn(async move {
             let _shutdown_send = shutdown_send;
-            let (finish_send, mut finish_recv) = mpsc::channel(1);
+            let (finish_send, mut finish_recv) = mpsc::unbounded_channel();
             let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();
             let mut shutdown = false;
             while let Some(msg) = msg_recv.recv().await {
@@ -115,7 +115,7 @@ impl<
 
     pub async fn wait(&self, id: &Id) -> () {
         let (sender, receiver) = oneshot::channel();
-        let _ = self.msg_send.send(Msg::Wait(id.clone(), sender)).await;
+        let _ = self.msg_send.send(Msg::Wait(id.clone(), sender));
         let _ = receiver.await;
     }
 
@@ -133,7 +133,7 @@ impl<
         use tokio::task::spawn_blocking;
 
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
-        let (finish_send_send, finish_send_recv) = oneshot::channel::<mpsc::Sender<()>>();
+        let (finish_send_send, finish_send_recv) = oneshot::channel::<mpsc::UnboundedSender<()>>();
         let (state_send, state_recv) = oneshot::channel::<&'static St>();
         let sender_self = self.msg_send.clone();
         let id_bis = id.clone();
@@ -144,21 +144,21 @@ impl<
                 r = run => Some(r),
             };
             let _ = spawn_blocking(move || finish(r, state)).await;
-            let _ = sender_self.send(Msg::Finish(id_bis)).await;
+            let _ = sender_self.send(Msg::Finish(id_bis));
             let _ = finish_send_recv.await;
         });
         let _ = self
             .msg_send
-            .try_send(Msg::Run(id, finish_send_send, cancel_send, state_send));
+            .send(Msg::Run(id, finish_send_send, cancel_send, state_send));
     }
 
     pub fn cancel(&self, id: Id) {
-        let _ = self.msg_send.try_send(Msg::Cancel(id));
+        let _ = self.msg_send.send(Msg::Cancel(id));
     }
 
     pub async fn shutdown(&'static self) {
         if let Some(shutdown_recv) = self.shutdown_recv.lock().await.take() {
-            let _ = self.msg_send.send(Msg::Shutdown).await;
+            let _ = self.msg_send.send(Msg::Shutdown);
             let _ = shutdown_recv.await;
         }
     }

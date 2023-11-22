@@ -103,7 +103,7 @@ impl CommandExtTrait for Command {
 async fn handle_logs(
     path: &DrvPath,
     buffer: BufReader<tokio::process::ChildStderr>,
-    sender: mpsc::Sender<String>,
+    sender: mpsc::UnboundedSender<String>,
 ) {
     let mut lines = buffer.lines();
     use messages::*;
@@ -122,12 +122,12 @@ async fn handle_logs(
                             "@nix {} \"action\": \"setPhase\", \"phase\": \"{}\" {}",
                             "{", "}", phase
                         );
-                        let _ = sender.send(line).await;
+                        let _ = sender.send(line);
                     }
                 }
                 MessageBody::BuildLogLine { line } => {
                     if drv_id == Some(id) {
-                        let _ = sender.send(line).await;
+                        let _ = sender.send(line);
                     }
                 }
                 _ => (),
@@ -137,7 +137,10 @@ async fn handle_logs(
 }
 
 /// Runs `nix build` on a derivation path
-pub async fn build(path: &DrvPath, sender: mpsc::Sender<String>) -> Result<DrvOutputs, Error> {
+pub async fn build(
+    path: &DrvPath,
+    sender: mpsc::UnboundedSender<String>,
+) -> Result<DrvOutputs, Error> {
     let mut child = Command::nix([
         "build",
         "--log-format",

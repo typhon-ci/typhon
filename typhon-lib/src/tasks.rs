@@ -50,7 +50,7 @@ impl Task {
     pub fn run<
         T: Send + 'static,
         O: Future<Output = T> + Send + 'static,
-        F: (FnOnce(mpsc::Sender<String>) -> O) + Send + 'static,
+        F: (FnOnce(mpsc::UnboundedSender<String>) -> O) + Send + 'static,
         G: (FnOnce(Option<T>, &DbPool) -> (TaskStatusKind, Event)) + Send + Sync + 'static,
     >(
         &self,
@@ -65,7 +65,7 @@ impl Task {
         let id = self.task.id;
         let task_1 = self.clone();
 
-        let (sender, mut receiver) = mpsc::channel(256);
+        let (sender, mut receiver) = mpsc::unbounded_channel();
         let run = async move {
             let (res, ()) = tokio::join!(run(sender), async move {
                 while let Some(line) = receiver.recv().await {

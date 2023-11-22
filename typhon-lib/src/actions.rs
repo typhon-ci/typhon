@@ -66,7 +66,7 @@ async fn action(
     path: &String,
     name: &String,
     input: &Value,
-    sender: mpsc::Sender<String>,
+    sender: mpsc::UnboundedSender<String>,
 ) -> Result<String, Error> {
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncReadExt;
@@ -123,7 +123,7 @@ async fn action(
     let buffer = BufReader::new(stderr);
     let mut lines = buffer.lines();
     while let Some(line) = lines.next_line().await.unwrap() {
-        let _ = sender.send(line).await;
+        let _ = sender.send(line);
     }
 
     let mut res = String::new();

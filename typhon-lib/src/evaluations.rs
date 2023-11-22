@@ -95,14 +95,17 @@ impl Evaluation {
         self.task.log(conn)
     }
 
-    pub async fn run(self, sender: mpsc::Sender<String>) -> Result<nix::NewJobs, nix::Error> {
+    pub async fn run(
+        self,
+        sender: mpsc::UnboundedSender<String>,
+    ) -> Result<nix::NewJobs, nix::Error> {
         let res = nix::eval_jobs(&self.evaluation.url, self.evaluation.flake).await;
         match &res {
             Err(e) => {
                 for line in e.to_string().split("\n") {
                     // TODO: hide internal error messages?
                     // TODO: error management
-                    let _ = sender.send(line.to_string()).await;
+                    let _ = sender.send(line.to_string());
                 }
             }
             _ => (),
