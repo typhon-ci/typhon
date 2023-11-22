@@ -55,16 +55,6 @@ impl EventLogger {
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let _ = self.sender.send(Msg::Listen(sender));
         Some(async_stream::stream! {
-            while let Some(e) = receiver.blocking_recv() {
-                yield e;
-            }
-        })
-    }
-
-    pub async fn listen_async(&self) -> Option<impl Stream<Item = Event>> {
-        let (sender, mut receiver) = mpsc::unbounded_channel();
-        let _ = self.sender.send(Msg::Listen(sender));
-        Some(async_stream::stream! {
             while let Some(e) = receiver.recv().await {
                 yield e;
             }
