@@ -75,7 +75,8 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await?;
 
-    // Graceful shutdown (FIXME)
+    // Graceful shutdown
+    typhon_lib::shutdown().await;
 
     Ok(())
 }
