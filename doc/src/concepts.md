@@ -23,9 +23,8 @@ statuses or deploying something.
 
 Projects are defined declaratively. This means that almost no configuration is
 made in Typhon, everything is done externally via a Nix flake. Concretely, a
-project is defined by a flake URL (`github:typhon-ci/typhon` for instance). The
-referenced flake must expose an output `typhonProject` defining the project
-settings.
+project is defined by a flake URL. The referenced flake must expose an output
+`typhonProject` defining the project settings.
 
 `typhonProject` contains two attributes: `meta` and `actions`. `meta` is an
 attribute set which defines metadata about the project: a title, a description
@@ -39,21 +38,19 @@ handled. Malicious edits to the declaration can potentially leak these secrets.
 
 ## Jobsets
 
-A jobset is also a flake URL (`github:typhon-ci/typhon/main`), referencing a
-flake that exposes an output `typhonJobs`. `typhonJobs` is an attribute set of
-derivations, called jobs, that are built by Typhon. Jobsets typically correspond
-to the branches of the repository. Their flake URL is locked
-periodically, creating an evaluation.
+A jobset is also a flake URL, referencing a flake that exposes an output
+`typhonJobs`. `typhonJobs` is an attribute set of derivations, called jobs, that
+are built by Typhon. Jobsets typically correspond to the branches of the
+repository. Their flake URL is locked periodically, creating an evaluation.
 
 Jobsets updates and evaluations are meant to be triggered automatically by
 the `webhook` action.
 
 ## Evaluations
 
-An evaluation locks the flake URL of a jobset
-(`github:typhon-ci/typhon/606cc3b9517038e38f782126c02d305c9bdeb87e`). It
-typically corresponds to a commit on the repository. Once the jobset is locked,
-the output `typhonJobs` is evaluated and the corresponding jobs are spawned.
+An evaluation locks the flake URL of a jobset. It typically corresponds to a
+commit on the repository. Once the jobset is locked, the output `typhonJobs` is
+evaluated and the corresponding jobs are spawned.
 
 ## Jobs
 
