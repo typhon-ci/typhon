@@ -9,6 +9,11 @@
         sha256 = lock.nodes.flake-compat.locked.narHash;
       }
   )
-  {src = ./.;}
+  {
+    src =
+      if builtins ? currentSystem
+      then ./.
+      else "${./.}";
+  }
 )
 .defaultNix
