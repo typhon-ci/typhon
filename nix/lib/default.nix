@@ -7,8 +7,8 @@
     utils.importer null [
       ./dummy.nix
       ./github
-      ./mkGitJobsets.nix
       ./mkActionScript.nix
+      ./mkGitJobsets.nix
       ./mkProject.nix
       ./mkSimpleJobsets.nix
       ./mkSimpleProject.nix
