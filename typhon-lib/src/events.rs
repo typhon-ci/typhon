@@ -40,7 +40,7 @@ impl EventLogger {
                     Shutdown => break,
                 }
             }
-            let _watch = watch_send;
+            let _watch_send = watch_send;
         });
         Self { sender, watch }
     }
