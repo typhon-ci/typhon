@@ -1,5 +1,3 @@
-use crate::RUNTIME;
-
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::watch;
@@ -49,7 +47,7 @@ impl<
     pub fn new(state: &'static St) -> Self {
         let (msg_send, mut msg_recv) = mpsc::unbounded_channel();
         let (watch_send, watch) = watch::channel(());
-        RUNTIME.spawn(async move {
+        tokio::spawn(async move {
             let (finish_send, mut finish_recv) = mpsc::unbounded_channel();
             let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();
             let mut shutdown = false;
