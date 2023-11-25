@@ -7,12 +7,14 @@
     utils.importer null [
       ./dummy.nix
       ./github
+      ./match.nix
       ./mkActionScript.nix
       ./mkGitJobsets.nix
       ./mkProject.nix
       ./mkSimpleJobsets.nix
       ./mkSimpleProject.nix
       ./schemas.nix
+      ./steps.nix
       ./systems.nix
     ]
     self;

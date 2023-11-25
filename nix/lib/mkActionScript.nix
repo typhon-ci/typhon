@@ -1,7 +1,8 @@
 utils: lib: {
   mkActionScript = {
     mkPath ? pkgs: [],
-    script,
+    script ? "",
+    mkScript ? system: script,
   }:
     lib.eachSystem (system: let
       pkgs = utils.pkgs.${system};
@@ -9,6 +10,7 @@ utils: lib: {
       pkgs.writeShellApplication {
         name = "action";
         runtimeInputs = mkPath pkgs;
-        text = script;
+        text = mkScript system;
+        excludeShellChecks = ["SC2015"];
       });
 }
