@@ -112,14 +112,11 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
         Request::Search { .. }
         | Request::Project(_, Project::Info)
         | Request::Jobset(_, Jobset::Info)
-        | Request::Evaluation(_, Evaluation::Info)
-        | Request::Evaluation(_, Evaluation::Log)
+        | Request::Evaluation(_, Evaluation::Info | Evaluation::Log)
         | Request::Job(_, Job::Info)
         | Request::Run(_, Run::Info)
-        | Request::Build(_, Build::Info)
-        | Request::Build(_, Build::Log)
-        | Request::Action(_, Action::Info)
-        | Request::Action(_, Action::Log)
+        | Request::Build(_, Build::Info | Build::Log)
+        | Request::Action(_, Action::Info | Action::Log)
         | Request::Login { .. }
         | Request::User => true,
         _ => user.is_admin(),
@@ -131,106 +128,94 @@ pub fn handle_request_aux(
     user: &User,
     req: &requests::Request,
 ) -> Result<Response, Error> {
-    if authorize_request(user, req) {
-        Ok(match req {
-            requests::Request::Search {
-                limit,
-                offset,
-                kind,
-            } => search(*limit, *offset, kind, conn)?,
-            requests::Request::CreateProject { name, decl } => {
-                Project::create(conn, name, decl)?;
-                Response::Ok
-            }
-            requests::Request::Project(project_handle, req) => {
-                let project = Project::get(conn, &project_handle)?;
-                match req {
-                    requests::Project::Info => Response::ProjectInfo(project.info(conn)?),
-                    requests::Project::Refresh => {
-                        project.refresh(conn)?;
-                        Response::Ok
-                    }
-                    requests::Project::SetDecl(decl) => {
-                        project.set_decl(conn, decl)?;
-                        Response::Ok
-                    }
-                    requests::Project::SetPrivateKey(key) => {
-                        project.set_private_key(conn, &key)?;
-                        Response::Ok
-                    }
-                    requests::Project::UpdateJobsets => {
-                        project.update_jobsets(conn)?;
-                        Response::Ok
-                    }
-                }
-            }
-            requests::Request::Jobset(jobset_handle, req) => {
-                let jobset = Jobset::get(conn, &jobset_handle)?;
-                match req {
-                    requests::Jobset::Evaluate(force) => {
-                        let evaluation_handle = jobset.evaluate(conn, *force)?;
-                        Response::JobsetEvaluate(evaluation_handle)
-                    }
-                    requests::Jobset::Info => Response::JobsetInfo(jobset.info()),
-                }
-            }
-            requests::Request::Evaluation(evaluation_handle, req) => {
-                let evaluation = Evaluation::get(conn, evaluation_handle)?;
-                match req {
-                    requests::Evaluation::Cancel => {
-                        evaluation.cancel();
-                        Response::Ok
-                    }
-                    requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
-                    requests::Evaluation::Log => Response::Log(evaluation.log(conn)?),
-                }
-            }
-            requests::Request::Job(job_handle, req) => {
-                let job = Job::get(conn, &job_handle)?;
-                match req {
-                    requests::Job::Info => Response::JobInfo(job.info()),
-                }
-            }
-            requests::Request::Build(build_handle, req) => {
-                let build = Build::get(conn, &build_handle)?;
-                match req {
-                    requests::Build::Info => Response::BuildInfo(build.info()),
-                    requests::Build::Log => Response::Log(build.log(conn)?),
-                }
-            }
-            requests::Request::Action(action_handle, req) => {
-                let action = Action::get(conn, &action_handle)?;
-                match req {
-                    requests::Action::Info => Response::ActionInfo(action.info()),
-                    requests::Action::Log => Response::Log(action.log(conn)?),
-                }
-            }
-            requests::Request::Run(run_handle, req) => {
-                let run = Run::get(conn, &run_handle)?;
-                match req {
-                    requests::Run::Cancel => {
-                        run.cancel();
-                        Response::Ok
-                    }
-                    requests::Run::Info => Response::RunInfo(run.info()),
-                }
-            }
-            requests::Request::Login { password } => {
-                let hash = digest(password.as_bytes());
-                if hash == SETTINGS.hashed_password {
-                    Response::Ok
-                } else {
-                    Err(Error::LoginError)?
-                }
-            }
-            requests::Request::User => Response::User(match user {
-                User::Admin => Some(data::User::Admin),
-                User::Anonymous => None,
-            }),
-        })
-    } else {
-        Err(Error::AccessDenied)
+    if !authorize_request(user, req) {
+        return Err(Error::AccessDenied);
     }
+    Ok(match req {
+        requests::Request::Search {
+            limit,
+            offset,
+            kind,
+        } => search(*limit, *offset, kind, conn)?,
+        requests::Request::CreateProject { name, decl } => {
+            Project::create(conn, name, decl)?;
+            Response::Ok
+        }
+        requests::Request::Project(project_handle, req) => {
+            let project = Project::get(conn, &project_handle)?;
+            match req {
+                requests::Project::Info => return Ok(Response::ProjectInfo(project.info(conn)?)),
+                requests::Project::Refresh => project.refresh(conn)?,
+                requests::Project::SetDecl(decl) => project.set_decl(conn, decl)?,
+                requests::Project::SetPrivateKey(key) => project.set_private_key(conn, &key)?,
+                requests::Project::UpdateJobsets => project.update_jobsets(conn)?,
+            };
+            Response::Ok
+        }
+        requests::Request::Jobset(jobset_handle, req) => {
+            let jobset = Jobset::get(conn, &jobset_handle)?;
+            match req {
+                requests::Jobset::Evaluate(force) => {
+                    let evaluation_handle = jobset.evaluate(conn, *force)?;
+                    Response::JobsetEvaluate(evaluation_handle)
+                }
+                requests::Jobset::Info => Response::JobsetInfo(jobset.info()),
+            }
+        }
+        requests::Request::Evaluation(evaluation_handle, req) => {
+            let evaluation = Evaluation::get(conn, evaluation_handle)?;
+            match req {
+                requests::Evaluation::Cancel => {
+                    evaluation.cancel();
+                    Response::Ok
+                }
+                requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
+                requests::Evaluation::Log => Response::Log(evaluation.log(conn)?),
+            }
+        }
+        requests::Request::Job(job_handle, req) => {
+            let job = Job::get(conn, &job_handle)?;
+            match req {
+                requests::Job::Info => Response::JobInfo(job.info()),
+            }
+        }
+        requests::Request::Build(build_handle, req) => {
+            let build = Build::get(conn, &build_handle)?;
+            match req {
+                requests::Build::Info => Response::BuildInfo(build.info()),
+                requests::Build::Log => Response::Log(build.log(conn)?),
+            }
+        }
+        requests::Request::Action(action_handle, req) => {
+            let action = Action::get(conn, &action_handle)?;
+            match req {
+                requests::Action::Info => Response::ActionInfo(action.info()),
+                requests::Action::Log => Response::Log(action.log(conn)?),
+            }
+        }
+        requests::Request::Run(run_handle, req) => {
+            let run = Run::get(conn, &run_handle)?;
+            match req {
+                requests::Run::Cancel => {
+                    run.cancel();
+                    Response::Ok
+                }
+                requests::Run::Info => Response::RunInfo(run.info()),
+            }
+        }
+        requests::Request::Login { password } => {
+            let hash = digest(password.as_bytes());
+            if hash == SETTINGS.hashed_password {
+                Response::Ok
+            } else {
+                Err(Error::LoginError)?
+            }
+        }
+        requests::Request::User => Response::User(match user {
+            User::Admin => Some(data::User::Admin),
+            User::Anonymous => None,
+        }),
+    })
 }
 
 /// Main entry point for Typhon requests

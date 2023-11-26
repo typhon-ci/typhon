@@ -49,26 +49,6 @@ impl Run {
             .first(conn)
             .optional()?
             .ok_or(Error::RunNotFound(handle.clone()))?;
-        let begin = schema::actions::table
-            .inner_join(schema::tasks::table)
-            .filter(schema::actions::id.nullable().eq(run.begin_id))
-            .first(conn)
-            .optional()?
-            .map(|(action, task)| actions::Action {
-                task: tasks::Task { task },
-                action,
-                project: project.clone(),
-            });
-        let end = schema::actions::table
-            .inner_join(schema::tasks::table)
-            .filter(schema::actions::id.nullable().eq(run.end_id))
-            .first(conn)
-            .optional()?
-            .map(|(action, task)| actions::Action {
-                task: tasks::Task { task },
-                action,
-                project: project.clone(),
-            });
         let build = schema::builds::table
             .inner_join(schema::tasks::table)
             .filter(schema::builds::id.nullable().eq(run.build_id))
@@ -78,9 +58,21 @@ impl Run {
                 task: tasks::Task { task },
                 build,
             });
+        let mut get_action = |id| {
+            schema::actions::table
+                .inner_join(schema::tasks::table)
+                .filter(schema::actions::id.nullable().eq(id))
+                .first(conn)
+                .optional()
+        };
+        let into_action = |(action, task)| actions::Action {
+            task: tasks::Task { task },
+            action,
+            project: project.clone(),
+        };
         Ok(Self {
-            begin,
-            end,
+            begin: get_action(run.begin_id)?.map(into_action),
+            end: get_action(run.end_id)?.map(into_action),
             build,
             run,
             job,
