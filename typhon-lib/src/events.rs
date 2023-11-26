@@ -19,14 +19,13 @@ pub struct EventLogger {
 
 impl EventLogger {
     pub fn new() -> Self {
-        use Msg::*;
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let (watch_send, watch) = watch::channel(());
         RUNTIME.spawn(async move {
             let mut senders: Vec<mpsc::UnboundedSender<Event>> = Vec::new();
             while let Some(msg) = receiver.recv().await {
                 match msg {
-                    Emit(event) => {
+                    Msg::Emit(event) => {
                         let mut new_senders: Vec<mpsc::UnboundedSender<Event>> = Vec::new();
                         for sender in senders.drain(..) {
                             match sender.send(event.clone()) {
@@ -36,8 +35,8 @@ impl EventLogger {
                         }
                         senders = new_senders;
                     }
-                    Listen(sender) => senders.push(sender),
-                    Shutdown => break,
+                    Msg::Listen(sender) => senders.push(sender),
+                    Msg::Shutdown => break,
                 }
             }
             let _watch_send = watch_send;
