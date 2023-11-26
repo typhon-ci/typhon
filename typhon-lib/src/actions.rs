@@ -175,40 +175,6 @@ impl Action {
         self.task.log(conn)
     }
 
-    pub fn search(
-        conn: &mut Conn,
-        search: &requests::ActionSearch,
-    ) -> Result<responses::SearchResult<handles::Action>, error::Error> {
-        let query = || {
-            let mut query = schema::actions::table
-                .inner_join(schema::projects::table)
-                .inner_join(schema::tasks::table)
-                .into_boxed();
-            if let Some(name) = &search.project_name {
-                query = query.filter(schema::projects::name.eq(name));
-            }
-            if let Some(status) = search.status {
-                query = query.filter(schema::tasks::status.eq(i32::from(status)));
-            }
-            query.order(schema::actions::time_created.desc())
-        };
-        let (actions, total): (Vec<_>, i64) = conn.transaction::<_, error::Error, _>(|conn| {
-            let total = query().count().get_result(conn)?;
-            let actions = query()
-                .offset(search.offset as i64)
-                .limit(search.limit as i64)
-                .load::<(models::Action, models::Project, models::Task)>(conn)?;
-            Ok((actions, total))
-        })?;
-        let count = actions.len() as u8;
-        let total = total as u64;
-        let list = actions
-            .into_iter()
-            .map(|(action, project, _)| handles::action((project.name, action.num as u64)))
-            .collect();
-        Ok(responses::SearchResult { count, list, total })
-    }
-
     pub fn spawn<F: (FnOnce(Option<String>, &DbPool) -> TaskStatusKind) + Send + Sync + 'static>(
         &self,
         conn: &mut Conn,

@@ -10,12 +10,14 @@ mod nix;
 mod projects;
 mod runs;
 mod schema;
+mod search;
 mod tasks;
 
 pub mod build_manager;
 pub mod error;
 pub mod logs;
 pub mod task_manager;
+use search::search;
 
 pub use typhon_types::data;
 pub use typhon_types::{
@@ -107,11 +109,7 @@ impl User {
 pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
     use requests::*;
     match req {
-        Request::ListEvaluations(_)
-        | Request::ListProjects
-        | Request::ListRuns(_)
-        | Request::ListBuilds(_)
-        | Request::ListActions(_)
+        Request::Search { .. }
         | Request::Project(_, Project::Info)
         | Request::Jobset(_, Jobset::Info)
         | Request::Evaluation(_, Evaluation::Info)
@@ -135,17 +133,11 @@ pub fn handle_request_aux(
 ) -> Result<Response, Error> {
     if authorize_request(user, req) {
         Ok(match req {
-            requests::Request::ListEvaluations(search) => {
-                Response::ListEvaluations(Evaluation::search(conn, search)?)
-            }
-            requests::Request::ListBuilds(search) => {
-                Response::ListBuilds(Build::search(conn, search)?)
-            }
-            requests::Request::ListActions(search) => {
-                Response::ListActions(Action::search(conn, search)?)
-            }
-            requests::Request::ListRuns(search) => Response::ListRuns(Run::search(conn, search)?),
-            requests::Request::ListProjects => Response::ListProjects(Project::list(conn)?),
+            requests::Request::Search {
+                limit,
+                offset,
+                kind,
+            } => search(*limit, *offset, kind, conn)?,
             requests::Request::CreateProject { name, decl } => {
                 Project::create(conn, name, decl)?;
                 Response::Ok

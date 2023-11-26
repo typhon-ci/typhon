@@ -111,24 +111,6 @@ impl Project {
         })
     }
 
-    pub fn list(conn: &mut Conn) -> Result<Vec<(String, ProjectMetadata)>, Error> {
-        Ok(schema::projects::table
-            .order(schema::projects::name.asc())
-            .load::<models::Project>(conn)?
-            .iter()
-            .map(|project| {
-                (
-                    project.name.clone(),
-                    ProjectMetadata {
-                        title: project.title.clone(),
-                        description: project.description.clone(),
-                        homepage: project.homepage.clone(),
-                    },
-                )
-            })
-            .collect())
-    }
-
     pub fn new_action(
         &self,
         conn: &mut Conn,

@@ -162,62 +162,6 @@ impl Run {
         Ok(())
     }
 
-    pub fn search(
-        conn: &mut Conn,
-        search: &requests::RunSearch,
-    ) -> Result<responses::SearchResult<handles::Run>, Error> {
-        let query = || {
-            let mut query = schema::runs::table
-                .inner_join(
-                    schema::jobs::table
-                        .inner_join(schema::evaluations::table.inner_join(schema::projects::table)),
-                )
-                .into_boxed();
-            if let Some(name) = &search.project_name {
-                query = query.filter(schema::projects::name.eq(name));
-            }
-            if let Some(name) = &search.jobset_name {
-                query = query.filter(schema::evaluations::jobset_name.eq(name));
-            }
-            if let Some(num) = search.evaluation_num {
-                query = query.filter(schema::evaluations::num.eq(num as i64));
-            }
-            if let Some(name) = &search.job_name {
-                query = query.filter(schema::jobs::name.eq(name));
-            }
-            if let Some(system) = &search.job_system {
-                query = query.filter(schema::jobs::system.eq(system));
-            }
-            query.order(schema::runs::time_created.desc())
-        };
-        let (runs, total): (Vec<_>, i64) = conn.transaction::<_, Error, _>(|conn| {
-            let total = query().count().get_result(conn)?;
-            let runs = query()
-                .offset(search.offset as i64)
-                .limit(search.limit as i64)
-                .load::<(
-                    models::Run,
-                    (models::Job, (models::Evaluation, models::Project)),
-                )>(conn)?;
-            Ok((runs, total))
-        })?;
-        let count = runs.len() as u8;
-        let total = total as u64;
-        let list = runs
-            .into_iter()
-            .map(|(run, (job, (evaluation, project)))| {
-                handles::run((
-                    project.name,
-                    evaluation.num as u64,
-                    job.system.clone(),
-                    job.name.clone(),
-                    run.num as u64,
-                ))
-            })
-            .collect();
-        Ok(responses::SearchResult { count, list, total })
-    }
-
     fn mk_input(&self, status: TaskStatusKind) -> Result<serde_json::Value, Error> {
         Ok(serde_json::json!({
             "drv": self.job.drv,

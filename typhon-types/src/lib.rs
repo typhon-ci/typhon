@@ -54,6 +54,54 @@ pub mod handles {
         Evaluation(Evaluation),
     }
 
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    pub enum Handle {
+        Project(Project),
+        Jobset(Jobset),
+        Evaluation(Evaluation),
+        Job(Job),
+        Log(Log),
+        Run(Run),
+        Build(Build),
+        Action(Action),
+    }
+    impl From<Handle> for Vec<String> {
+        fn from(h: Handle) -> Self {
+            match h {
+                Handle::Project(h) => Self::from(h),
+                Handle::Jobset(h) => Self::from(h),
+                Handle::Evaluation(h) => Self::from(h),
+                Handle::Job(h) => Self::from(h),
+                Handle::Action(h) => Self::from(h),
+                Handle::Build(h) => Self::from(h),
+                Handle::Run(h) => Self::from(h),
+                Handle::Log(h) => Self::from(h),
+            }
+        }
+    }
+    impl Handle {
+        pub fn parent(&self) -> Option<Self> {
+            Some(match self {
+                Self::Project(_) => None?,
+                Self::Jobset(jobset) => Handle::Project(jobset.project.clone()),
+                Self::Evaluation(eval) => Handle::Project(eval.project.clone()),
+                Self::Job(job) => Handle::Evaluation(job.evaluation.clone()),
+                Self::Action(action) => Handle::Project(action.project.clone()),
+                Self::Build(..) => None?,
+                Self::Run(run) => Handle::Job(run.job.clone()),
+                Self::Log(Log::Action(action)) => Handle::Action(action.clone()),
+                Self::Log(Log::Build(build)) => Handle::Build(build.clone()),
+                Self::Log(Log::Evaluation(eval)) => Handle::Evaluation(eval.clone()),
+            })
+        }
+        pub fn parents(&self) -> impl Iterator<Item = Self> {
+            std::iter::successors(Some(self.clone()), |current| current.parent())
+        }
+        pub fn path(&self) -> impl Iterator<Item = Self> {
+            self.parents().collect::<Vec<_>>().into_iter().rev()
+        }
+    }
+
     macro_rules! impl_display {
         ($ty:ident) => {
             impl std::fmt::Display for $ty {
@@ -206,47 +254,65 @@ pub mod data {
 }
 
 pub mod requests {
-    use crate::data::TaskStatusKind;
     use crate::handles;
 
     use serde::{Deserialize, Serialize};
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct EvaluationSearch {
-        pub jobset_name: Option<String>,
-        pub limit: u8,
-        pub offset: u32,
-        pub project_name: Option<String>,
-        pub status: Option<TaskStatusKind>,
-    }
+    pub mod search {
+        use crate::data::TaskStatusKind;
+        use serde::{Deserialize, Serialize};
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct BuildSearch {
-        pub drv: Option<String>,
-        pub limit: u8,
-        pub offset: u32,
-        pub status: Option<TaskStatusKind>,
-    }
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        pub enum Request {
+            Projects,
+            Evaluations(Evaluation),
+            Builds(Build),
+            Actions(Action),
+            Runs(Run),
+        }
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct ActionSearch {
-        // TODO: allow searching actions by job
-        pub limit: u8,
-        pub name: Option<String>,
-        pub offset: u32,
-        pub project_name: Option<String>,
-        pub status: Option<TaskStatusKind>,
-    }
+        impl std::fmt::Display for Request {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                let name = match self {
+                    Self::Projects => "projects",
+                    Self::Evaluations(..) => "evaluations",
+                    Self::Builds(..) => "builds",
+                    Self::Actions(..) => "actions",
+                    Self::Runs(..) => "runs",
+                };
+                write!(f, "{name}")
+            }
+        }
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct RunSearch {
-        pub evaluation_num: Option<u64>,
-        pub job_name: Option<String>,
-        pub job_system: Option<String>,
-        pub jobset_name: Option<String>,
-        pub limit: u8,
-        pub offset: u32,
-        pub project_name: Option<String>,
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+        pub struct Evaluation {
+            pub jobset_name: Option<String>,
+            pub project_name: Option<String>,
+            pub status: Option<TaskStatusKind>,
+        }
+
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+        pub struct Build {
+            pub drv: Option<String>,
+            pub status: Option<TaskStatusKind>,
+        }
+
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+        pub struct Action {
+            // TODO: allow searching actions by job
+            pub name: Option<String>,
+            pub project_name: Option<String>,
+            pub status: Option<TaskStatusKind>,
+        }
+
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+        pub struct Run {
+            pub evaluation_num: Option<u64>,
+            pub job_name: Option<String>,
+            pub job_system: Option<String>,
+            pub jobset_name: Option<String>,
+            pub project_name: Option<String>,
+        }
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -303,12 +369,15 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Request {
-        ListEvaluations(EvaluationSearch),
-        ListBuilds(BuildSearch),
-        ListActions(ActionSearch),
-        ListRuns(RunSearch),
-        ListProjects,
-        CreateProject { name: String, decl: ProjectDecl },
+        Search {
+            limit: u8,
+            offset: u32,
+            kind: search::Request,
+        },
+        CreateProject {
+            name: String,
+            decl: ProjectDecl,
+        },
         Project(handles::Project, Project),
         Jobset(handles::Jobset, Jobset),
         Evaluation(handles::Evaluation, Evaluation),
@@ -316,18 +385,16 @@ pub mod requests {
         Build(handles::Build, Build),
         Action(handles::Action, Action),
         Run(handles::Run, Run),
-        Login { password: String },
+        Login {
+            password: String,
+        },
         User,
     }
 
     impl std::fmt::Display for Request {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
-                Request::ListEvaluations(_) => write!(f, "Search through evaluations"),
-                Request::ListBuilds(_) => write!(f, "Search through builds"),
-                Request::ListActions(_) => write!(f, "Search through actions"),
-                Request::ListRuns(_) => write!(f, "Search through runs"),
-                Request::ListProjects => write!(f, "List projects"),
+                Request::Search { kind, .. } => write!(f, "Search through {kind}"),
                 Request::CreateProject { name, decl } => {
                     write!(
                         f,
@@ -489,14 +556,26 @@ pub mod responses {
         pub end: Option<handles::Action>,
     }
 
+    pub mod search {
+        use crate::handles;
+        use serde::{Deserialize, Serialize};
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        pub enum Results {
+            Evaluations(Vec<handles::Evaluation>),
+            Builds(Vec<handles::Build>),
+            Actions(Vec<handles::Action>),
+            Runs(Vec<handles::Run>),
+            Projects(Vec<(handles::Project, crate::responses::ProjectMetadata)>),
+        }
+    }
+
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Response {
         Ok,
-        ListEvaluations(SearchResult<handles::Evaluation>),
-        ListBuilds(SearchResult<handles::Build>),
-        ListActions(SearchResult<handles::Action>),
-        ListRuns(SearchResult<handles::Run>),
-        ListProjects(Vec<(String, ProjectMetadata)>),
+        Search {
+            total: u64,
+            results: search::Results,
+        },
         ProjectInfo(ProjectInfo),
         JobsetEvaluate(crate::handles::Evaluation),
         JobsetInfo(JobsetInfo),
@@ -547,32 +626,56 @@ impl Event {
         use requests::*;
         use Event::*;
         match (self, req) {
-            (ProjectNew(_), Request::ListProjects) => true,
-            //(ProjectDeleted(_), Request::ListProjects) => true,
-            (ProjectUpdated(_), Request::ListProjects) => true,
+            (
+                ProjectNew(_) | ProjectUpdated(_),
+                Request::Search {
+                    kind: search::Request::Projects,
+                    ..
+                },
+            ) => true,
             (ProjectUpdated(handle1), Request::Project(handle2, Project::Info)) => {
                 handle1 == handle2
             }
             (ProjectUpdated(handle1), Request::Jobset(handle2, Jobset::Info)) => {
                 *handle1 == handle2.project
             }
-            (EvaluationNew(_), Request::ListEvaluations(_)) => true,
-            (EvaluationFinished(_), Request::ListEvaluations(_)) => true,
+            (
+                EvaluationNew(_) | EvaluationFinished(_),
+                Request::Search {
+                    kind: search::Request::Evaluations(_),
+                    ..
+                },
+            ) => true,
             (EvaluationFinished(handle1), Request::Evaluation(handle2, Evaluation::Info)) => {
                 handle1 == handle2
             }
             (EvaluationFinished(handle1), Request::Evaluation(handle2, Evaluation::Log)) => {
                 handle1 == handle2
             }
-            (BuildNew(_), Request::ListBuilds(_)) => true,
-            (BuildFinished(_), Request::ListBuilds(_)) => true,
+            (
+                BuildNew(_) | BuildFinished(_),
+                Request::Search {
+                    kind: search::Request::Builds(_),
+                    ..
+                },
+            ) => true,
             (BuildFinished(handle1), Request::Build(handle2, Build::Info)) => handle1 == handle2,
             (BuildFinished(handle1), Request::Build(handle2, Build::Log)) => handle1 == handle2,
-            (RunNew(_), Request::ListRuns(_)) => true,
-            (RunUpdated(_), Request::ListRuns(_)) => true,
+            (
+                RunNew(_) | RunUpdated(_),
+                Request::Search {
+                    kind: search::Request::Runs(_),
+                    ..
+                },
+            ) => true,
             (RunUpdated(handle1), Request::Run(handle2, Run::Info)) => handle1 == handle2,
-            (ActionNew(_), Request::ListActions(_)) => true,
-            (ActionFinished(_), Request::ListActions(_)) => true,
+            (
+                ActionNew(_) | ActionFinished(_),
+                Request::Search {
+                    kind: search::Request::Actions(_),
+                    ..
+                },
+            ) => true,
             (ActionFinished(handle1), Request::Action(handle2, Action::Info)) => handle1 == handle2,
             (ActionFinished(handle1), Request::Action(handle2, Action::Log)) => handle1 == handle2,
             (_, _) => false,

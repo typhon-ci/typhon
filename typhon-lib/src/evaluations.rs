@@ -113,48 +113,6 @@ impl Evaluation {
         res
     }
 
-    pub fn search(
-        conn: &mut Conn,
-        search: &requests::EvaluationSearch,
-    ) -> Result<responses::SearchResult<handles::Evaluation>, Error> {
-        let query = || {
-            let mut query = schema::evaluations::table
-                .inner_join(schema::projects::table)
-                .inner_join(
-                    schema::tasks::table.on(schema::tasks::id.eq(schema::evaluations::task_id)),
-                )
-                .into_boxed();
-            if let Some(name) = &search.project_name {
-                query = query.filter(schema::projects::name.eq(name));
-            }
-            if let Some(name) = &search.jobset_name {
-                query = query.filter(schema::evaluations::jobset_name.eq(name));
-            }
-            if let Some(status) = search.status {
-                query = query.filter(schema::tasks::status.eq(i32::from(status)));
-            }
-            query.order(schema::evaluations::time_created.desc())
-        };
-
-        let (evaluations, total): (Vec<_>, i64) = conn.transaction::<_, Error, _>(|conn| {
-            let total = query().count().get_result(conn)?;
-            let evaluations = query()
-                .offset(search.offset as i64)
-                .limit(search.limit as i64)
-                .load::<(models::Evaluation, models::Project, models::Task)>(conn)?;
-            Ok((evaluations, total))
-        })?;
-        let count = evaluations.len() as u8;
-        let total = total as u64;
-        let list = evaluations
-            .into_iter()
-            .map(|(evaluation, project, _)| {
-                handles::evaluation((project.name, evaluation.num as u64))
-            })
-            .collect();
-        Ok(responses::SearchResult { count, list, total })
-    }
-
     fn create_new_jobs(&self, conn: &mut Conn, mut new_jobs: nix::NewJobs) -> Result<(), Error> {
         let created_jobs = conn.transaction::<Vec<jobs::Job>, Error, _>(|conn| {
             new_jobs

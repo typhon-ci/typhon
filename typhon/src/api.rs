@@ -46,11 +46,9 @@ impl Responder for ResponseWrapper {
         use Response::*;
         match self.0 {
             Ok => web::Json(true).respond_to(req),
-            ListEvaluations(payload) => web::Json(payload).respond_to(req),
-            ListBuilds(payload) => web::Json(payload).respond_to(req),
-            ListActions(payload) => web::Json(payload).respond_to(req),
-            ListRuns(payload) => web::Json(payload).respond_to(req),
-            ListProjects(payload) => web::Json(payload).respond_to(req),
+            Search { total, results } => {
+                web::Json(serde_json::json!({"total": total, "results": results})).respond_to(req)
+            }
             ProjectInfo(payload) => web::Json(payload).respond_to(req),
             JobsetInfo(payload) => web::Json(payload).respond_to(req),
             JobsetEvaluate(payload) => web::Json(payload).respond_to(req),
@@ -117,8 +115,8 @@ macro_rules! r {
 }
 
 r!(
-    list_evaluations(body: web::Json<EvaluationSearch>) =>
-        Request::ListEvaluations(body.into_inner());
+    //list_evaluations(body: web::Json<EvaluationSearch>) =>
+    //    Request::ListEvaluations(body.into_inner());
 
     create_project(path: web::Path<String>, body: web::Json<ProjectDecl>) => {
         let name = path.into_inner();
@@ -126,7 +124,7 @@ r!(
         Request::CreateProject { name, decl }
     };
 
-    list_projects() => Request::ListProjects;
+    //list_projects() => Request::ListProjects;
 
     //project_delete(path: web::Path<String>) =>
     //    Request::Project(
@@ -348,8 +346,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
         web::scope("/api")
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
-            .route("/evaluations", web::post().to(list_evaluations))
-            .route("/projects", web::get().to(list_projects))
+            //.route("/evaluations", web::post().to(list_evaluations))
+            //.route("/projects", web::get().to(list_projects))
             .service(
                 web::scope("/builds/{drv}/{num}")
                     .route("", web::get().to(build_info))

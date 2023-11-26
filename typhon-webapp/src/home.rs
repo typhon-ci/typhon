@@ -40,7 +40,11 @@ fn CreateProject() -> impl IntoView {
 #[component]
 pub fn Home() -> impl IntoView {
     let user = use_context::<Signal<Option<data::User>>>().unwrap();
-    let projects = request(requests::Request::ListProjects);
+    let projects = request(requests::Request::Search {
+        limit: 10,
+        offset: 0,
+        kind: requests::search::Request::Projects,
+    });
     let fallback = || view! { <p>"Loading..."</p> };
     view! {
         <Suspense fallback>
@@ -48,9 +52,9 @@ pub fn Home() -> impl IntoView {
             <ul>
                 {projects()
                     .map(|maybe_list| match maybe_list {
-                        Ok(Ok(responses::Response::ListProjects(list))) => {
-                            list.into_iter()
-                                .map(|(name, _)| view! { <li>{name}</li> })
+                        Ok(Ok(responses::Response::Search{results:responses::search::Results::Projects(projects),..})) => {
+                            projects.into_iter()
+                                .map(|(handle, _)| view! { <li>{handle.to_string()}</li> })
                                 .collect_view()
                         }
                         Err(e) => view! { <p>{format!("Error! {}", e)}</p> }.into_view(),
