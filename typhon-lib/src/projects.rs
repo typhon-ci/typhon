@@ -63,9 +63,9 @@ impl Project {
         }
     }
 
-    pub fn delete(&self, _conn: &mut Conn) -> Result<(), Error> {
-        todo!()
-    }
+    //pub fn delete(&self, _conn: &mut Conn) -> Result<(), Error> {
+    //    todo!()
+    //}
 
     pub fn get(conn: &mut Conn, handle: &handles::Project) -> Result<Self, Error> {
         let (project, task): (models::Project, Option<models::Task>) = schema::projects::table

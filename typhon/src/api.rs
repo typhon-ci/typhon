@@ -128,11 +128,11 @@ r!(
 
     list_projects() => Request::ListProjects;
 
-    project_delete(path: web::Path<String>) =>
-        Request::Project(
-            handles::project(path.into_inner()),
-            Project::Delete,
-        );
+    //project_delete(path: web::Path<String>) =>
+    //    Request::Project(
+    //        handles::project(path.into_inner()),
+    //        Project::Delete,
+    //    );
 
     project_info(path: web::Path<String>) =>
         Request::Project(
@@ -360,7 +360,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/projects/{project}")
                     .route("", web::get().to(project_info))
                     .route("/create", web::post().to(create_project))
-                    .route("/delete", web::post().to(project_delete))
+                    //.route("/delete", web::post().to(project_delete))
                     .route("/refresh", web::post().to(project_refresh))
                     .route("/update_jobsets", web::post().to(project_update_jobsets))
                     .route("/set_decl", web::post().to(project_set_decl))

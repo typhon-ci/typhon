@@ -153,10 +153,6 @@ pub fn handle_request_aux(
             requests::Request::Project(project_handle, req) => {
                 let project = Project::get(conn, &project_handle)?;
                 match req {
-                    requests::Project::Delete => {
-                        project.delete(conn)?;
-                        Response::Ok
-                    }
                     requests::Project::Info => Response::ProjectInfo(project.info(conn)?),
                     requests::Project::Refresh => {
                         project.refresh(conn)?;

@@ -263,7 +263,7 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Project {
-        Delete,
+        //Delete,
         Info,
         Refresh,
         SetDecl(ProjectDecl),
@@ -544,7 +544,7 @@ pub mod responses {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Event {
     ProjectNew(handles::Project),
-    ProjectDeleted(handles::Project),
+    //ProjectDeleted(handles::Project),
     ProjectUpdated(handles::Project),
     EvaluationNew(handles::Evaluation),
     EvaluationFinished(handles::Evaluation),
@@ -562,7 +562,7 @@ impl Event {
         use Event::*;
         match (self, req) {
             (ProjectNew(_), Request::ListProjects) => true,
-            (ProjectDeleted(_), Request::ListProjects) => true,
+            //(ProjectDeleted(_), Request::ListProjects) => true,
             (ProjectUpdated(_), Request::ListProjects) => true,
             (ProjectUpdated(handle1), Request::Project(handle2, Project::Info)) => {
                 handle1 == handle2
