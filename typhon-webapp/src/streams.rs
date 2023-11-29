@@ -8,9 +8,12 @@ use gloo_console::log;
 use gloo_net::http;
 #[cfg(feature = "hydrate")]
 use gloo_utils::format::JsValueSerdeExt;
+#[cfg(feature = "hydrate")]
 use js_sys::Promise;
+#[cfg(feature = "hydrate")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "hydrate")]
 #[wasm_bindgen(inline_js = "export async function read_chunk_by_chunk(reader) {
     let next = async () => {
         let o = await reader.read();
