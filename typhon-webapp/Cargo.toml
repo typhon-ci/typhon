@@ -11,20 +11,16 @@ typhon-lib = { workspace = true, optional = true }
 typhon-types.workspace = true
 actix-session = { workspace = true, optional = true }
 async-stream.workspace = true
-async-trait.workspace = true
 futures-core.workspace = true
 gloo-console.workspace = true
 gloo-net.workspace = true
-gloo-storage.workspace = true
 gloo-utils.workspace = true
 js-sys.workspace = true
 leptos = { workspace = true, features = ["nightly"] }
 leptos_actix = { workspace = true, optional = true }
 leptos_router.workspace = true
-serde-wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-time.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
