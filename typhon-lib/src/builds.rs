@@ -36,6 +36,7 @@ impl Build {
 
     pub fn info(&self) -> responses::BuildInfo {
         responses::BuildInfo {
+            handle: self.handle(),
             drv: self.build.drv.clone(),
             status: self.task.status(),
         }

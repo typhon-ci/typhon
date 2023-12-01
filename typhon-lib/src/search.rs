@@ -21,10 +21,10 @@ pub fn search(
                 };
                 let page = query().limit(limit.into()).offset(offset.into());
                 let data = page.load(conn)?.into_iter().map($reshape).collect();
-                responses::Response::Search {
+                responses::Response::Search(responses::search::Info {
                     results: $into_results(data),
                     total: query().count().get_result::<i64>(conn)? as u64,
-                }
+                })
             }};
         }
     use {requests::search::Request, responses::search::Results};
@@ -41,6 +41,16 @@ pub fn search(
                 responses::ProjectMetadata {description, homepage, title}
             ),
             Results::Projects
+        ),
+        Request::Jobsets(s) => run!(
+            schema::jobsets::table
+                .inner_join(schema::projects::table)
+                .select((schema::projects::name, schema::jobsets::name)),
+            filters(s): [
+                s.project_name.map(|x| schema::projects::name.eq(x)),
+            ],
+            handles::jobset,
+            Results::Jobsets
         ),
         Request::Evaluations(s) => run!(
             schema::evaluations::table

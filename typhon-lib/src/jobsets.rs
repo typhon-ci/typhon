@@ -73,8 +73,18 @@ impl Jobset {
         Ok(Jobset { jobset, project })
     }
 
+    pub fn handle(&self) -> handles::Jobset {
+        handles::Jobset {
+            project: handles::Project {
+                name: self.project.name.clone(),
+            },
+            name: self.jobset.name.clone(),
+        }
+    }
+
     pub fn info(&self) -> responses::JobsetInfo {
         responses::JobsetInfo {
+            handle: self.handle(),
             flake: self.jobset.flake,
             url: self.jobset.url.clone(),
         }

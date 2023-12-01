@@ -8,6 +8,7 @@ use crate::tasks;
 use crate::Conn;
 use crate::DbPool;
 
+use std::collections::HashMap;
 use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
 
@@ -19,6 +20,73 @@ pub struct Evaluation {
     pub task: tasks::Task,
     pub evaluation: models::Evaluation,
     pub project: models::Project,
+}
+
+#[ext_trait::extension(pub trait ExtraRunInfo)]
+impl responses::RunInfo {
+    fn new(
+        job_handle: &handles::Job,
+        run: models::Run,
+        begin: Option<(models::Action, models::Task)>,
+        build: Option<(models::Build, models::Task)>,
+        end: Option<(models::Action, models::Task)>,
+    ) -> Self {
+        let to_action_info =
+            |(action, task): (models::Action, models::Task)| responses::ActionInfo {
+                handle: handles::Action {
+                    project: job_handle.evaluation.project.clone(),
+                    num: action.num as u64,
+                },
+                input: action.input,
+                path: action.path,
+                status: task.status(),
+            };
+        responses::RunInfo {
+            handle: handles::Run {
+                job: job_handle.clone(),
+                num: run.num as u64,
+            },
+            begin: begin.map(to_action_info),
+            build: build.map(|(build, task)| responses::BuildInfo {
+                handle: handles::Build {
+                    drv: build.drv.clone(),
+                    num: build.num as u64,
+                },
+                drv: build.drv,
+                status: task.status(),
+            }),
+            end: end.map(to_action_info),
+        }
+    }
+}
+
+#[ext_trait::extension(pub trait ExtraJobInfo)]
+impl responses::JobInfo {
+    /// Reshape raw database data into a structured `JobInfo`
+    fn new(
+        eval_handle: &handles::Evaluation,
+        job: models::Job,
+        run: models::Run,
+        run_count: u32,
+        begin: Option<(models::Action, models::Task)>,
+        build: Option<(models::Build, models::Task)>,
+        end: Option<(models::Action, models::Task)>,
+    ) -> Self {
+        let job_handle = handles::Job {
+            evaluation: eval_handle.clone(),
+            system: job.system.clone(),
+            name: job.name.clone(),
+        };
+        Self {
+            handle: job_handle.clone(),
+            dist: job.dist,
+            drv: job.drv,
+            out: job.out,
+            system: job.system,
+            last_run: responses::RunInfo::new(&job_handle, run, begin, build, end),
+            run_count,
+        }
+    }
 }
 
 impl Evaluation {
@@ -62,28 +130,117 @@ impl Evaluation {
         handles::evaluation((self.project.name.clone(), self.evaluation.num as u64))
     }
 
-    pub fn info(&self, conn: &mut Conn) -> Result<responses::EvaluationInfo, Error> {
-        use typhon_types::responses::JobSystemName;
-
-        let jobs = if self.task.status_kind() == TaskStatusKind::Success {
-            let jobs = schema::jobs::table
-                .filter(schema::jobs::evaluation_id.eq(self.evaluation.id))
-                .load::<models::Job>(conn)?;
-            Some(
-                jobs.iter()
-                    .map(|job| JobSystemName {
-                        system: job.system.clone(),
-                        name: job.name.clone(),
-                    })
-                    .collect(),
+    /// Fetch all jobs attached to self
+    pub fn jobs(
+        eval_handle: &handles::Evaluation,
+        eval_id: i32,
+        filter_system_name: Option<responses::JobSystemName>,
+        conn: &mut Conn,
+    ) -> Result<HashMap<responses::JobSystemName, responses::JobInfo>, Error> {
+        let (begin_action, end_action, begin_task, build_task, end_task, subruns) = diesel::alias!(
+            schema::actions as begin_action,
+            schema::actions as end_action,
+            schema::tasks as begin_task,
+            schema::tasks as build_task,
+            schema::tasks as end_task,
+            schema::runs as subruns,
+        );
+        let runs_per_job = schema::jobs::table
+            .inner_join(schema::runs::table)
+            .group_by(schema::runs::job_id)
+            .select((schema::runs::job_id, diesel::dsl::count(schema::runs::id)))
+            .load::<(i32, i64)>(conn)?;
+        let runs_per_job: HashMap<i32, i64> = runs_per_job.iter().copied().collect();
+        let mut query = schema::jobs::table
+            .inner_join(schema::runs::table)
+            .left_join(
+                begin_action
+                    .on(begin_action
+                        .field(schema::actions::id)
+                        .nullable()
+                        .eq(schema::runs::begin_id))
+                    .inner_join(begin_task),
             )
-        } else {
-            None
-        };
+            .left_join(
+                schema::builds::table
+                    .on(schema::builds::id.nullable().eq(schema::runs::build_id))
+                    .inner_join(build_task),
+            )
+            .left_join(
+                end_action
+                    .on(end_action
+                        .field(schema::actions::id)
+                        .nullable()
+                        .eq(schema::runs::end_id))
+                    .inner_join(end_task),
+            )
+            .filter(
+                schema::runs::job_id.nullable().eq(subruns
+                    .filter(subruns.field(schema::runs::job_id).eq(schema::jobs::id))
+                    .group_by(subruns.field(schema::runs::job_id))
+                    .select(diesel::dsl::max(subruns.field(schema::runs::id)))
+                    .single_value()),
+            )
+            .filter(schema::jobs::evaluation_id.eq(eval_id))
+            .into_boxed();
+        if let Some(filter) = filter_system_name {
+            query = query
+                .filter(schema::jobs::system.eq(filter.system))
+                .filter(schema::jobs::name.eq(filter.name));
+        }
+        Ok(query
+            .select((
+                schema::jobs::all_columns,
+                schema::runs::all_columns,
+                (
+                    begin_action.fields(schema::actions::all_columns),
+                    begin_task.fields(schema::tasks::all_columns),
+                )
+                    .nullable(),
+                (
+                    schema::builds::all_columns,
+                    build_task.fields(schema::tasks::all_columns),
+                )
+                    .nullable(),
+                (
+                    end_action.fields(schema::actions::all_columns),
+                    end_task.fields(schema::tasks::all_columns),
+                )
+                    .nullable(),
+            ))
+            .load(conn)?
+            .into_iter()
+            .map(
+                |(job, run, begin, build, end): (models::Job, models::Run, _, _, _)| {
+                    let run_count = runs_per_job.get(&run.id).copied().unwrap_or(1) as u32;
+                    let (system, name) = (job.system.clone(), job.name.clone());
+                    (
+                        responses::JobSystemName { system, name },
+                        responses::JobInfo::new(
+                            &eval_handle,
+                            job,
+                            run,
+                            run_count,
+                            begin,
+                            build,
+                            end,
+                        ),
+                    )
+                },
+            )
+            .collect())
+    }
+
+    pub fn info(&self, conn: &mut Conn) -> Result<responses::EvaluationInfo, Error> {
         Ok(responses::EvaluationInfo {
+            handle: self.handle(),
             actions_path: self.evaluation.actions_path.clone(),
             flake: self.evaluation.flake,
-            jobs,
+            jobs: if self.task.status_kind() == TaskStatusKind::Success {
+                Self::jobs(&self.handle(), self.evaluation.id, None, conn)?
+            } else {
+                HashMap::new()
+            },
             jobset_name: self.evaluation.jobset_name.clone(),
             status: self.task.status(),
             time_created: time::OffsetDateTime::from_unix_timestamp(self.evaluation.time_created)?,

@@ -46,9 +46,7 @@ impl Responder for ResponseWrapper {
         use Response::*;
         match self.0 {
             Ok => web::Json(true).respond_to(req),
-            Search { total, results } => {
-                web::Json(serde_json::json!({"total": total, "results": results})).respond_to(req)
-            }
+            Search(payload) => web::Json(payload).respond_to(req),
             ProjectInfo(payload) => web::Json(payload).respond_to(req),
             JobsetInfo(payload) => web::Json(payload).respond_to(req),
             JobsetEvaluate(payload) => web::Json(payload).respond_to(req),

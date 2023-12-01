@@ -34,6 +34,7 @@ async-trait = "0.1"
 clap = { version = "4.4", features = ["derive", "env"] }
 diesel = { version = "2.1", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "r2d2"] }
 diesel_migrations = "2.1"
+ext-trait = "1.0"
 futures = "0.3"
 futures-core = "0.3"
 gloo-console = "0.3"

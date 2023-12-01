@@ -33,47 +33,91 @@ impl Run {
     }
 
     pub fn get(conn: &mut Conn, handle: &handles::Run) -> Result<Self, Error> {
-        let (run, (job, (evaluation, project))): (
-            models::Run,
-            (models::Job, (models::Evaluation, models::Project)),
-        ) = schema::runs::table
+        let (begin_action, end_action, begin_task, build_task, end_task) = diesel::alias!(
+            schema::actions as begin_action,
+            schema::actions as end_action,
+            schema::tasks as begin_task,
+            schema::tasks as build_task,
+            schema::tasks as end_task,
+        );
+        let (job, evaluation, project, run, begin, build, end) = schema::runs::table
             .inner_join(
                 schema::jobs::table
                     .inner_join(schema::evaluations::table.inner_join(schema::projects::table)),
+            )
+            .left_join(
+                begin_action
+                    .on(begin_action
+                        .field(schema::actions::id)
+                        .nullable()
+                        .eq(schema::runs::begin_id))
+                    .inner_join(begin_task),
+            )
+            .left_join(
+                schema::builds::table
+                    .on(schema::builds::id.nullable().eq(schema::runs::build_id))
+                    .inner_join(build_task),
+            )
+            .left_join(
+                end_action
+                    .on(end_action
+                        .field(schema::actions::id)
+                        .nullable()
+                        .eq(schema::runs::end_id))
+                    .inner_join(end_task),
             )
             .filter(schema::projects::name.eq(&handle.job.evaluation.project.name))
             .filter(schema::evaluations::num.eq(handle.job.evaluation.num as i64))
             .filter(schema::jobs::system.eq(&handle.job.system))
             .filter(schema::jobs::name.eq(&handle.job.name))
             .filter(schema::runs::num.eq(handle.num as i64))
-            .first(conn)
+            .select((
+                schema::jobs::all_columns,
+                schema::evaluations::all_columns,
+                schema::projects::all_columns,
+                schema::runs::all_columns,
+                (
+                    begin_action.fields(schema::actions::all_columns),
+                    begin_task.fields(schema::tasks::all_columns),
+                )
+                    .nullable(),
+                (
+                    schema::builds::all_columns,
+                    build_task.fields(schema::tasks::all_columns),
+                )
+                    .nullable(),
+                (
+                    end_action.fields(schema::actions::all_columns),
+                    end_task.fields(schema::tasks::all_columns),
+                )
+                    .nullable(),
+            ))
+            .first::<(
+                models::Job,
+                models::Evaluation,
+                models::Project,
+                models::Run,
+                Option<(models::Action, models::Task)>,
+                Option<(models::Build, models::Task)>,
+                Option<(models::Action, models::Task)>,
+            )>(conn)
             .optional()?
             .ok_or(Error::RunNotFound(handle.clone()))?;
-        let build = schema::builds::table
-            .inner_join(schema::tasks::table)
-            .filter(schema::builds::id.nullable().eq(run.build_id))
-            .first(conn)
-            .optional()?
-            .map(|(build, task)| builds::Build {
+        Ok(Run {
+            begin: begin.map(|(action, task)| actions::Action {
+                project: project.clone(),
+                action,
                 task: tasks::Task { task },
+            }),
+            build: build.map(|(build, task)| builds::Build {
                 build,
-            });
-        let mut get_action = |id| {
-            schema::actions::table
-                .inner_join(schema::tasks::table)
-                .filter(schema::actions::id.nullable().eq(id))
-                .first(conn)
-                .optional()
-        };
-        let into_action = |(action, task)| actions::Action {
-            task: tasks::Task { task },
-            action,
-            project: project.clone(),
-        };
-        Ok(Self {
-            begin: get_action(run.begin_id)?.map(into_action),
-            end: get_action(run.end_id)?.map(into_action),
-            build,
+                task: tasks::Task { task },
+            }),
+            end: end.map(|(action, task)| actions::Action {
+                project: project.clone(),
+                action,
+                task: tasks::Task { task },
+            }),
             run,
             job,
             evaluation,
@@ -92,11 +136,21 @@ impl Run {
     }
 
     pub fn info(&self) -> responses::RunInfo {
-        responses::RunInfo {
-            begin: self.begin.as_ref().map(|action| action.handle()),
-            end: self.end.as_ref().map(|action| action.handle()),
-            build: self.build.as_ref().map(|build| build.handle()),
-        }
+        use crate::evaluations::ExtraRunInfo;
+        let Run {
+            run,
+            begin,
+            build,
+            end,
+            ..
+        } = self.clone();
+        responses::RunInfo::new(
+            &self.handle().job,
+            run,
+            begin.map(|actions::Action { action, task, .. }| (action, task.task)),
+            build.map(|builds::Build { build, task }| (build, task.task)),
+            end.map(|actions::Action { action, task, .. }| (action, task.task)),
+        )
     }
 
     pub fn run(&self, conn: &mut Conn) -> Result<(), Error> {

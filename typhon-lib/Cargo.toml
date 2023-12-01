@@ -10,6 +10,7 @@ async-stream.workspace = true
 async-trait.workspace = true
 diesel.workspace = true
 diesel_migrations.workspace = true
+ext-trait.workspace = true
 futures-core.workspace = true
 log.workspace = true
 once_cell.workspace = true

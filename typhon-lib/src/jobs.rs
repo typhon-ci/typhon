@@ -37,13 +37,32 @@ impl Job {
         })
     }
 
-    pub fn info(&self) -> responses::JobInfo {
-        responses::JobInfo {
-            dist: self.job.dist,
-            drv: self.job.drv.clone(),
-            out: self.job.out.clone(),
+    pub fn handle(&self) -> handles::Job {
+        handles::Job {
+            evaluation: handles::evaluation((
+                self.project.name.clone(),
+                self.evaluation.num as u64,
+            )),
             system: self.job.system.clone(),
+            name: self.job.name.clone(),
         }
+    }
+
+    pub fn info(&self, conn: &mut Conn) -> Result<responses::JobInfo, Error> {
+        let handle = self.handle();
+        let system_name = responses::JobSystemName {
+            system: self.job.system.clone(),
+            name: self.job.name.clone(),
+        };
+        crate::evaluations::Evaluation::jobs(
+            &handle.evaluation,
+            self.evaluation.id,
+            Some(system_name.clone()),
+            conn,
+        )?
+        .get(&system_name)
+        .cloned()
+        .ok_or(Error::JobNotFound(handle))
     }
 
     pub fn new_run(self, conn: &mut Conn) -> Result<runs::Run, Error> {

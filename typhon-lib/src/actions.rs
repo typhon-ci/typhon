@@ -165,6 +165,7 @@ impl Action {
 
     pub fn info(&self) -> responses::ActionInfo {
         responses::ActionInfo {
+            handle: self.handle(),
             input: self.action.input.clone(),
             path: self.action.path.clone(),
             status: self.task.status(),

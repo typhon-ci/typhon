@@ -96,6 +96,7 @@ impl Project {
             .to_public()
             .to_string();
         Ok(responses::ProjectInfo {
+            handle: self.handle(),
             actions_path: self.project.actions_path.clone(),
             flake: self.project.flake,
             jobsets: jobsets_names,

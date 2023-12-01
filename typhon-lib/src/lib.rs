@@ -176,7 +176,7 @@ pub fn handle_request_aux(
         requests::Request::Job(job_handle, req) => {
             let job = Job::get(conn, &job_handle)?;
             match req {
-                requests::Job::Info => Response::JobInfo(job.info()),
+                requests::Job::Info => Response::JobInfo(job.info(conn)?),
             }
         }
         requests::Request::Build(build_handle, req) => {

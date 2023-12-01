@@ -1,3 +1,5 @@
+mod task_status;
+
 pub mod handles {
     use serde::{Deserialize, Serialize};
 
@@ -213,39 +215,8 @@ pub mod handles {
     }
 }
 pub mod data {
+    pub use crate::task_status::TaskStatusKind;
     use serde::{Deserialize, Serialize};
-
-    #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-    #[repr(u8)]
-    pub enum TaskStatusKind {
-        #[default]
-        Pending = 0,
-        Success = 1,
-        Error = 2,
-        Canceled = 3,
-    }
-    impl TryFrom<i32> for TaskStatusKind {
-        type Error = ();
-        fn try_from(n: i32) -> Result<TaskStatusKind, ()> {
-            let arr = [Self::Pending, Self::Success, Self::Error, Self::Canceled];
-            arr.get(n as usize).ok_or(()).copied()
-        }
-    }
-    impl From<TaskStatusKind> for i32 {
-        fn from(x: TaskStatusKind) -> i32 {
-            (x as u8) as i32
-        }
-    }
-    impl std::fmt::Display for TaskStatusKind {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            match self {
-                Self::Pending => write!(f, "pending"),
-                Self::Success => write!(f, "success"),
-                Self::Error => write!(f, "error"),
-                Self::Canceled => write!(f, "canceled"),
-            }
-        }
-    }
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum User {
@@ -265,6 +236,7 @@ pub mod requests {
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
         pub enum Request {
             Projects,
+            Jobsets(Jobset),
             Evaluations(Evaluation),
             Builds(Build),
             Actions(Action),
@@ -275,6 +247,7 @@ pub mod requests {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 let name = match self {
                     Self::Projects => "projects",
+                    Self::Jobsets(..) => "jobsets",
                     Self::Evaluations(..) => "evaluations",
                     Self::Builds(..) => "builds",
                     Self::Actions(..) => "actions",
@@ -282,6 +255,11 @@ pub mod requests {
                 };
                 write!(f, "{name}")
             }
+        }
+
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+        pub struct Jobset {
+            pub project_name: Option<String>,
         }
 
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -420,61 +398,11 @@ pub mod requests {
 
 pub mod responses {
     use crate::data;
-    use crate::data::TaskStatusKind;
     use crate::handles;
 
+    pub use crate::task_status::{TaskStatus, TaskStatusKind, TimeRange};
     use serde::{Deserialize, Serialize};
     use time::OffsetDateTime;
-
-    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct TimeRange {
-        pub start: OffsetDateTime,
-        pub end: OffsetDateTime,
-    }
-
-    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum TaskStatus {
-        Pending { start: Option<OffsetDateTime> },
-        Success(TimeRange),
-        Error(TimeRange),
-        Canceled(Option<TimeRange>),
-    }
-    impl From<&TaskStatus> for TaskStatusKind {
-        fn from(status: &TaskStatus) -> Self {
-            match status {
-                TaskStatus::Pending { .. } => Self::Pending,
-                TaskStatus::Success(..) => Self::Success,
-                TaskStatus::Error(..) => Self::Error,
-                TaskStatus::Canceled(..) => Self::Canceled,
-            }
-        }
-    }
-    impl TaskStatusKind {
-        pub fn into_task_status(
-            self,
-            start: Option<OffsetDateTime>,
-            end: Option<OffsetDateTime>,
-        ) -> TaskStatus {
-            let range = start.zip(end).map(|(start, end)| TimeRange { start, end });
-            match self {
-                Self::Pending => TaskStatus::Pending { start },
-                Self::Success => TaskStatus::Success(range.expect("Broken invariant: a `TaskStatusKind::Success` needs a `time_started` and a `time_ended`")),
-                Self::Error => TaskStatus::Error(range.expect("Broken invariant: a `TaskStatusKind::Error` needs a `time_started` and a `time_ended`")),
-                Self::Canceled => TaskStatus::Canceled(range)
-            }
-        }
-    }
-    impl TaskStatus {
-        pub fn times(self) -> (Option<OffsetDateTime>, Option<OffsetDateTime>) {
-            match self {
-                Self::Pending { start } => (start, None),
-                Self::Success(range) | Self::Error(range) | Self::Canceled(Some(range)) => {
-                    (Some(range.start), Some(range.end))
-                }
-                Self::Canceled(None) => (None, None),
-            }
-        }
-    }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct SearchResult<T> {
@@ -493,8 +421,10 @@ pub mod responses {
         pub title: String,
     }
 
+    #[cfg_attr(feature = "diesel", derive(diesel::prelude::Queryable))]
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectInfo {
+        pub handle: handles::Project,
         pub actions_path: Option<String>,
         pub flake: bool,
         pub jobsets: Vec<String>,
@@ -507,11 +437,12 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobsetInfo {
+        pub handle: handles::Jobset,
         pub flake: bool,
         pub url: String,
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct JobSystemName {
         pub system: String,
         pub name: String,
@@ -519,9 +450,10 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
+        pub handle: handles::Evaluation,
         pub actions_path: Option<String>,
         pub flake: bool,
-        pub jobs: Option<Vec<JobSystemName>>,
+        pub jobs: std::collections::HashMap<JobSystemName, JobInfo>,
         pub jobset_name: String,
         pub status: TaskStatus,
         pub time_created: OffsetDateTime,
@@ -530,20 +462,25 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct JobInfo {
+        pub handle: handles::Job,
         pub dist: bool,
         pub drv: String,
         pub out: String,
         pub system: String,
+        pub last_run: RunInfo,
+        pub run_count: u32,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct BuildInfo {
+        pub handle: handles::Build,
         pub drv: String,
         pub status: TaskStatus,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ActionInfo {
+        pub handle: handles::Action,
         pub input: String,
         pub path: String,
         pub status: TaskStatus,
@@ -551,9 +488,10 @@ pub mod responses {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct RunInfo {
-        pub begin: Option<handles::Action>,
-        pub build: Option<handles::Build>,
-        pub end: Option<handles::Action>,
+        pub handle: handles::Run,
+        pub begin: Option<ActionInfo>,
+        pub build: Option<BuildInfo>,
+        pub end: Option<ActionInfo>,
     }
 
     pub mod search {
@@ -562,20 +500,23 @@ pub mod responses {
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
         pub enum Results {
             Evaluations(Vec<handles::Evaluation>),
+            Jobsets(Vec<handles::Jobset>),
             Builds(Vec<handles::Build>),
             Actions(Vec<handles::Action>),
             Runs(Vec<handles::Run>),
             Projects(Vec<(handles::Project, crate::responses::ProjectMetadata)>),
+        }
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        pub struct Info {
+            pub total: u64,
+            pub results: Results,
         }
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Response {
         Ok,
-        Search {
-            total: u64,
-            results: search::Results,
-        },
+        Search(search::Info),
         ProjectInfo(ProjectInfo),
         JobsetEvaluate(crate::handles::Evaluation),
         JobsetInfo(JobsetInfo),
@@ -623,61 +564,29 @@ pub enum Event {
 
 impl Event {
     pub fn invalidates(&self, req: &requests::Request) -> bool {
-        use requests::*;
-        use Event::*;
+        use requests::{Request as Req, *};
+        use Event as Ev;
         match (self, req) {
-            (
-                ProjectNew(_) | ProjectUpdated(_),
-                Request::Search {
-                    kind: search::Request::Projects,
-                    ..
-                },
-            ) => true,
-            (ProjectUpdated(handle1), Request::Project(handle2, Project::Info)) => {
-                handle1 == handle2
+            (_, Req::Search { kind, .. }) => {
+                use search::Request as Search;
+                match (kind, self) {
+                    (Search::Projects, Ev::ProjectNew(_) | Ev::ProjectUpdated(_))
+                    | (Search::Evaluations(_), Ev::EvaluationNew(_) | Ev::EvaluationFinished(_))
+                    | (Search::Runs(_), Ev::RunUpdated(_) | Ev::RunNew(_))
+                    | (Search::Builds(_), Ev::BuildNew(_) | Ev::BuildFinished(_))
+                    | (Search::Actions(_), Ev::ActionNew(_) | Ev::ActionFinished(_)) => true,
+                    _ => false,
+                }
             }
-            (ProjectUpdated(handle1), Request::Jobset(handle2, Jobset::Info)) => {
-                *handle1 == handle2.project
-            }
+            (Ev::ProjectUpdated(h1), Req::Project(h2, Project::Info)) => h1 == h2,
+            (Ev::ProjectUpdated(h1), Req::Jobset(h2, Jobset::Info)) => *h1 == h2.project,
             (
-                EvaluationNew(_) | EvaluationFinished(_),
-                Request::Search {
-                    kind: search::Request::Evaluations(_),
-                    ..
-                },
-            ) => true,
-            (EvaluationFinished(handle1), Request::Evaluation(handle2, Evaluation::Info)) => {
-                handle1 == handle2
-            }
-            (EvaluationFinished(handle1), Request::Evaluation(handle2, Evaluation::Log)) => {
-                handle1 == handle2
-            }
-            (
-                BuildNew(_) | BuildFinished(_),
-                Request::Search {
-                    kind: search::Request::Builds(_),
-                    ..
-                },
-            ) => true,
-            (BuildFinished(handle1), Request::Build(handle2, Build::Info)) => handle1 == handle2,
-            (BuildFinished(handle1), Request::Build(handle2, Build::Log)) => handle1 == handle2,
-            (
-                RunNew(_) | RunUpdated(_),
-                Request::Search {
-                    kind: search::Request::Runs(_),
-                    ..
-                },
-            ) => true,
-            (RunUpdated(handle1), Request::Run(handle2, Run::Info)) => handle1 == handle2,
-            (
-                ActionNew(_) | ActionFinished(_),
-                Request::Search {
-                    kind: search::Request::Actions(_),
-                    ..
-                },
-            ) => true,
-            (ActionFinished(handle1), Request::Action(handle2, Action::Info)) => handle1 == handle2,
-            (ActionFinished(handle1), Request::Action(handle2, Action::Log)) => handle1 == handle2,
+                Ev::EvaluationFinished(h1),
+                Req::Evaluation(h2, Evaluation::Info | Evaluation::Log),
+            ) => h1 == h2,
+            (Ev::BuildFinished(h1), Req::Build(h2, Build::Info | Build::Log)) => h1 == h2,
+            (Ev::RunUpdated(h1), Req::Run(h2, Run::Info)) => h1 == h2,
+            (Ev::ActionFinished(h1), Req::Action(h2, Action::Info | Action::Log)) => h1 == h2,
             (_, _) => false,
         }
     }

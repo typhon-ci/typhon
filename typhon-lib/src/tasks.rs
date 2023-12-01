@@ -20,6 +20,19 @@ pub struct Task {
     pub task: models::Task,
 }
 
+impl models::Task {
+    pub fn status_kind(&self) -> TaskStatusKind {
+        self.status.try_into().unwrap()
+    }
+    pub fn status(&self) -> TaskStatus {
+        let from_timestamp = |t| OffsetDateTime::from_unix_timestamp(t).unwrap();
+        self.status_kind().into_task_status(
+            self.time_started.map(from_timestamp),
+            self.time_finished.map(from_timestamp),
+        )
+    }
+}
+
 impl Task {
     pub fn cancel(&self) {
         TASKS.cancel(self.task.id);
@@ -96,14 +109,10 @@ impl Task {
     }
 
     pub fn status_kind(&self) -> TaskStatusKind {
-        self.task.status.try_into().unwrap()
+        self.task.status_kind()
     }
     pub fn status(&self) -> TaskStatus {
-        let from_timestamp = |t| OffsetDateTime::from_unix_timestamp(t).unwrap();
-        self.status_kind().into_task_status(
-            self.task.time_started.map(from_timestamp),
-            self.task.time_finished.map(from_timestamp),
-        )
+        self.task.status()
     }
 
     fn set_status(&self, conn: &mut Conn, status: TaskStatus) -> Result<(), Error> {
