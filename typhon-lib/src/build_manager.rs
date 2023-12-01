@@ -11,18 +11,16 @@ use crate::DbPool;
 use crate::POOL;
 use crate::RUNTIME;
 
-use typhon_types::data::TaskStatusKind;
-use typhon_types::*;
+use typhon_types::{data::TaskStatusKind, *};
 
 use diesel::prelude::*;
 use once_cell::sync::Lazy;
-use time::OffsetDateTime;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
-use tokio::sync::watch;
-use tokio::task::JoinSet;
-
 use std::collections::HashMap;
+use time::OffsetDateTime;
+use tokio::{
+    sync::{mpsc, oneshot, watch},
+    task::JoinSet,
+};
 
 type Output = Option<Option<()>>;
 
@@ -53,9 +51,9 @@ struct Build {
 }
 
 struct State {
-    pub conn: Conn,
-    pub builds: HashMap<DrvPath, Build>,
-    pub join_set: JoinSet<()>,
+    conn: Conn,
+    builds: HashMap<DrvPath, Build>,
+    join_set: JoinSet<()>,
 }
 
 impl State {
