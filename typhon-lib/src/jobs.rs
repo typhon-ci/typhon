@@ -65,25 +65,22 @@ impl Job {
         .ok_or(Error::JobNotFound(handle))
     }
 
+    /** Create a new run in the database, without running it. */
     pub fn new_run(self, conn: &mut Conn) -> Result<runs::Run, Error> {
-        // create a new run in the database
         let run = conn.transaction::<models::Run, Error, _>(|conn| {
-            let time_created = OffsetDateTime::now_utc().unix_timestamp();
             let max = schema::runs::table
                 .filter(schema::runs::job_id.eq(self.job.id))
                 .select(diesel::dsl::max(schema::runs::num))
                 .first::<Option<i64>>(conn)?
                 .unwrap_or(0);
-            let num = max + 1;
             let new_run = models::NewRun {
                 job_id: self.job.id,
-                num,
-                time_created,
+                num: max + 1,
+                time_created: OffsetDateTime::now_utc().unix_timestamp(),
             };
-            let run = diesel::insert_into(schema::runs::table)
+            Ok(diesel::insert_into(schema::runs::table)
                 .values(&new_run)
-                .get_result::<models::Run>(conn)?;
-            Ok(run)
+                .get_result::<models::Run>(conn)?)
         })?;
         let run = runs::Run {
             begin: None,
@@ -94,11 +91,7 @@ impl Job {
             job: self.job.clone(),
             run,
         };
-
         log_event(Event::RunNew(run.handle()));
-
-        run.run(conn)?;
-
         Ok(run)
     }
 }

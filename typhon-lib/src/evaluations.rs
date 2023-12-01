@@ -270,10 +270,10 @@ impl Evaluation {
         res
     }
 
-    fn create_new_jobs(&self, conn: &mut Conn, mut new_jobs: nix::NewJobs) -> Result<(), Error> {
-        let created_jobs = conn.transaction::<Vec<jobs::Job>, Error, _>(|conn| {
-            new_jobs
-                .drain()
+    fn create_new_jobs(&self, conn: &mut Conn, new_jobs: nix::NewJobs) -> Result<(), Error> {
+        let created_runs = conn.transaction::<Vec<crate::runs::Run>, Error, _>(|conn| {
+            let created_jobs: Vec<crate::jobs::Job> = new_jobs
+                .into_iter()
                 .map(|((system, name), (drv, dist))| {
                     let new_job = models::NewJob {
                         dist,
@@ -297,11 +297,15 @@ impl Evaluation {
                         job,
                     })
                 })
+                .collect::<Result<_, Error>>()?;
+            created_jobs
+                .into_iter()
+                .map(|job| job.new_run(conn))
                 .collect()
         })?;
 
-        for job in created_jobs.into_iter() {
-            job.new_run(conn)?;
+        for run in created_runs {
+            run.run(conn)?;
         }
 
         Ok(())
