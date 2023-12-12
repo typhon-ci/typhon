@@ -52,8 +52,18 @@ pub fn Home() -> impl IntoView {
             <ul>
                 {projects()
                     .map(|maybe_list| match maybe_list {
-                        Ok(Ok(responses::Response::Search(responses::search::Info{results:responses::search::Results::Projects(projects),..}))) => {
-                            projects.into_iter()
+                        Ok(
+                            Ok(
+                                responses::Response::Search(
+                                    responses::search::Info {
+                                        results: responses::search::Results::Projects(projects),
+                                        ..
+                                    },
+                                ),
+                            ),
+                        ) => {
+                            projects
+                                .into_iter()
                                 .map(|(handle, _)| view! { <li>{handle.to_string()}</li> })
                                 .collect_view()
                         }
