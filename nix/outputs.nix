@@ -1,9 +1,8 @@
 {
   inputs ? import ./inputs.nix,
   systems ? import ./systems.nix,
-}: let
-  lib = import ./lib {inherit inputs systems;};
-in {
+  lib ? import ./lib {inherit inputs systems;},
+}: {
   inherit lib;
 
   checks = lib.eachSystem (system: import ./checks {inherit inputs system;});
