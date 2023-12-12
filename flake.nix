@@ -9,8 +9,6 @@
 
     flake-schemas.url = "github:determinatesystems/flake-schemas";
 
-    flake-utils.url = "flake-utils";
-
     nixpkgs.url = "nixpkgs/nixos-unstable";
 
     crane = {
@@ -20,7 +18,6 @@
 
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
