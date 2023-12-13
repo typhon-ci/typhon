@@ -404,13 +404,6 @@ pub mod responses {
     use serde::{Deserialize, Serialize};
     use time::OffsetDateTime;
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct SearchResult<T> {
-        pub count: u8,
-        pub list: Vec<T>,
-        pub total: u64,
-    }
-
     #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectMetadata {
         #[serde(default)]
