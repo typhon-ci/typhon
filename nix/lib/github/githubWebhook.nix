@@ -3,7 +3,6 @@ utils: lib: {
     mkPath = system: let
       pkgs = utils.pkgs.${system};
     in [
-      pkgs.curl
       pkgs.jq
       pkgs.openssl
     ];
