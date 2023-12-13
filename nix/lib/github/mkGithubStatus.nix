@@ -5,7 +5,9 @@ utils: lib: {
     typhon_url,
   }:
     lib.mkActionScript {
-      mkPath = pkgs: [
+      mkPath = system: let
+        pkgs = utils.pkgs.${system};
+      in [
         pkgs.curl
         pkgs.jq
         pkgs.nix

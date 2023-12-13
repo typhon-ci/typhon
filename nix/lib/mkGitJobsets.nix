@@ -4,12 +4,14 @@ utils: lib: {
     flake ? true,
   }:
     lib.mkActionScript {
-      mkPath = pkgs: [
+      mkPath = system: let
+        pkgs = utils.pkgs.${system};
+      in [
         pkgs.git
         pkgs.gnused
         pkgs.jq
       ];
-      script = ''
+      mkScript = system: ''
         heads=$(git ls-remote --heads ${url} | sed 's/.*refs\/heads\/\(.*\)/\1/')
         echo null | jq --arg heads "$heads" '$heads
           | split("\n")

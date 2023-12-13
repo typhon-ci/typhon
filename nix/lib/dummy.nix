@@ -1,8 +1,8 @@
 utils: lib: rec {
   mkDummyAction = {output ? "null"}:
     lib.mkActionScript {
-      mkPath = pkgs: [pkgs.jq];
-      script = ''
+      mkPath = system: [utils.pkgs.${system}.jq];
+      mkScript = system: ''
         cat | jq '.input' -r >&2
         echo '${output}'
       '';

@@ -1,11 +1,13 @@
 utils: lib: {
   githubWebhook = lib.mkActionScript {
-    mkPath = pkgs: [
+    mkPath = system: let
+      pkgs = utils.pkgs.${system};
+    in [
       pkgs.curl
       pkgs.jq
       pkgs.openssl
     ];
-    script = ''
+    mkScript = system: ''
       input=$(cat)
 
       headers=$(echo "$input" | jq '.input.headers')
