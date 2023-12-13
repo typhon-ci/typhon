@@ -7,7 +7,7 @@ use diesel::prelude::*;
 pub fn search(
     limit: u8,
     offset: u32,
-    req: &requests::search::Request,
+    kind: &requests::search::Kind,
     conn: &mut Conn,
 ) -> Result<responses::Response, Error> {
     macro_rules! run {
@@ -27,9 +27,9 @@ pub fn search(
                 })
             }};
         }
-    use {requests::search::Request, responses::search::Results};
-    Ok(match req {
-        Request::Projects => run!(
+    use {requests::search::Kind, responses::search::Results};
+    Ok(match kind {
+        Kind::Projects => run!(
             schema::projects::table.select({
                 use schema::projects::*;
                 (name, description, homepage, title)
@@ -42,7 +42,7 @@ pub fn search(
             ),
             Results::Projects
         ),
-        Request::Jobsets(s) => run!(
+        Kind::Jobsets(s) => run!(
             schema::jobsets::table
                 .inner_join(schema::projects::table)
                 .select((schema::projects::name, schema::jobsets::name)),
@@ -52,7 +52,7 @@ pub fn search(
             handles::jobset,
             Results::Jobsets
         ),
-        Request::Evaluations(s) => run!(
+        Kind::Evaluations(s) => run!(
             schema::evaluations::table
                 .inner_join(schema::projects::table)
                 .inner_join(
@@ -68,7 +68,7 @@ pub fn search(
             |(project, num): (_, i64)| handles::evaluation((project, num as u64)),
             Results::Evaluations
         ),
-        Request::Builds(s) => run!(
+        Kind::Builds(s) => run!(
             schema::builds::table
                 .inner_join(schema::tasks::table)
                 .select((schema::builds::drv, schema::builds::num))
@@ -80,7 +80,7 @@ pub fn search(
             |(drv, num): (_, i64)| handles::build((drv, num as u64)),
             Results::Builds
         ),
-        Request::Actions(s) => run!(
+        Kind::Actions(s) => run!(
             schema::actions::table
                 .inner_join(schema::projects::table)
                 .inner_join(schema::tasks::table)
@@ -93,7 +93,7 @@ pub fn search(
             |(project, action): (_, i64)| handles::action((project, action as u64)),
             Results::Actions
         ),
-        Request::Runs(s) => run!(
+        Kind::Runs(s) => run!(
             schema::runs::table
                 .inner_join(
                     schema::jobs::table

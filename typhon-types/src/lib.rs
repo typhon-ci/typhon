@@ -234,7 +234,7 @@ pub mod requests {
         use serde::{Deserialize, Serialize};
 
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-        pub enum Request {
+        pub enum Kind {
             Projects,
             Jobsets(Jobset),
             Evaluations(Evaluation),
@@ -243,7 +243,14 @@ pub mod requests {
             Runs(Run),
         }
 
-        impl std::fmt::Display for Request {
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        pub struct Request {
+            pub limit: u8,
+            pub offset: u32,
+            pub kind: Kind,
+        }
+
+        impl std::fmt::Display for Kind {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 let name = match self {
                     Self::Projects => "projects",
@@ -347,15 +354,8 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Request {
-        Search {
-            limit: u8,
-            offset: u32,
-            kind: search::Request,
-        },
-        CreateProject {
-            name: String,
-            decl: ProjectDecl,
-        },
+        Search(search::Request),
+        CreateProject { name: String, decl: ProjectDecl },
         Project(handles::Project, Project),
         Jobset(handles::Jobset, Jobset),
         Evaluation(handles::Evaluation, Evaluation),
@@ -363,16 +363,16 @@ pub mod requests {
         Build(handles::Build, Build),
         Action(handles::Action, Action),
         Run(handles::Run, Run),
-        Login {
-            password: String,
-        },
+        Login { password: String },
         User,
     }
 
     impl std::fmt::Display for Request {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
-                Request::Search { kind, .. } => write!(f, "Search through {kind}"),
+                Request::Search(search::Request { kind, .. }) => {
+                    write!(f, "Search through {kind}")
+                }
                 Request::CreateProject { name, decl } => {
                     write!(
                         f,
@@ -567,8 +567,8 @@ impl Event {
         use requests::{Request as Req, *};
         use Event as Ev;
         match (self, req) {
-            (_, Req::Search { kind, .. }) => {
-                use search::Request as Search;
+            (_, Req::Search(requests::search::Request { kind, .. })) => {
+                use search::Kind as Search;
                 match (kind, self) {
                     (Search::Projects, Ev::ProjectNew(_) | Ev::ProjectUpdated(_))
                     | (Search::Evaluations(_), Ev::EvaluationNew(_) | Ev::EvaluationFinished(_))

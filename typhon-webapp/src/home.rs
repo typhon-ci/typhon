@@ -40,11 +40,11 @@ fn CreateProject() -> impl IntoView {
 #[component]
 pub fn Home() -> impl IntoView {
     let user = use_context::<Signal<Option<data::User>>>().unwrap();
-    let projects = request(requests::Request::Search {
+    let projects = request(requests::Request::Search(requests::search::Request {
         limit: 10,
         offset: 0,
-        kind: requests::search::Request::Projects,
-    });
+        kind: requests::search::Kind::Projects,
+    }));
     let fallback = || view! { <p>"Loading..."</p> };
     view! {
         <Suspense fallback>

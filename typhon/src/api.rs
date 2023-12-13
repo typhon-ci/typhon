@@ -113,16 +113,14 @@ macro_rules! r {
 }
 
 r!(
-    //list_evaluations(body: web::Json<EvaluationSearch>) =>
-    //    Request::ListEvaluations(body.into_inner());
+    search(body: web::Json<search::Request>) =>
+        Request::Search(body.into_inner());
 
     create_project(path: web::Path<String>, body: web::Json<ProjectDecl>) => {
         let name = path.into_inner();
         let decl = body.into_inner();
         Request::CreateProject { name, decl }
     };
-
-    //list_projects() => Request::ListProjects;
 
     //project_delete(path: web::Path<String>) =>
     //    Request::Project(
@@ -344,8 +342,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
         web::scope("/api")
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
-            //.route("/evaluations", web::post().to(list_evaluations))
-            //.route("/projects", web::get().to(list_projects))
+            .route("/search", web::post().to(search))
             .service(
                 web::scope("/builds/{drv}/{num}")
                     .route("", web::get().to(build_info))

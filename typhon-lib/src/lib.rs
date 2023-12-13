@@ -132,11 +132,11 @@ pub fn handle_request_aux(
         return Err(Error::AccessDenied);
     }
     Ok(match req {
-        requests::Request::Search {
+        requests::Request::Search(requests::search::Request {
             limit,
             offset,
             kind,
-        } => search(*limit, *offset, kind, conn)?,
+        }) => search(*limit, *offset, kind, conn)?,
         requests::Request::CreateProject { name, decl } => {
             Project::create(conn, name, decl)?;
             Response::Ok
