@@ -10,7 +10,7 @@ utils: lib: {
         pkgs.jq
         pkgs.nix
       ];
-      script = ''
+      mkScript = system: ''
         input=$(cat)
 
         drv=$(echo "$input" | jq '.input.drv' -r)
@@ -53,12 +53,13 @@ utils: lib: {
         )
 
         curl -s \
+          --cacert ${utils.pkgs.${system}.cacert}/etc/ssl/certs/ca-bundle.crt \
           -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer $token" \
           "https://api.github.com/repos/${owner}/${repo}/statuses/$rev" \
           -d "$payload" \
-          -k >&2
+          >&2
       '';
     };
 }

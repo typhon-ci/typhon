@@ -9,16 +9,17 @@ utils: lib: {
         pkgs.curl
         pkgs.jq
       ];
-      script = ''
+      mkScript = system: ''
         input=$(cat)
 
         token=$(echo "$input" | jq '.secrets.github_token' -r)
 
         curl -s \
+          --cacert ${utils.pkgs.${system}.cacert}/etc/ssl/certs/ca-bundle.crt \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer $token" \
           https://api.github.com/repos/${owner}/${repo}/branches \
-          -k \ | jq '.
+          | jq '.
             | map({ (.name): {
                 "url": ("github:${owner}/${repo}/" + .name),
                 "flake": ${utils.lib.boolToString flake}
