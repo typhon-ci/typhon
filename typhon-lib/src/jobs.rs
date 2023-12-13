@@ -53,6 +53,7 @@ impl Job {
             name: self.job.name.clone(),
         };
         crate::evaluations::Evaluation::jobs(
+            &handles::project(self.project.name.clone()),
             &handle.evaluation,
             self.evaluation.id,
             Some(system_name.clone()),

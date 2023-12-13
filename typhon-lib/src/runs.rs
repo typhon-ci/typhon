@@ -153,6 +153,7 @@ impl Run {
             ..
         } = self.clone();
         responses::RunInfo::new(
+            &handles::project(self.project.name.clone()),
             &self.handle().job,
             run,
             begin.map(|actions::Action { action, task, .. }| (action, task.task)),

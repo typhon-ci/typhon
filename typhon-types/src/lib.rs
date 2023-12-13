@@ -442,6 +442,7 @@ pub mod responses {
         pub flake: bool,
         pub jobs: std::collections::HashMap<JobSystemName, JobInfo>,
         pub jobset_name: String,
+        pub project: handles::Project,
         pub status: TaskStatus,
         pub time_created: OffsetDateTime,
         pub url: String,
@@ -470,6 +471,7 @@ pub mod responses {
         pub handle: handles::Action,
         pub input: String,
         pub path: String,
+        pub project: handles::Project,
         pub status: TaskStatus,
     }
 

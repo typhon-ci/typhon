@@ -28,6 +28,7 @@ pub struct Evaluation {
 #[ext_trait::extension(pub trait ExtraRunInfo)]
 impl responses::RunInfo {
     fn new(
+        project_handle: &handles::Project,
         job_handle: &handles::Job,
         run: models::Run,
         begin: Option<(models::Action, models::Task)>,
@@ -39,6 +40,7 @@ impl responses::RunInfo {
                 handle: handles::action(Uuid::from_str(&action.uuid).unwrap()),
                 input: action.input,
                 path: action.path,
+                project: project_handle.clone(),
                 status: task.status(),
             };
         responses::RunInfo {
@@ -61,6 +63,7 @@ impl responses::RunInfo {
 impl responses::JobInfo {
     /// Reshape raw database data into a structured `JobInfo`
     fn new(
+        project_handle: &handles::Project,
         eval_handle: &handles::Evaluation,
         job: models::Job,
         run: models::Run,
@@ -80,7 +83,7 @@ impl responses::JobInfo {
             drv: job.drv,
             out: job.out,
             system: job.system,
-            last_run: responses::RunInfo::new(&job_handle, run, begin, build, end),
+            last_run: responses::RunInfo::new(project_handle, &job_handle, run, begin, build, end),
             run_count,
         }
     }
@@ -128,6 +131,7 @@ impl Evaluation {
 
     /// Fetch all jobs attached to self
     pub fn jobs(
+        project_handle: &handles::Project,
         eval_handle: &handles::Evaluation,
         eval_id: i32,
         filter_system_name: Option<responses::JobSystemName>,
@@ -213,6 +217,7 @@ impl Evaluation {
                     (
                         responses::JobSystemName { system, name },
                         responses::JobInfo::new(
+                            project_handle,
                             &eval_handle,
                             job,
                             run,
@@ -233,11 +238,18 @@ impl Evaluation {
             actions_path: self.evaluation.actions_path.clone(),
             flake: self.evaluation.flake,
             jobs: if self.task.status_kind() == TaskStatusKind::Success {
-                Self::jobs(&self.handle(), self.evaluation.id, None, conn)?
+                Self::jobs(
+                    &handles::project(self.project.name.clone()),
+                    &self.handle(),
+                    self.evaluation.id,
+                    None,
+                    conn,
+                )?
             } else {
                 HashMap::new()
             },
             jobset_name: self.evaluation.jobset_name.clone(),
+            project: handles::project(self.project.name.clone()),
             status: self.task.status(),
             time_created: time::OffsetDateTime::from_unix_timestamp(self.evaluation.time_created)?,
             url: self.evaluation.url.clone(),
