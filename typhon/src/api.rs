@@ -13,6 +13,7 @@ use actix_web::{
     body::EitherBody, guard, http::StatusCode, web, HttpRequest, HttpResponse, Responder,
 };
 use actix_web::{dev::Payload, FromRequest};
+use uuid::Uuid;
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -170,61 +171,61 @@ r!(
             Jobset::Info,
         );
 
-    evaluation_cancel(path: web::Path<(String,u64)>) =>
+    evaluation_cancel(path: web::Path<Uuid>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Cancel,
         );
 
-    evaluation_info(path: web::Path<(String,u64)>) =>
+    evaluation_info(path: web::Path<Uuid>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Info,
         );
 
-    evaluation_log(path: web::Path<(String,u64)>) =>
+    evaluation_log(path: web::Path<Uuid>) =>
         Request::Evaluation(
             handles::evaluation(path.into_inner()),
             Evaluation::Log,
         );
 
-    job_info(path: web::Path<(String,u64,String,String)>) =>
+    job_info(path: web::Path<(Uuid,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Info,
         );
 
-    run_cancel(path: web::Path<(String,u64,String,String,u64)>) =>
+    run_cancel(path: web::Path<(Uuid,String,String,u64)>) =>
         Request::Run(
             handles::run(path.into_inner()),
             Run::Cancel,
         );
 
-    run_info(path: web::Path<(String,u64,String,String,u64)>) =>
+    run_info(path: web::Path<(Uuid,String,String,u64)>) =>
         Request::Run(
             handles::run(path.into_inner()),
             Run::Info,
         );
 
-    build_info(path: web::Path<(String,u64)>) =>
+    build_info(path: web::Path<Uuid>) =>
         Request::Build(
             handles::build(path.into_inner()),
             Build::Info,
         );
 
-    build_log(path: web::Path<(String,u64)>) =>
+    build_log(path: web::Path<Uuid>) =>
         Request::Build(
             handles::build(path.into_inner()),
             Build::Log,
         );
 
-    action_info(path: web::Path<(String,u64)>) =>
+    action_info(path: web::Path<Uuid>) =>
         Request::Action(
             handles::action(path.into_inner()),
             Action::Info,
         );
 
-    action_log(path: web::Path<(String,u64)>) =>
+    action_log(path: web::Path<Uuid>) =>
         Request::Action(
             handles::action(path.into_inner()),
             Action::Log,
@@ -236,10 +237,10 @@ r!(
 
 async fn dist(
     user: UserWrapper,
-    path: web::Path<(String, u64, String, String, String)>,
+    path: web::Path<(Uuid, String, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
-    let (project, evaluation, system, job, path) = path.into_inner();
-    let handle = handles::job((project, evaluation, system, job));
+    let (evaluation, system, job, path) = path.into_inner();
+    let handle = handles::job((evaluation, system, job));
     let req = Request::Job(handle, Job::Info);
     let rsp = handle_request(user.0, req)
         .await
@@ -268,7 +269,7 @@ fn streaming_response(
 }
 
 async fn build_live_log(
-    path: web::Path<(String, u64)>,
+    path: web::Path<Uuid>,
 ) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
     let handle = handles::build(path.into_inner());
     let maybe_stream = web::block(move || live_log_build(handle)).await??;
@@ -276,7 +277,7 @@ async fn build_live_log(
 }
 
 async fn action_live_log(
-    path: web::Path<(String, u64)>,
+    path: web::Path<Uuid>,
 ) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
     let handle = handles::action(path.into_inner());
     let maybe_stream = web::block(move || live_log_action(handle)).await??;
@@ -344,7 +345,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route("/events", web::get().to(events))
             .route("/search", web::post().to(search))
             .service(
-                web::scope("/builds/{drv}/{num}")
+                web::scope("/builds/{build}")
                     .route("", web::get().to(build_info))
                     .route("/log", web::get().to(build_log))
                     .route("/live_log", web::get().to(build_live_log)),
@@ -363,29 +364,29 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                         web::scope("/jobsets/{jobset}")
                             .route("", web::get().to(jobset_info))
                             .route("/evaluate", web::post().to(jobset_evaluate)),
-                    )
-                    .service(
-                        web::scope("/evaluations/{evaluation}")
-                            .route("", web::get().to(evaluation_info))
-                            .route("/cancel", web::post().to(evaluation_cancel))
-                            .route("/log", web::get().to(evaluation_log))
-                            .service(
-                                web::scope("/jobs/{system}/{job}")
-                                    .route("", web::get().to(job_info))
-                                    .route("/dist/{path:.*}", web::get().to(dist))
-                                    .service(
-                                        web::scope("/runs/{run}")
-                                            .route("", web::get().to(run_info))
-                                            .route("/cancel", web::post().to(run_cancel)),
-                                    ),
-                            ),
-                    )
-                    .service(
-                        web::scope("/actions/{action}")
-                            .route("", web::get().to(action_info))
-                            .route("/log", web::get().to(action_log))
-                            .route("/live_log", web::get().to(action_live_log)),
                     ),
+            )
+            .service(
+                web::scope("/evaluations/{evaluation}")
+                    .route("", web::get().to(evaluation_info))
+                    .route("/cancel", web::post().to(evaluation_cancel))
+                    .route("/log", web::get().to(evaluation_log))
+                    .service(
+                        web::scope("/jobs/{system}/{job}")
+                            .route("", web::get().to(job_info))
+                            .route("/dist/{path:.*}", web::get().to(dist))
+                            .service(
+                                web::scope("/runs/{run}")
+                                    .route("", web::get().to(run_info))
+                                    .route("/cancel", web::post().to(run_cancel)),
+                            ),
+                    ),
+            )
+            .service(
+                web::scope("/actions/{action}")
+                    .route("", web::get().to(action_info))
+                    .route("/log", web::get().to(action_log))
+                    .route("/live_log", web::get().to(action_live_log)),
             )
             .route("/login", web::post().to(login))
             .route(

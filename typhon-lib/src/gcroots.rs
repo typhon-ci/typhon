@@ -53,7 +53,7 @@ fn update_aux(conn: &mut Conn) -> Result<(), Error> {
             schema::jobs::out,
             schema::jobs::drv,
             schema::jobsets::name,
-            diesel::dsl::max(schema::evaluations::num),
+            diesel::dsl::max(schema::evaluations::time_created),
         ))
         .load::<(String, String, String, Option<i64>)>(conn)?;
     let mut res_2 = schema::projects::table

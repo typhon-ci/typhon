@@ -2,6 +2,7 @@ mod task_status;
 
 pub mod handles {
     use serde::{Deserialize, Serialize};
+    use uuid::Uuid;
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct Project {
@@ -25,8 +26,7 @@ pub mod handles {
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct Evaluation {
-        pub project: Project,
-        pub num: u64,
+        pub uuid: Uuid,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct Job {
@@ -41,13 +41,11 @@ pub mod handles {
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct Build {
-        pub drv: String,
-        pub num: u64,
+        pub uuid: Uuid,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct Action {
-        pub project: Project,
-        pub num: u64,
+        pub uuid: Uuid,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub enum Log {
@@ -86,9 +84,9 @@ pub mod handles {
             Some(match self {
                 Self::Project(_) => None?,
                 Self::Jobset(jobset) => Handle::Project(jobset.project.clone()),
-                Self::Evaluation(eval) => Handle::Project(eval.project.clone()),
+                Self::Evaluation(_) => None?,
                 Self::Job(job) => Handle::Evaluation(job.evaluation.clone()),
-                Self::Action(action) => Handle::Project(action.project.clone()),
+                Self::Action(_) => None?,
                 Self::Build(..) => None?,
                 Self::Run(run) => Handle::Job(run.job.clone()),
                 Self::Log(Log::Action(action)) => Handle::Action(action.clone()),
@@ -128,7 +126,7 @@ pub mod handles {
     impl_display!(Evaluation);
     impl From<Evaluation> for Vec<String> {
         fn from(x: Evaluation) -> Self {
-            [x.project.into(), vec![x.num.to_string()]].concat()
+            vec![x.uuid.to_string()]
         }
     }
     impl_display!(Job);
@@ -146,13 +144,13 @@ pub mod handles {
     impl_display!(Build);
     impl From<Build> for Vec<String> {
         fn from(x: Build) -> Self {
-            vec![x.drv, x.num.to_string()]
+            vec![x.uuid.to_string()]
         }
     }
     impl_display!(Action);
     impl From<Action> for Vec<String> {
         fn from(x: Action) -> Self {
-            [x.project.into(), vec![x.num.to_string()]].concat()
+            vec![x.uuid.to_string()]
         }
     }
     impl_display!(Log);
@@ -185,33 +183,27 @@ pub mod handles {
             name,
         }
     }
-    pub fn evaluation((project, num): (String, u64)) -> Evaluation {
-        Evaluation {
-            project: selfmod::project(project),
-            num,
-        }
+    pub fn evaluation(uuid: Uuid) -> Evaluation {
+        Evaluation { uuid }
     }
-    pub fn job((project, evaluation, system, name): (String, u64, String, String)) -> Job {
+    pub fn job((evaluation, system, name): (Uuid, String, String)) -> Job {
         Job {
-            evaluation: selfmod::evaluation((project, evaluation)),
+            evaluation: selfmod::evaluation(evaluation),
             system,
             name,
         }
     }
-    pub fn run((project, evaluation, system, job, num): (String, u64, String, String, u64)) -> Run {
+    pub fn run((evaluation, system, job, num): (Uuid, String, String, u64)) -> Run {
         Run {
-            job: selfmod::job((project, evaluation, system, job)),
+            job: selfmod::job((evaluation, system, job)),
             num,
         }
     }
-    pub fn build((drv, num): (String, u64)) -> Build {
-        Build { drv, num }
+    pub fn build(uuid: Uuid) -> Build {
+        Build { uuid }
     }
-    pub fn action((project, num): (String, u64)) -> Action {
-        Action {
-            project: selfmod::project(project),
-            num,
-        }
+    pub fn action(uuid: Uuid) -> Action {
+        Action { uuid }
     }
 }
 pub mod data {
@@ -231,7 +223,9 @@ pub mod requests {
 
     pub mod search {
         use crate::data::TaskStatusKind;
+
         use serde::{Deserialize, Serialize};
+        use uuid::Uuid;
 
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
         pub enum Kind {
@@ -292,7 +286,7 @@ pub mod requests {
 
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
         pub struct Run {
-            pub evaluation_num: Option<u64>,
+            pub evaluation_uuid: Option<Uuid>,
             pub job_name: Option<String>,
             pub job_system: Option<String>,
             pub jobset_name: Option<String>,

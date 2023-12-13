@@ -14,6 +14,9 @@ use typhon_types::*;
 
 use diesel::prelude::*;
 use tokio::sync::mpsc;
+use uuid::Uuid;
+
+use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct Evaluation {
@@ -33,10 +36,7 @@ impl responses::RunInfo {
     ) -> Self {
         let to_action_info =
             |(action, task): (models::Action, models::Task)| responses::ActionInfo {
-                handle: handles::Action {
-                    project: job_handle.evaluation.project.clone(),
-                    num: action.num as u64,
-                },
+                handle: handles::action(Uuid::from_str(&action.uuid).unwrap()),
                 input: action.input,
                 path: action.path,
                 status: task.status(),
@@ -48,10 +48,7 @@ impl responses::RunInfo {
             },
             begin: begin.map(to_action_info),
             build: build.map(|(build, task)| responses::BuildInfo {
-                handle: handles::Build {
-                    drv: build.drv.clone(),
-                    num: build.num as u64,
-                },
+                handle: handles::build(Uuid::from_str(&build.uuid).unwrap()),
                 drv: build.drv,
                 status: task.status(),
             }),
@@ -114,8 +111,7 @@ impl Evaluation {
         let (evaluation, project, task) = schema::evaluations::table
             .inner_join(schema::projects::table)
             .inner_join(schema::tasks::table)
-            .filter(schema::projects::name.eq(&handle.project.name))
-            .filter(schema::evaluations::num.eq(handle.num as i64))
+            .filter(schema::evaluations::uuid.eq(handle.uuid.as_hyphenated().to_string()))
             .first(conn)
             .optional()?
             .ok_or(Error::EvaluationNotFound(handle.clone()))?;
@@ -127,7 +123,7 @@ impl Evaluation {
     }
 
     pub fn handle(&self) -> handles::Evaluation {
-        handles::evaluation((self.project.name.clone(), self.evaluation.num as u64))
+        handles::evaluation(Uuid::from_str(&self.evaluation.uuid).unwrap())
     }
 
     /// Fetch all jobs attached to self

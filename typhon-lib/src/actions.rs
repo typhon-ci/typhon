@@ -147,8 +147,7 @@ impl Action {
         let (action, project, task) = schema::actions::table
             .inner_join(schema::projects::table)
             .inner_join(schema::tasks::table)
-            .filter(schema::projects::name.eq(&handle.project.name))
-            .filter(schema::actions::num.eq(handle.num as i64))
+            .filter(schema::actions::uuid.eq(handle.uuid.to_string()))
             .first(conn)
             .optional()?
             .ok_or(error::Error::ActionNotFound(handle.clone()))?;
@@ -160,7 +159,8 @@ impl Action {
     }
 
     pub fn handle(&self) -> handles::Action {
-        handles::action((self.project.name.clone(), self.action.num as u64))
+        use uuid::Uuid;
+        handles::action(Uuid::from_str(&self.action.uuid).unwrap())
     }
 
     pub fn info(&self) -> responses::ActionInfo {

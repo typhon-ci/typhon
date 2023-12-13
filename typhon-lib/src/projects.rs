@@ -119,31 +119,27 @@ impl Project {
         name: &String,
         input: &serde_json::Value,
     ) -> Result<actions::Action, Error> {
-        let (action, task) =
-            conn.transaction::<(models::Action, tasks::Task), Error, _>(|conn| {
-                let task = tasks::Task::new(conn)?;
-                let time_created = OffsetDateTime::now_utc().unix_timestamp();
-                let max = schema::actions::table
-                    .filter(schema::actions::project_id.eq(self.project.id))
-                    .select(diesel::dsl::max(schema::actions::num))
-                    .first::<Option<i64>>(conn)?
-                    .unwrap_or(0);
-                let num = max + 1;
-                let new_action = models::NewAction {
-                    input: &input.to_string(),
-                    name,
-                    num,
-                    path,
-                    project_id: self.project.id,
-                    task_id: task.task.id,
-                    time_created,
-                };
-                let action = diesel::insert_into(schema::actions::table)
-                    .values(&new_action)
-                    .get_result::<models::Action>(conn)?;
+        use uuid::{timestamp, Uuid};
 
-                Ok((action, task))
-            })?;
+        let task = tasks::Task::new(conn)?;
+        let time_created = OffsetDateTime::now_utc().unix_timestamp();
+        let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
+            timestamp::context::NoContext,
+            time_created as u64,
+            0,
+        ));
+        let new_action = models::NewAction {
+            input: &input.to_string(),
+            name,
+            path,
+            project_id: self.project.id,
+            task_id: task.task.id,
+            time_created,
+            uuid: &uuid.to_string(),
+        };
+        let action = diesel::insert_into(schema::actions::table)
+            .values(&new_action)
+            .get_result::<models::Action>(conn)?;
         Ok(actions::Action {
             project: self.project.clone(),
             action,

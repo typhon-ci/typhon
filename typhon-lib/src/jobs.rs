@@ -23,8 +23,7 @@ impl Job {
     pub fn get(conn: &mut Conn, handle: &handles::Job) -> Result<Self, Error> {
         let (job, (evaluation, project)) = schema::jobs::table
             .inner_join(schema::evaluations::table.inner_join(schema::projects::table))
-            .filter(schema::projects::name.eq(&handle.evaluation.project.name))
-            .filter(schema::evaluations::num.eq(handle.evaluation.num as i64))
+            .filter(schema::evaluations::uuid.eq(handle.evaluation.uuid.to_string()))
             .filter(schema::jobs::system.eq(&handle.system))
             .filter(schema::jobs::name.eq(&handle.name))
             .first(conn)
@@ -38,11 +37,10 @@ impl Job {
     }
 
     pub fn handle(&self) -> handles::Job {
+        use std::str::FromStr;
+        use uuid::Uuid;
         handles::Job {
-            evaluation: handles::evaluation((
-                self.project.name.clone(),
-                self.evaluation.num as u64,
-            )),
+            evaluation: handles::evaluation(Uuid::from_str(&self.evaluation.uuid).unwrap()),
             system: self.job.system.clone(),
             name: self.job.name.clone(),
         }

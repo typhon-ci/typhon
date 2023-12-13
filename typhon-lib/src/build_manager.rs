@@ -72,28 +72,24 @@ impl State {
         abort_receiver: oneshot::Receiver<()>,
         res_sender: oneshot::Sender<Output>,
     ) -> Result<i32, Error> {
-        let (build, task) = self
-            .conn
-            .transaction::<(models::Build, tasks::Task), Error, _>(|conn| {
-                let max = schema::builds::table
-                    .filter(schema::builds::drv.eq(drv.to_string()))
-                    .select(diesel::dsl::max(schema::builds::num))
-                    .first::<Option<i64>>(conn)?
-                    .unwrap_or(0);
-                let num = max + 1;
-                let task = tasks::Task::new(conn)?;
-                let new_build = models::NewBuild {
-                    drv: &drv.to_string(),
-                    num,
-                    task_id: task.task.id,
-                    time_created: OffsetDateTime::now_utc().unix_timestamp(),
-                };
-                let build = diesel::insert_into(schema::builds::table)
-                    .values(&new_build)
-                    .get_result::<models::Build>(conn)?;
+        use uuid::{timestamp, Uuid};
 
-                Ok((build, task))
-            })?;
+        let task = tasks::Task::new(&mut self.conn)?;
+        let time_created = OffsetDateTime::now_utc().unix_timestamp();
+        let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
+            timestamp::context::NoContext,
+            time_created as u64,
+            0,
+        ));
+        let new_build = models::NewBuild {
+            drv: &drv.to_string(),
+            task_id: task.task.id,
+            time_created,
+            uuid: &uuid.to_string(),
+        };
+        let build = diesel::insert_into(schema::builds::table)
+            .values(&new_build)
+            .get_result::<models::Build>(&mut self.conn)?;
         let build = builds::Build { build, task };
 
         self.builds.insert(

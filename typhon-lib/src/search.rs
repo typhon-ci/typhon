@@ -3,6 +3,9 @@ use crate::*;
 use typhon_types::*;
 
 use diesel::prelude::*;
+use uuid::Uuid;
+
+use std::str::FromStr;
 
 pub fn search(
     limit: u8,
@@ -58,39 +61,39 @@ pub fn search(
                 .inner_join(
                     schema::tasks::table.on(schema::tasks::id.eq(schema::evaluations::task_id)),
                 )
-                .select((schema::projects::name, schema::evaluations::num))
+                .select(schema::evaluations::uuid)
                 .order(schema::evaluations::time_created.desc()),
             filters(s): [
                 s.project_name.map(|x| schema::projects::name.eq(x)),
                 s.jobset_name.map(|x| schema::evaluations::jobset_name.eq(x)),
                 s.status.map(|x| schema::tasks::status.eq(i32::from(x))),
             ],
-            |(project, num): (_, i64)| handles::evaluation((project, num as u64)),
+            |uuid: String| handles::evaluation(Uuid::from_str(&uuid).unwrap()),
             Results::Evaluations
         ),
         Kind::Builds(s) => run!(
             schema::builds::table
                 .inner_join(schema::tasks::table)
-                .select((schema::builds::drv, schema::builds::num))
+                .select(schema::builds::uuid)
                 .order(schema::builds::time_created.desc()),
             filters(s): [
                 s.drv.map(|x| schema::builds::drv.eq(x)),
                 s.status.map(|x| schema::tasks::status.eq(i32::from(x))),
             ],
-            |(drv, num): (_, i64)| handles::build((drv, num as u64)),
+            |uuid: String| handles::build(Uuid::from_str(&uuid).unwrap()),
             Results::Builds
         ),
         Kind::Actions(s) => run!(
             schema::actions::table
                 .inner_join(schema::projects::table)
                 .inner_join(schema::tasks::table)
-                .select((schema::projects::name, schema::actions::num))
+                .select(schema::actions::uuid)
                 .order(schema::actions::time_created.desc()),
             filters(s): [
                 s.project_name.map(|x| schema::projects::name.eq(x)),
                 s.status.map(|x| schema::tasks::status.eq(i32::from(x))),
             ],
-            |(project, action): (_, i64)| handles::action((project, action as u64)),
+            |uuid: String| handles::action(Uuid::from_str(&uuid).unwrap()),
             Results::Actions
         ),
         Kind::Runs(s) => run!(
@@ -99,18 +102,18 @@ pub fn search(
                     schema::jobs::table
                         .inner_join(schema::evaluations::table.inner_join(schema::projects::table)),
                 ).select(
-                    (schema::projects::name, schema::evaluations::num, schema::jobs::system, schema::jobs::name, schema::runs::num)
+                    (schema::evaluations::uuid, schema::jobs::system, schema::jobs::name, schema::runs::num)
                 ).order(schema::runs::time_created.desc()),
             filters(s): [
                 s.project_name.map(|x| schema::projects::name.eq(x)),
                 s.jobset_name.map(|x| schema::evaluations::jobset_name.eq(x)),
-                s.evaluation_num.map(|x| schema::evaluations::num.eq(x as i64)),
+                s.evaluation_uuid.map(|x| schema::evaluations::uuid.eq(x.to_string())),
                 s.job_name.map(|x| schema::jobs::name.eq(x)),
                 s.job_system.map(|x| schema::jobs::system.eq(x)),
             ],
-            |(project, eval, job_system, job_name, run): (_, i64, _, _, i64)| {
+            |(eval, job_system, job_name, run): (String, _, _, i64)| {
                 handles::run((
-                    project, eval as u64, job_system, job_name, run as u64
+                    Uuid::from_str(&eval).unwrap(), job_system, job_name, run as u64
                 ))
             },
             Results::Runs

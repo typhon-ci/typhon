@@ -64,11 +64,11 @@ pub struct Evaluation {
     pub flake: bool,
     pub id: i32,
     pub jobset_name: String,
-    pub num: i64,
     pub project_id: i32,
     pub task_id: i32,
     pub time_created: i64,
     pub url: String,
+    pub uuid: String,
 }
 
 #[derive(Insertable)]
@@ -77,11 +77,11 @@ pub struct NewEvaluation<'a> {
     pub actions_path: Option<&'a str>,
     pub flake: bool,
     pub jobset_name: &'a str,
-    pub num: i64,
     pub project_id: i32,
     pub task_id: i32,
     pub time_created: i64,
     pub url: &'a str,
+    pub uuid: &'a str,
 }
 
 #[derive(Queryable, Clone, Identifiable, Selectable)]
@@ -145,18 +145,18 @@ pub struct NewTask {
 pub struct Build {
     pub drv: String,
     pub id: i32,
-    pub num: i64,
     pub task_id: i32,
     pub time_created: i64,
+    pub uuid: String,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = builds)]
 pub struct NewBuild<'a> {
     pub drv: &'a str,
-    pub num: i64,
     pub task_id: i32,
     pub time_created: i64,
+    pub uuid: &'a str,
 }
 
 #[derive(Queryable, Clone, Identifiable, Selectable)]
@@ -167,11 +167,11 @@ pub struct Action {
     pub id: i32,
     pub input: String,
     pub name: String,
-    pub num: i64,
     pub path: String,
     pub project_id: i32,
     pub task_id: i32,
     pub time_created: i64,
+    pub uuid: String,
 }
 
 #[derive(Insertable)]
@@ -179,11 +179,11 @@ pub struct Action {
 pub struct NewAction<'a> {
     pub input: &'a str,
     pub name: &'a str,
-    pub num: i64,
     pub path: &'a str,
     pub project_id: i32,
     pub task_id: i32,
     pub time_created: i64,
+    pub uuid: &'a str,
 }
 
 #[derive(Queryable, Clone, Identifiable, Selectable)]

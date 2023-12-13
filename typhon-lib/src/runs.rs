@@ -15,6 +15,9 @@ use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
 
 use diesel::prelude::*;
+use uuid::Uuid;
+
+use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct Run {
@@ -66,8 +69,14 @@ impl Run {
                         .eq(schema::runs::end_id))
                     .inner_join(end_task),
             )
-            .filter(schema::projects::name.eq(&handle.job.evaluation.project.name))
-            .filter(schema::evaluations::num.eq(handle.job.evaluation.num as i64))
+            .filter(
+                schema::evaluations::uuid.eq(handle
+                    .job
+                    .evaluation
+                    .uuid
+                    .as_hyphenated()
+                    .to_string()),
+            )
             .filter(schema::jobs::system.eq(&handle.job.system))
             .filter(schema::jobs::name.eq(&handle.job.name))
             .filter(schema::runs::num.eq(handle.num as i64))
@@ -127,8 +136,7 @@ impl Run {
 
     pub fn handle(&self) -> handles::Run {
         handles::run((
-            self.project.name.clone(),
-            self.evaluation.num as u64,
+            Uuid::from_str(&self.evaluation.uuid).unwrap(),
             self.job.system.clone(),
             self.job.name.clone(),
             self.run.num as u64,
@@ -211,7 +219,7 @@ impl Run {
     fn mk_input(&self, status: TaskStatusKind) -> Result<serde_json::Value, Error> {
         Ok(serde_json::json!({
             "drv": self.job.drv,
-            "evaluation": self.evaluation.num,
+            "evaluation": self.evaluation.uuid,
             "flake": self.evaluation.flake,
             "job": self.job.name,
             "jobset": self.evaluation.jobset_name,

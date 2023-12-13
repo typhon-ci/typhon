@@ -19,8 +19,7 @@ impl Build {
     pub fn get(conn: &mut Conn, handle: &handles::Build) -> Result<Self, Error> {
         let (build, task) = schema::builds::table
             .inner_join(schema::tasks::table)
-            .filter(schema::builds::drv.eq(&handle.drv))
-            .filter(schema::builds::num.eq(handle.num as i64))
+            .filter(schema::builds::uuid.eq(handle.uuid.to_string()))
             .first(conn)
             .optional()?
             .ok_or(Error::BuildNotFound(handle.clone()))?;
@@ -31,7 +30,9 @@ impl Build {
     }
 
     pub fn handle(&self) -> handles::Build {
-        handles::build((self.build.drv.clone(), self.build.num as u64))
+        use std::str::FromStr;
+        use uuid::Uuid;
+        handles::build(Uuid::from_str(&self.build.uuid).unwrap())
     }
 
     pub fn info(&self) -> responses::BuildInfo {

@@ -5,11 +5,11 @@ diesel::table! {
         id -> Integer,
         input -> Text,
         name -> Text,
-        num -> BigInt,
         path -> Text,
         project_id -> Integer,
         task_id -> Integer,
         time_created -> BigInt,
+        uuid -> Text,
     }
 }
 
@@ -17,9 +17,9 @@ diesel::table! {
     builds (id) {
         drv -> Text,
         id -> Integer,
-        num -> BigInt,
         task_id -> Integer,
         time_created -> BigInt,
+        uuid -> Text,
     }
 }
 
@@ -29,11 +29,11 @@ diesel::table! {
         flake -> Bool,
         id -> Integer,
         jobset_name -> Text,
-        num -> BigInt,
         project_id -> Integer,
         task_id -> Integer,
         time_created -> BigInt,
         url -> Text,
+        uuid -> Text,
     }
 }
 

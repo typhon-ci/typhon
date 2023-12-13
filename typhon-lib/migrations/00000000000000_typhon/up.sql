@@ -27,12 +27,12 @@ CREATE TABLE evaluations (
     flake BOOL NOT NULL,
     id INTEGER NOT NULL PRIMARY KEY,
     jobset_name TEXT NOT NULL,
-    num BIGINT NOT NULL,
     project_id INTEGER NOT NULL REFERENCES projects (id),
     task_id INTEGER NOT NULL REFERENCES tasks (id),
     time_created BIGINT NOT NULL,
     url TEXT NOT NULL,
-    UNIQUE (project_id, num)
+    uuid TEXT NOT NULL,
+    UNIQUE (uuid)
 );
 
 CREATE TABLE jobs (
@@ -60,22 +60,22 @@ CREATE TABLE runs (
 CREATE TABLE builds (
     drv TEXT NOT NULL,
     id INTEGER NOT NULL PRIMARY KEY,
-    num BIGINT NOT NULL,
     task_id INTEGER NOT NULL REFERENCES tasks (id),
     time_created BIGINT NOT NULL,
-    UNIQUE (drv, num)
+    uuid TEXT NOT NULL,
+    UNIQUE (uuid)
 );
 
 CREATE TABLE actions (
     id INTEGER NOT NULL PRIMARY KEY,
     input TEXT NOT NULL,
     name TEXT NOT NULL,
-    num BIGINT NOT NULL,
     path TEXT NOT NULL,
     project_id INTEGER NOT NULL REFERENCES projects (id),
     task_id INTEGER NOT NULL REFERENCES tasks (id),
     time_created BIGINT NOT NULL,
-    UNIQUE (project_id, num)
+    uuid TEXT NOT NULL,
+    UNIQUE (uuid)
 );
 
 CREATE TABLE tasks (

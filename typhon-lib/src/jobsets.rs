@@ -96,33 +96,28 @@ impl Jobset {
         url: &String,
     ) -> Result<evaluations::Evaluation, Error> {
         use crate::tasks;
+        use uuid::{timestamp, Uuid};
 
-        let (evaluation, task) =
-            conn.transaction::<(models::Evaluation, tasks::Task), Error, _>(|conn| {
-                let task = tasks::Task::new(conn)?;
-                let time_created = OffsetDateTime::now_utc().unix_timestamp();
-                let max = schema::evaluations::table
-                    .filter(schema::evaluations::project_id.eq(self.project.id))
-                    .select(diesel::dsl::max(schema::evaluations::num))
-                    .first::<Option<i64>>(conn)?
-                    .unwrap_or(0);
-                let num = max + 1;
-                let new_evaluation = models::NewEvaluation {
-                    actions_path: self.project.actions_path.as_ref().map(|s| s.as_str()),
-                    flake: self.jobset.flake,
-                    jobset_name: &self.jobset.name,
-                    num,
-                    project_id: self.project.id,
-                    task_id: task.task.id,
-                    time_created,
-                    url: &url,
-                };
-                let evaluation = diesel::insert_into(schema::evaluations::table)
-                    .values(&new_evaluation)
-                    .get_result::<models::Evaluation>(conn)?;
-
-                Ok((evaluation, task))
-            })?;
+        let task = tasks::Task::new(conn)?;
+        let time_created = OffsetDateTime::now_utc().unix_timestamp();
+        let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
+            timestamp::context::NoContext,
+            time_created as u64,
+            0,
+        ));
+        let new_evaluation = models::NewEvaluation {
+            actions_path: self.project.actions_path.as_ref().map(|s| s.as_str()),
+            flake: self.jobset.flake,
+            jobset_name: &self.jobset.name,
+            project_id: self.project.id,
+            task_id: task.task.id,
+            time_created,
+            url: &url,
+            uuid: &uuid.to_string(),
+        };
+        let evaluation = diesel::insert_into(schema::evaluations::table)
+            .values(&new_evaluation)
+            .get_result::<models::Evaluation>(conn)?;
         let evaluation = evaluations::Evaluation {
             project: self.project.clone(),
             evaluation,

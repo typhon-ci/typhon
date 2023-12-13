@@ -20,3 +20,4 @@ serde_repr.workspace = true
 sha256.workspace = true
 time.workspace = true
 tokio.workspace = true
+uuid.workspace = true
