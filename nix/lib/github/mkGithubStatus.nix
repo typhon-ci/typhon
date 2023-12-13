@@ -54,7 +54,7 @@ utils: lib: {
            }' \
         )
 
-        curl -s \
+        curl -sf \
           --cacert ${utils.pkgs.${system}.cacert}/etc/ssl/certs/ca-bundle.crt \
           -X POST \
           -H "Accept: application/vnd.github+json" \

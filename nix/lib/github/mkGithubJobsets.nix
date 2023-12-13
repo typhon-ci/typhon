@@ -16,7 +16,7 @@ utils: lib: {
 
         token=$(echo "$input" | jq '.secrets.github_token' -r)
 
-        curl -s \
+        curl -sf \
           --cacert ${utils.pkgs.${system}.cacert}/etc/ssl/certs/ca-bundle.crt \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer $token" \
