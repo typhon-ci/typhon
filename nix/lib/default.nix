@@ -1,8 +1,8 @@
 {
   inputs ? import ../inputs.nix,
   systems ? import ../systems.nix,
+  utils ? import ../utils.nix {inherit inputs systems;},
 }: let
-  utils = import ./utils.nix {inherit inputs systems;};
   self =
     utils.importer null [
       ./dummy.nix

@@ -1,6 +1,6 @@
 {
-  inputs ? import ../inputs.nix,
-  systems ? import ../systems.nix,
+  inputs ? import ./inputs.nix,
+  systems ? import ./systems.nix,
 }: let
   self = rec {
     inherit systems;
