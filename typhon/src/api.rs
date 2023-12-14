@@ -195,11 +195,11 @@ r!(
             Job::Info,
         );
 
-    run_cancel(path: web::Path<(Uuid,String,String,u32)>) =>
-        Request::Run(
-            handles::run(path.into_inner()),
-            Run::Cancel,
-        );
+    //run_cancel(path: web::Path<(Uuid,String,String,u32)>) =>
+    //    Request::Run(
+    //        handles::run(path.into_inner()),
+    //        Run::Cancel,
+    //    );
 
     run_info(path: web::Path<(Uuid,String,String,u32)>) =>
         Request::Run(
@@ -377,8 +377,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                             .route("/dist/{path:.*}", web::get().to(dist))
                             .service(
                                 web::scope("/runs/{run}")
-                                    .route("", web::get().to(run_info))
-                                    .route("/cancel", web::post().to(run_cancel)),
+                                    //.route("/cancel", web::post().to(run_cancel))
+                                    .route("", web::get().to(run_info)),
                             ),
                     ),
             )

@@ -350,7 +350,7 @@ pub mod requests {
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Run {
-        Cancel,
+        //Cancel,
         Info,
     }
 

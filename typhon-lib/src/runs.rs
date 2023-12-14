@@ -31,9 +31,9 @@ pub struct Run {
 }
 
 impl Run {
-    pub fn cancel(&self) {
-        RUNS.cancel(self.run.id);
-    }
+    //pub fn cancel(&self) {
+    //    RUNS.cancel(self.run.id);
+    //}
 
     pub fn get(conn: &mut Conn, handle: &handles::Run) -> Result<Self, Error> {
         let (begin_action, end_action, begin_task, build_task, end_task) = diesel::alias!(

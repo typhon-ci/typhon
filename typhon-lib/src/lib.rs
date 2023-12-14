@@ -196,10 +196,10 @@ pub fn handle_request_aux(
         requests::Request::Run(run_handle, req) => {
             let run = Run::get(conn, &run_handle)?;
             match req {
-                requests::Run::Cancel => {
-                    run.cancel();
-                    Response::Ok
-                }
+                //requests::Run::Cancel => {
+                //    run.cancel();
+                //    Response::Ok
+                //}
                 requests::Run::Info => Response::RunInfo(run.info()),
             }
         }
