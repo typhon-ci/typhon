@@ -5,7 +5,7 @@
   self = rec {
     inherit systems;
 
-    lib = import "${inputs.nixpkgs}/lib";
+    lib = inputs.nixpkgs.lib;
 
     pkgs = lib.genAttrs systems (system: import inputs.nixpkgs {inherit system;});
 
