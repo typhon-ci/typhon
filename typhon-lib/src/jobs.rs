@@ -65,7 +65,7 @@ impl Job {
     }
 
     /** Create a new run in the database, without running it. */
-    pub fn new_run(self, conn: &mut Conn) -> Result<runs::Run, Error> {
+    pub fn new_run(&self, conn: &mut Conn) -> Result<runs::Run, Error> {
         let run = conn.transaction::<models::Run, Error, _>(|conn| {
             let num = self.job.tries + 1;
             diesel::update(&self.job)
