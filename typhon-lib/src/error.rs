@@ -14,6 +14,7 @@ pub enum Error {
     BadJobsetDecl(String),
     EvaluationNotFound(handles::Evaluation),
     IllegalProjectHandle(handles::Project),
+    JobAlreadyRunning(handles::Job),
     JobNotFound(handles::Job),
     JobsetNotFound(handles::Jobset),
     LogNotFound(handles::Log),
@@ -55,6 +56,9 @@ impl std::fmt::Display for Error {
             BadJobsetDecl(s) => write!(f, "Bad jobset declaration: {}", s),
             IllegalProjectHandle(handle) => {
                 write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contain dashes [-] or underscores [_].", handle.name)
+            }
+            JobAlreadyRunning(job_handle) => {
+                write!(f, "Job {} is already running", job_handle)
             }
             JobNotFound(job_handle) => {
                 write!(f, "Job {} not found", job_handle)
@@ -135,6 +139,7 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | BadProjectDecl
             | BadJobsetDecl(_)
             | IllegalProjectHandle(_)
+            | JobAlreadyRunning(_)
             | NixError(_)
             | ProjectAlreadyExists(_)
             | LoginError

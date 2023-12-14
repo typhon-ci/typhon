@@ -92,4 +92,13 @@ impl Job {
         log_event(Event::RunNew(run.handle()));
         Ok(run)
     }
+
+    pub fn rerun(&self, conn: &mut Conn) -> Result<(), Error> {
+        // TODO
+        // We should only allow rerunning a job when no other run is pending for
+        // that job. But we first need to rework runs, as it is currently hard
+        // to know wether a run is finished or not.
+        self.new_run(conn)?;
+        Ok(())
+    }
 }

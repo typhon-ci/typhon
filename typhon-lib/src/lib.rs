@@ -177,6 +177,10 @@ pub fn handle_request_aux(
             let job = Job::get(conn, &job_handle)?;
             match req {
                 requests::Job::Info => Response::JobInfo(job.info(conn)?),
+                requests::Job::Rerun => {
+                    job.rerun(conn)?;
+                    Response::Ok
+                }
             }
         }
         requests::Request::Build(build_handle, req) => {

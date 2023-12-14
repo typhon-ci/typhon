@@ -207,6 +207,12 @@ r!(
             Run::Info,
         );
 
+    job_rerun(path: web::Path<(Uuid,String,String)>) =>
+        Request::Job(
+            handles::job(path.into_inner()),
+            Job::Rerun,
+        );
+
     build_info(path: web::Path<Uuid>) =>
         Request::Build(
             handles::build(path.into_inner()),
@@ -374,6 +380,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .service(
                         web::scope("/jobs/{system}/{job}")
                             .route("", web::get().to(job_info))
+                            .route("/rerun", web::get().to(job_rerun))
                             .route("/dist/{path:.*}", web::get().to(dist))
                             .service(
                                 web::scope("/runs/{run}")

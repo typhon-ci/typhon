@@ -334,6 +334,7 @@ pub mod requests {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Job {
         Info,
+        Rerun,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
