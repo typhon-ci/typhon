@@ -26,7 +26,7 @@ pub fn search(
                 let data = page.load(conn)?.into_iter().map($reshape).collect();
                 responses::Response::Search(responses::search::Info {
                     results: $into_results(data),
-                    total: query().count().get_result::<i64>(conn)? as u64,
+                    total: query().count().get_result::<i64>(conn)? as u32,
                 })
             }};
         }

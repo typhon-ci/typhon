@@ -505,7 +505,7 @@ pub mod responses {
         }
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
         pub struct Info {
-            pub total: u64,
+            pub total: u32,
             pub results: Results,
         }
     }
