@@ -103,7 +103,6 @@ async fn action(
         "secrets": secrets,
     });
 
-    // TODO: use `--json-status-fd` to distinguish between fail from action VS fail from bwrap
     let mut child = sandboxed_command::new()
         .arg(&format!("{}/{}", path, name))
         .stdin(Stdio::piped())
