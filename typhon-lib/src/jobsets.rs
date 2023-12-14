@@ -98,31 +98,33 @@ impl Jobset {
         use crate::tasks;
         use uuid::{timestamp, Uuid};
 
-        let task = tasks::Task::new(conn)?;
-        let time_created = OffsetDateTime::now_utc().unix_timestamp();
-        let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
-            timestamp::context::NoContext,
-            time_created as u64,
-            0,
-        ));
-        let new_evaluation = models::NewEvaluation {
-            actions_path: self.project.actions_path.as_ref().map(|s| s.as_str()),
-            flake: self.jobset.flake,
-            jobset_name: &self.jobset.name,
-            project_id: self.project.id,
-            task_id: task.task.id,
-            time_created,
-            url: &url,
-            uuid: &uuid.to_string(),
-        };
-        let evaluation = diesel::insert_into(schema::evaluations::table)
-            .values(&new_evaluation)
-            .get_result::<models::Evaluation>(conn)?;
-        let evaluation = evaluations::Evaluation {
-            project: self.project.clone(),
-            evaluation,
-            task,
-        };
+        let evaluation = conn.transaction::<evaluations::Evaluation, Error, _>(|conn| {
+            let task = tasks::Task::new(conn)?;
+            let time_created = OffsetDateTime::now_utc().unix_timestamp();
+            let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
+                timestamp::context::NoContext,
+                time_created as u64,
+                0,
+            ));
+            let new_evaluation = models::NewEvaluation {
+                actions_path: self.project.actions_path.as_ref().map(|s| s.as_str()),
+                flake: self.jobset.flake,
+                jobset_name: &self.jobset.name,
+                project_id: self.project.id,
+                task_id: task.task.id,
+                time_created,
+                url: &url,
+                uuid: &uuid.to_string(),
+            };
+            let evaluation = diesel::insert_into(schema::evaluations::table)
+                .values(&new_evaluation)
+                .get_result::<models::Evaluation>(conn)?;
+            Ok(evaluations::Evaluation {
+                project: self.project.clone(),
+                evaluation,
+                task,
+            })
+        })?;
 
         let run = {
             let evaluation = evaluation.clone();

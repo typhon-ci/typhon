@@ -121,29 +121,31 @@ impl Project {
     ) -> Result<actions::Action, Error> {
         use uuid::{timestamp, Uuid};
 
-        let task = tasks::Task::new(conn)?;
-        let time_created = OffsetDateTime::now_utc().unix_timestamp();
-        let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
-            timestamp::context::NoContext,
-            time_created as u64,
-            0,
-        ));
-        let new_action = models::NewAction {
-            input: &input.to_string(),
-            name,
-            path,
-            project_id: self.project.id,
-            task_id: task.task.id,
-            time_created,
-            uuid: &uuid.to_string(),
-        };
-        let action = diesel::insert_into(schema::actions::table)
-            .values(&new_action)
-            .get_result::<models::Action>(conn)?;
-        Ok(actions::Action {
-            project: self.project.clone(),
-            action,
-            task,
+        conn.transaction::<actions::Action, Error, _>(|conn| {
+            let task = tasks::Task::new(conn)?;
+            let time_created = OffsetDateTime::now_utc().unix_timestamp();
+            let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
+                timestamp::context::NoContext,
+                time_created as u64,
+                0,
+            ));
+            let new_action = models::NewAction {
+                input: &input.to_string(),
+                name,
+                path,
+                project_id: self.project.id,
+                task_id: task.task.id,
+                time_created,
+                uuid: &uuid.to_string(),
+            };
+            let action = diesel::insert_into(schema::actions::table)
+                .values(&new_action)
+                .get_result::<models::Action>(conn)?;
+            Ok(actions::Action {
+                project: self.project.clone(),
+                action,
+                task,
+            })
         })
     }
 

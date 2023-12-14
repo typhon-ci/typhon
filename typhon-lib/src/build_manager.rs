@@ -74,23 +74,25 @@ impl State {
     ) -> Result<i32, Error> {
         use uuid::{timestamp, Uuid};
 
-        let task = tasks::Task::new(&mut self.conn)?;
-        let time_created = OffsetDateTime::now_utc().unix_timestamp();
-        let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
-            timestamp::context::NoContext,
-            time_created as u64,
-            0,
-        ));
-        let new_build = models::NewBuild {
-            drv: &drv.to_string(),
-            task_id: task.task.id,
-            time_created,
-            uuid: &uuid.to_string(),
-        };
-        let build = diesel::insert_into(schema::builds::table)
-            .values(&new_build)
-            .get_result::<models::Build>(&mut self.conn)?;
-        let build = builds::Build { build, task };
+        let build = self.conn.transaction::<builds::Build, Error, _>(|conn| {
+            let task = tasks::Task::new(conn)?;
+            let time_created = OffsetDateTime::now_utc().unix_timestamp();
+            let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
+                timestamp::context::NoContext,
+                time_created as u64,
+                0,
+            ));
+            let new_build = models::NewBuild {
+                drv: &drv.to_string(),
+                task_id: task.task.id,
+                time_created,
+                uuid: &uuid.to_string(),
+            };
+            let build = diesel::insert_into(schema::builds::table)
+                .values(&new_build)
+                .get_result::<models::Build>(conn)?;
+            Ok(builds::Build { build, task })
+        })?;
 
         self.builds.insert(
             drv.clone(),
