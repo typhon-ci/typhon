@@ -19,15 +19,22 @@
       then fn
       else lib: {${scope} = fn lib;};
 
-    importer = scope: files:
+    importList = scope: list:
       mkScope scope (
         lib.foldr
-        (file: fn: lib:
+        (path: fn: lib:
           unionOfDisjoint
-          (import file self lib)
+          (import path self lib)
           (fn lib))
         (_: {})
-        files
+        list
+      );
+
+    importPath = scope: path:
+      importList scope (
+        lib.mapAttrsToList (x: _: "${path}/${x}") (
+          builtins.removeAttrs (builtins.readDir path) ["default.nix"]
+        )
       );
   };
 in

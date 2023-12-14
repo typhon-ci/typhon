@@ -1,7 +1,1 @@
-utils:
-utils.importer "github" [
-  ./githubWebhook.nix
-  ./mkGithubJobsets.nix
-  ./mkGithubProject.nix
-  ./mkGithubStatus.nix
-]
+utils: utils.importPath "github" ./.
