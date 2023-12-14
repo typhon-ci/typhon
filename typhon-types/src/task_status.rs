@@ -23,6 +23,7 @@ pub enum TaskStatus {
 /** The kind of status a task can have: basically [`TaskStatus`] without
  * any time information. */
 #[derive(Copy, Clone, Debug, Hash, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum TaskStatusKind {
     #[default]

@@ -5,6 +5,7 @@ pub mod handles {
     use uuid::Uuid;
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[serde(transparent)]
     pub struct Project {
         pub name: String,
     }
@@ -25,6 +26,7 @@ pub mod handles {
         pub name: String,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[serde(transparent)]
     pub struct Evaluation {
         pub uuid: Uuid,
     }
@@ -36,14 +38,17 @@ pub mod handles {
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct Run {
+        #[serde(flatten)]
         pub job: Job,
         pub num: u64,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[serde(transparent)]
     pub struct Build {
         pub uuid: Uuid,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[serde(transparent)]
     pub struct Action {
         pub uuid: Uuid,
     }
@@ -228,6 +233,8 @@ pub mod requests {
         use uuid::Uuid;
 
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        #[serde(rename_all = "lowercase")]
+        #[serde(tag = "type")]
         pub enum Kind {
             Projects,
             Jobsets(Jobset),
@@ -241,6 +248,7 @@ pub mod requests {
         pub struct Request {
             pub limit: u8,
             pub offset: u32,
+            #[serde(flatten)]
             pub kind: Kind,
         }
 
