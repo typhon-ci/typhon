@@ -40,7 +40,7 @@ pub mod handles {
     pub struct Run {
         #[serde(flatten)]
         pub job: Job,
-        pub num: u64,
+        pub num: u32,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     #[serde(transparent)]
@@ -198,7 +198,7 @@ pub mod handles {
             name,
         }
     }
-    pub fn run((evaluation, system, job, num): (Uuid, String, String, u64)) -> Run {
+    pub fn run((evaluation, system, job, num): (Uuid, String, String, u32)) -> Run {
         Run {
             job: selfmod::job((evaluation, system, job)),
             num,

@@ -46,6 +46,7 @@ diesel::table! {
         name -> Text,
         out -> Text,
         system -> Text,
+        tries -> Integer,
     }
 }
 
@@ -89,7 +90,7 @@ diesel::table! {
         end_id -> Nullable<Integer>,
         id -> Integer,
         job_id -> Integer,
-        num -> BigInt,
+        num -> Integer,
         time_created -> BigInt,
     }
 }

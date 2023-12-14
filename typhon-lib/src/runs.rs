@@ -79,7 +79,7 @@ impl Run {
             )
             .filter(schema::jobs::system.eq(&handle.job.system))
             .filter(schema::jobs::name.eq(&handle.job.name))
-            .filter(schema::runs::num.eq(handle.num as i64))
+            .filter(schema::runs::num.eq(handle.num as i32))
             .select((
                 schema::jobs::all_columns,
                 schema::evaluations::all_columns,
@@ -139,7 +139,7 @@ impl Run {
             Uuid::from_str(&self.evaluation.uuid).unwrap(),
             self.job.system.clone(),
             self.job.name.clone(),
-            self.run.num as u64,
+            self.run.num as u32,
         ))
     }
 

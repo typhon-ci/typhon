@@ -195,13 +195,13 @@ r!(
             Job::Info,
         );
 
-    run_cancel(path: web::Path<(Uuid,String,String,u64)>) =>
+    run_cancel(path: web::Path<(Uuid,String,String,u32)>) =>
         Request::Run(
             handles::run(path.into_inner()),
             Run::Cancel,
         );
 
-    run_info(path: web::Path<(Uuid,String,String,u64)>) =>
+    run_info(path: web::Path<(Uuid,String,String,u32)>) =>
         Request::Run(
             handles::run(path.into_inner()),
             Run::Info,

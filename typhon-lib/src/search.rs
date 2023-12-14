@@ -111,9 +111,9 @@ pub fn search(
                 s.job_name.map(|x| schema::jobs::name.eq(x)),
                 s.job_system.map(|x| schema::jobs::system.eq(x)),
             ],
-            |(eval, job_system, job_name, run): (String, _, _, i64)| {
+            |(eval, job_system, job_name, run): (String, _, _, i32)| {
                 handles::run((
-                    Uuid::from_str(&eval).unwrap(), job_system, job_name, run as u64
+                    Uuid::from_str(&eval).unwrap(), job_system, job_name, run as u32
                 ))
             },
             Results::Runs

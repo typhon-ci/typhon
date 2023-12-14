@@ -67,14 +67,13 @@ impl Job {
     /** Create a new run in the database, without running it. */
     pub fn new_run(self, conn: &mut Conn) -> Result<runs::Run, Error> {
         let run = conn.transaction::<models::Run, Error, _>(|conn| {
-            let max = schema::runs::table
-                .filter(schema::runs::job_id.eq(self.job.id))
-                .select(diesel::dsl::max(schema::runs::num))
-                .first::<Option<i64>>(conn)?
-                .unwrap_or(0);
+            let num = self.job.tries + 1;
+            diesel::update(&self.job)
+                .set(schema::jobs::tries.eq(num))
+                .execute(conn)?;
             let new_run = models::NewRun {
                 job_id: self.job.id,
-                num: max + 1,
+                num,
                 time_created: OffsetDateTime::now_utc().unix_timestamp(),
             };
             Ok(diesel::insert_into(schema::runs::table)

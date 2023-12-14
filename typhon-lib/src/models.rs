@@ -95,6 +95,7 @@ pub struct Job {
     pub name: String,
     pub out: String,
     pub system: String,
+    pub tries: i32,
 }
 
 #[derive(Insertable)]
@@ -106,6 +107,7 @@ pub struct NewJob<'a> {
     pub name: &'a str,
     pub out: &'a str,
     pub system: &'a str,
+    pub tries: i32,
 }
 
 #[derive(Queryable, Clone, Identifiable, Selectable)]
@@ -196,7 +198,7 @@ pub struct Run {
     pub end_id: Option<i32>,
     pub id: i32,
     pub job_id: i32,
-    pub num: i64,
+    pub num: i32,
     pub time_created: i64,
 }
 
@@ -204,6 +206,6 @@ pub struct Run {
 #[diesel(table_name = runs)]
 pub struct NewRun {
     pub job_id: i32,
-    pub num: i64,
+    pub num: i32,
     pub time_created: i64,
 }

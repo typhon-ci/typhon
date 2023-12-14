@@ -43,6 +43,7 @@ CREATE TABLE jobs (
     name TEXT NOT NULL,
     out TEXT NOT NULL,
     system TEXT NOT NULL,
+    tries INTEGER NOT NULL,
     UNIQUE (evaluation_id, system, name)
 );
 
@@ -52,7 +53,7 @@ CREATE TABLE runs (
     end_id INTEGER REFERENCES actions (id),
     id INTEGER NOT NULL PRIMARY KEY,
     job_id INTEGER NOT NULL REFERENCES jobs (id),
-    num BIGINT NOT NULL,
+    num INTEGER NOT NULL,
     time_created BIGINT NOT NULL,
     UNIQUE (job_id, num)
 );

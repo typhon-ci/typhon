@@ -46,7 +46,7 @@ impl responses::RunInfo {
         responses::RunInfo {
             handle: handles::Run {
                 job: job_handle.clone(),
-                num: run.num as u64,
+                num: run.num as u32,
             },
             begin: begin.map(to_action_info),
             build: build.map(|(build, task)| responses::BuildInfo {
@@ -67,7 +67,6 @@ impl responses::JobInfo {
         eval_handle: &handles::Evaluation,
         job: models::Job,
         run: models::Run,
-        run_count: u32,
         begin: Option<(models::Action, models::Task)>,
         build: Option<(models::Build, models::Task)>,
         end: Option<(models::Action, models::Task)>,
@@ -84,7 +83,7 @@ impl responses::JobInfo {
             out: job.out,
             system: job.system,
             last_run: responses::RunInfo::new(project_handle, &job_handle, run, begin, build, end),
-            run_count,
+            run_count: job.tries as u32,
         }
     }
 }
@@ -145,12 +144,6 @@ impl Evaluation {
             schema::tasks as end_task,
             schema::runs as subruns,
         );
-        let runs_per_job = schema::jobs::table
-            .inner_join(schema::runs::table)
-            .group_by(schema::runs::job_id)
-            .select((schema::runs::job_id, diesel::dsl::count(schema::runs::id)))
-            .load::<(i32, i64)>(conn)?;
-        let runs_per_job: HashMap<i32, i64> = runs_per_job.iter().copied().collect();
         let mut query = schema::jobs::table
             .inner_join(schema::runs::table)
             .left_join(
@@ -212,7 +205,6 @@ impl Evaluation {
             .into_iter()
             .map(
                 |(job, run, begin, build, end): (models::Job, models::Run, _, _, _)| {
-                    let run_count = runs_per_job.get(&run.id).copied().unwrap_or(1) as u32;
                     let (system, name) = (job.system.clone(), job.name.clone());
                     (
                         responses::JobSystemName { system, name },
@@ -221,7 +213,6 @@ impl Evaluation {
                             &eval_handle,
                             job,
                             run,
-                            run_count,
                             begin,
                             build,
                             end,
@@ -295,6 +286,7 @@ impl Evaluation {
                             .expect("TODO: derivations can have multiple outputs")
                             .1,
                         system: &system,
+                        tries: 0,
                     };
                     let job = diesel::insert_into(schema::jobs::table)
                         .values(&new_job)
