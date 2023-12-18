@@ -7,7 +7,6 @@ use crate::nix::DrvPath;
 use crate::schema;
 use crate::tasks;
 use crate::Conn;
-use crate::DbPool;
 use crate::POOL;
 use crate::RUNTIME;
 
@@ -121,7 +120,7 @@ impl State {
             let drv = drv.clone();
             let handle = build.handle();
             let sender = sender.clone();
-            |res, _: &DbPool| {
+            |res| {
                 let status = finish_build(drv, sender, res);
                 (status, Event::BuildFinished(handle))
             }

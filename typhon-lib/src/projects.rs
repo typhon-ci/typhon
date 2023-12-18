@@ -7,8 +7,8 @@ use crate::nix;
 use crate::schema;
 use crate::tasks;
 use crate::Conn;
-use crate::DbPool;
 use crate::CURRENT_SYSTEM;
+use crate::POOL;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 
@@ -185,10 +185,9 @@ impl Project {
 
         let finish = {
             let self_ = self.clone();
-            move |res: Option<Result<(String, ProjectMetadata, Option<String>), Error>>,
-                  pool: &DbPool| {
+            move |res: Option<Result<(String, ProjectMetadata, Option<String>), Error>>| {
                 let status = match res {
-                    Some(Ok(x)) => self_.finish_refresh(x, pool),
+                    Some(Ok(x)) => self_.finish_refresh(x),
                     Some(Err(e)) => {
                         log::warn!("refresh error for project {}: {}", self_.handle(), e);
                         Ok(TaskStatusKind::Error)
@@ -253,14 +252,14 @@ impl Project {
 
         let finish = {
             let self_ = self.clone();
-            move |output: Option<String>, pool: &DbPool| {
+            move |output: Option<String>| {
                 let status = match output {
                     Some(output) => {
                         let decls: Result<HashMap<String, jobsets::JobsetDecl>, Error> =
                             serde_json::from_str(&output).map_err(|_| Error::BadJobsetDecl(output));
                         match decls {
                             Ok(decls) => {
-                                if self_.finish_update_jobsets(decls, pool).is_ok() {
+                                if self_.finish_update_jobsets(decls).is_ok() {
                                     TaskStatusKind::Success
                                 } else {
                                     TaskStatusKind::Error
@@ -303,7 +302,7 @@ impl Project {
 
         let finish = {
             let handle = self.handle();
-            move |output: Option<String>, _: &DbPool| match output {
+            move |output: Option<String>| match output {
                 Some(output) => match serde_json::from_str::<actions::webhooks::Output>(&output) {
                     Ok(cmds) => {
                         let cmds = cmds
@@ -333,9 +332,8 @@ impl Project {
     fn finish_refresh(
         &self,
         (url_locked, meta, actions_path): (String, ProjectMetadata, Option<String>),
-        pool: &DbPool,
     ) -> Result<TaskStatusKind, Error> {
-        let mut conn = pool.get().unwrap();
+        let mut conn = POOL.get().unwrap();
         diesel::update(&self.project)
             .set((
                 schema::projects::actions_path.eq(actions_path),
@@ -352,9 +350,8 @@ impl Project {
     fn finish_update_jobsets(
         &self,
         decls: HashMap<String, jobsets::JobsetDecl>,
-        pool: &DbPool,
     ) -> Result<TaskStatusKind, Error> {
-        let mut conn = pool.get().unwrap();
+        let mut conn = POOL.get().unwrap();
         let mut current_jobsets: Vec<jobsets::Jobset> = schema::jobsets::table
             .filter(schema::jobsets::project_id.eq(&self.project.id))
             .load::<models::Jobset>(&mut conn)?

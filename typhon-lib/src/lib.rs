@@ -77,8 +77,8 @@ pub static POOL: Lazy<DbPool> = Lazy::new(pool);
 pub static SETTINGS: Lazy<Settings> = Lazy::new(|| Settings {
     hashed_password: std::env::var("HASHED_PASSWORD").unwrap(),
 });
-pub static RUNS: Lazy<TaskManager<i32, DbPool>> = Lazy::new(|| TaskManager::new(&POOL));
-pub static TASKS: Lazy<TaskManager<i32, DbPool>> = Lazy::new(|| TaskManager::new(&POOL));
+pub static RUNS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
+pub static TASKS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
 pub static LOGS: Lazy<logs::live::Cache<i32>> = Lazy::new(logs::live::Cache::new);
 pub static EVENT_LOGGER: Lazy<events::EventLogger> = Lazy::new(events::EventLogger::new);
 pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);

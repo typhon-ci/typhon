@@ -3,7 +3,7 @@ use crate::log_event;
 use crate::models;
 use crate::schema;
 use crate::Conn;
-use crate::DbPool;
+use crate::POOL;
 use crate::{LOGS, TASKS};
 
 use typhon_types::data::TaskStatusKind;
@@ -64,7 +64,7 @@ impl Task {
         T: Send + 'static,
         O: Future<Output = T> + Send + 'static,
         F: (FnOnce(mpsc::UnboundedSender<String>) -> O) + Send + 'static,
-        G: (FnOnce(Option<T>, &DbPool) -> (TaskStatusKind, Event)) + Send + Sync + 'static,
+        G: (FnOnce(Option<T>) -> (TaskStatusKind, Event)) + Send + Sync + 'static,
     >(
         &self,
         conn: &mut Conn,
@@ -87,9 +87,9 @@ impl Task {
         };
         let finish = {
             let task = self.clone();
-            move |res: Option<T>, pool: &DbPool| {
-                let mut conn = pool.get().unwrap();
-                let (status_kind, event) = finish(res, pool);
+            move |res: Option<T>| {
+                let mut conn = POOL.get().unwrap();
+                let (status_kind, event) = finish(res);
                 let time_finished = OffsetDateTime::now_utc();
                 let stderr = LOGS.dump(&id).unwrap_or(String::new()); // FIXME
                 let status = status_kind.into_task_status(start, Some(time_finished));

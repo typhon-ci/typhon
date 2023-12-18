@@ -8,7 +8,7 @@ use crate::responses;
 use crate::schema;
 use crate::tasks;
 use crate::Conn;
-use crate::DbPool;
+use crate::POOL;
 use crate::RUNS;
 
 use typhon_types::data::TaskStatusKind;
@@ -196,9 +196,9 @@ impl Run {
         // run the 'end' action
         let finish_run = {
             let self_ = self.clone();
-            let finish_err = move |status, pool: &DbPool| {
+            let finish_err = move |status| {
                 if let Some(status) = status {
-                    let mut conn = pool.get().unwrap();
+                    let mut conn = POOL.get().unwrap();
                     let action_end = self_.spawn_action(&mut conn, "end", status)?;
                     diesel::update(&self_.run)
                         .set((schema::runs::end_id.eq(action_end.action.id),))
@@ -207,8 +207,8 @@ impl Run {
                 }
                 Ok::<_, Error>(())
             };
-            move |status, pool: &DbPool| {
-                finish_err(status, pool).unwrap(); // FIXME
+            move |status| {
+                finish_err(status).unwrap(); // FIXME
             }
         };
 
@@ -258,7 +258,7 @@ impl Run {
             &input,
         )?;
 
-        let finish = move |res, _: &DbPool| match res {
+        let finish = move |res| match res {
             Some(_) => TaskStatusKind::Success,
             None => TaskStatusKind::Error,
         };

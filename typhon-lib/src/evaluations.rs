@@ -6,7 +6,7 @@ use crate::responses;
 use crate::schema;
 use crate::tasks;
 use crate::Conn;
-use crate::DbPool;
+use crate::POOL;
 
 use std::collections::HashMap;
 use typhon_types::data::TaskStatusKind;
@@ -93,12 +93,8 @@ impl Evaluation {
         self.task.cancel()
     }
 
-    pub fn finish(
-        self,
-        r: Option<Result<nix::NewJobs, nix::Error>>,
-        pool: &DbPool,
-    ) -> TaskStatusKind {
-        let mut conn = pool.get().unwrap();
+    pub fn finish(self, r: Option<Result<nix::NewJobs, nix::Error>>) -> TaskStatusKind {
+        let mut conn = POOL.get().unwrap();
         match r {
             Some(Ok(new_jobs)) => match self.create_new_jobs(&mut conn, new_jobs) {
                 Ok(()) => TaskStatusKind::Success,

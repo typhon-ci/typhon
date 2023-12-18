@@ -4,7 +4,6 @@ use crate::projects;
 use crate::schema;
 use crate::tasks;
 use crate::Conn;
-use crate::DbPool;
 
 use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
@@ -176,7 +175,7 @@ impl Action {
         self.task.log(conn)
     }
 
-    pub fn spawn<F: (FnOnce(Option<String>, &DbPool) -> TaskStatusKind) + Send + Sync + 'static>(
+    pub fn spawn<F: (FnOnce(Option<String>) -> TaskStatusKind) + Send + Sync + 'static>(
         &self,
         conn: &mut Conn,
         finish: F,
@@ -203,15 +202,15 @@ impl Action {
 
         let finish = {
             let handle = self.handle();
-            move |res: Option<Result<String, error::Error>>, pool: &DbPool| {
+            move |res: Option<Result<String, error::Error>>| {
                 let status = match res {
                     Some(Err(_)) => {
-                        let _ = finish(None, pool);
+                        let _ = finish(None);
                         TaskStatusKind::Error
                     }
-                    Some(Ok(stdout)) => finish(Some(stdout), pool),
+                    Some(Ok(stdout)) => finish(Some(stdout)),
                     None => {
-                        let _ = finish(None, pool);
+                        let _ = finish(None);
                         TaskStatusKind::Canceled
                     }
                 };

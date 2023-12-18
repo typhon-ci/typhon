@@ -16,10 +16,10 @@ impl std::fmt::Display for Error {
     }
 }
 
-enum Msg<Id, St: 'static> {
+enum Msg<Id> {
     Cancel(Id),
     Finish(Id),
-    Run(Id, oneshot::Sender<()>, oneshot::Sender<&'static St>),
+    Run(Id, oneshot::Sender<()>),
     Shutdown,
     Wait(Id, oneshot::Sender<()>),
 }
@@ -29,17 +29,15 @@ struct TaskHandle {
     waiters: Vec<oneshot::Sender<()>>,
 }
 
-pub struct TaskManager<Id, St: 'static> {
-    msg_send: mpsc::UnboundedSender<Msg<Id, St>>,
+pub struct TaskManager<Id> {
+    msg_send: mpsc::UnboundedSender<Msg<Id>>,
     watch: watch::Receiver<()>,
 }
 
-impl<
-        Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static,
-        St: Send + Sync,
-    > TaskManager<Id, St>
+impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static>
+    TaskManager<Id>
 {
-    pub fn new(state: &'static St) -> Self {
+    pub fn new() -> Self {
         let (msg_send, mut msg_recv) = mpsc::unbounded_channel();
         let (watch_send, watch) = watch::channel(());
         tokio::spawn(async move {
@@ -62,8 +60,7 @@ impl<
                             break;
                         }
                     }
-                    (false, Msg::Run(id, cancel_send, state_send)) => {
-                        let _ = state_send.send(state);
+                    (false, Msg::Run(id, cancel_send)) => {
                         let task = TaskHandle {
                             canceler: Some(cancel_send),
                             waiters: Vec::new(),
@@ -108,7 +105,7 @@ impl<
     pub fn run<
         T: Send + 'static,
         O: Future<Output = T> + Send + 'static,
-        F: (FnOnce(Option<T>, &St) -> ()) + Send + Sync + 'static,
+        F: (FnOnce(Option<T>) -> ()) + Send + Sync + 'static,
     >(
         &self,
         id: Id,
@@ -118,19 +115,17 @@ impl<
         use tokio::task::spawn_blocking;
 
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
-        let (state_send, state_recv) = oneshot::channel::<&'static St>();
         let sender_self = self.msg_send.clone();
         let id_bis = id.clone();
         tokio::spawn(async move {
-            let state = state_recv.await.unwrap(); // FIXME
             let r = tokio::select! {
                 _ = cancel_recv => None,
                 r = run => Some(r),
             };
-            let _ = spawn_blocking(move || finish(r, state)).await;
+            let _ = spawn_blocking(move || finish(r)).await;
             let _ = sender_self.send(Msg::Finish(id_bis));
         });
-        let _ = self.msg_send.send(Msg::Run(id, cancel_send, state_send));
+        let _ = self.msg_send.send(Msg::Run(id, cancel_send));
     }
 
     pub fn cancel(&self, id: Id) {

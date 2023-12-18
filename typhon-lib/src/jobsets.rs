@@ -5,7 +5,6 @@ use crate::models;
 use crate::nix;
 use crate::schema;
 use crate::Conn;
-use crate::DbPool;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 
@@ -133,9 +132,9 @@ impl Jobset {
 
         let finish = {
             let evaluation = evaluation.clone();
-            move |r, pool: &DbPool| {
+            move |r| {
                 let handle = evaluation.handle();
-                let status = evaluation.finish(r, pool);
+                let status = evaluation.finish(r);
                 (status, Event::EvaluationFinished(handle))
             }
         };
