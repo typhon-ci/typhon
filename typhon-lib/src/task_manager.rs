@@ -19,12 +19,7 @@ impl std::fmt::Display for Error {
 enum Msg<Id, St: 'static> {
     Cancel(Id),
     Finish(Id),
-    Run(
-        Id,
-        oneshot::Sender<mpsc::UnboundedSender<()>>,
-        oneshot::Sender<()>,
-        oneshot::Sender<&'static St>,
-    ),
+    Run(Id, oneshot::Sender<()>, oneshot::Sender<&'static St>),
     Shutdown,
     Wait(Id, oneshot::Sender<()>),
 }
@@ -48,7 +43,6 @@ impl<
         let (msg_send, mut msg_recv) = mpsc::unbounded_channel();
         let (watch_send, watch) = watch::channel(());
         tokio::spawn(async move {
-            let (finish_send, mut finish_recv) = mpsc::unbounded_channel();
             let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();
             let mut shutdown = false;
             while let Some(msg) = msg_recv.recv().await {
@@ -68,8 +62,7 @@ impl<
                             break;
                         }
                     }
-                    (false, Msg::Run(id, finish_send_send, cancel_send, state_send)) => {
-                        let _ = finish_send_send.send(finish_send.clone());
+                    (false, Msg::Run(id, cancel_send, state_send)) => {
                         let _ = state_send.send(state);
                         let task = TaskHandle {
                             canceler: Some(cancel_send),
@@ -100,8 +93,6 @@ impl<
                     _ => (),
                 }
             }
-            drop(finish_send);
-            let _ = finish_recv.recv().await;
             let _watch_send = watch_send;
         });
         Self { msg_send, watch }
@@ -127,7 +118,6 @@ impl<
         use tokio::task::spawn_blocking;
 
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
-        let (finish_send_send, finish_send_recv) = oneshot::channel::<mpsc::UnboundedSender<()>>();
         let (state_send, state_recv) = oneshot::channel::<&'static St>();
         let sender_self = self.msg_send.clone();
         let id_bis = id.clone();
@@ -139,11 +129,8 @@ impl<
             };
             let _ = spawn_blocking(move || finish(r, state)).await;
             let _ = sender_self.send(Msg::Finish(id_bis));
-            let _ = finish_send_recv.await;
         });
-        let _ = self
-            .msg_send
-            .send(Msg::Run(id, finish_send_send, cancel_send, state_send));
+        let _ = self.msg_send.send(Msg::Run(id, cancel_send, state_send));
     }
 
     pub fn cancel(&self, id: Id) {
