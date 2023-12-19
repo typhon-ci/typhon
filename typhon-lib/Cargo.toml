@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 typhon-types.workspace = true
 age.workspace = true
+async-recursion.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 diesel.workspace = true

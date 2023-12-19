@@ -103,7 +103,7 @@ impl Task {
             }
         };
 
-        TASKS.run(id, run, finish);
+        TASKS.run(id, (run, finish));
 
         Ok(())
     }

@@ -34,6 +34,73 @@ pub struct TaskManager<Id> {
     watch: watch::Receiver<()>,
 }
 
+pub trait Task {
+    type T: Send + 'static;
+    fn get(
+        self,
+    ) -> (
+        impl Future<Output = Self::T> + Send + 'static,
+        impl FnOnce(Option<Self::T>) -> Option<impl Task + Send + 'static> + Send + 'static,
+    );
+}
+
+#[allow(refining_impl_trait)]
+impl Task for () {
+    type T = ();
+    fn get(
+        self,
+    ) -> (
+        impl Future<Output = Self::T> + Send + 'static,
+        impl FnOnce(Option<Self::T>) -> Option<()> + Send + 'static,
+    ) {
+        (async move {}, move |_| None)
+    }
+}
+
+#[allow(refining_impl_trait)]
+impl<
+        T: Send + 'static,
+        F: Future<Output = T> + Send + 'static,
+        Fn: FnOnce(Option<T>) -> () + Send + 'static,
+    > Task for (F, Fn)
+{
+    type T = T;
+    fn get(
+        self,
+    ) -> (
+        impl Future<Output = Self::T> + Send + 'static,
+        impl FnOnce(Option<Self::T>) -> Option<()> + Send + 'static,
+    ) {
+        (self.0, move |x| {
+            self.1(x);
+            None
+        })
+    }
+}
+
+#[allow(refining_impl_trait)]
+impl<
+        A: Send + 'static,
+        B,
+        C: Send + 'static,
+        F1: Future<Output = A> + Send + 'static,
+        Fn1: FnOnce(Option<A>) -> B + Send + 'static,
+        F2: Future<Output = C> + Send + 'static,
+        G: FnOnce(B) -> F2 + Send + 'static,
+        Fn2: FnOnce(Option<C>) -> () + Send + 'static,
+    > Task for (F1, Fn1, G, Fn2)
+{
+    type T = A;
+    fn get(
+        self,
+    ) -> (
+        impl Future<Output = Self::T> + Send + 'static,
+        impl FnOnce(Option<Self::T>) -> Option<(F2, Fn2)> + Send + 'static,
+    ) {
+        (self.0, move |x| Some((self.2(self.1(x)), self.3)))
+    }
+}
+
 impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static>
     TaskManager<Id>
 {
@@ -102,29 +169,46 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
     }
 
     // TODO: `finish` should be able to output an error
-    pub fn run<
-        T: Send + 'static,
-        O: Future<Output = T> + Send + 'static,
-        F: (FnOnce(Option<T>) -> ()) + Send + Sync + 'static,
-    >(
-        &self,
-        id: Id,
-        run: O,
-        finish: F,
-    ) {
+    pub fn run<T: Task + Send + 'static>(&self, id: Id, task: T) {
         use tokio::task::spawn_blocking;
 
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
         let sender_self = self.msg_send.clone();
         let id_bis = id.clone();
+
+        let (cancel_thread_send, mut cancel_thread_recv) =
+            mpsc::unbounded_channel::<oneshot::Sender<()>>();
+        let cancel_thread = tokio::spawn(async move {
+            let _ = cancel_recv.await;
+            while let Some(cancel_step_send) = cancel_thread_recv.recv().await {
+                let _ = cancel_step_send.send(());
+            }
+        });
+
         tokio::spawn(async move {
-            let r = tokio::select! {
-                _ = cancel_recv => None,
-                r = run => Some(r),
-            };
-            let _ = spawn_blocking(move || finish(r)).await;
+            #[async_recursion::async_recursion]
+            async fn aux(
+                cancel_thread_send: mpsc::UnboundedSender<oneshot::Sender<()>>,
+                task: impl Task + Send + 'static,
+            ) {
+                let (run, finish) = task.get();
+                let (cancel_step_send, cancel_step_recv) = oneshot::channel();
+                let _ = cancel_thread_send.send(cancel_step_send);
+                let r = tokio::select! {
+                    _ = cancel_step_recv => None,
+                    r = run => Some(r),
+                };
+                let maybe_task = spawn_blocking(move || finish(r)).await.unwrap_or(None);
+                if let Some(task) = maybe_task {
+                    aux(cancel_thread_send, task).await;
+                }
+            }
+            aux(cancel_thread_send, task).await;
+            cancel_thread.abort();
+            let _ = cancel_thread.await;
             let _ = sender_self.send(Msg::Finish(id_bis));
         });
+
         let _ = self.msg_send.send(Msg::Run(id, cancel_send));
     }
 

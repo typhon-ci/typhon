@@ -212,7 +212,7 @@ impl Run {
             }
         };
 
-        RUNS.run(self.run.id, run_run, finish_run);
+        RUNS.run(self.run.id, (run_run, finish_run));
 
         Ok(())
     }
