@@ -209,6 +209,7 @@ impl Run {
             };
             move |status| {
                 finish_err(status).unwrap(); // FIXME
+                None::<()>
             }
         };
 

@@ -60,8 +60,9 @@ impl Task for () {
 #[allow(refining_impl_trait)]
 impl<
         T: Send + 'static,
+        C: Task + Send + 'static,
         F: Future<Output = T> + Send + 'static,
-        Fn: FnOnce(Option<T>) -> () + Send + 'static,
+        Fn: FnOnce(Option<T>) -> Option<C> + Send + 'static,
     > Task for (F, Fn)
 {
     type T = T;
@@ -69,35 +70,9 @@ impl<
         self,
     ) -> (
         impl Future<Output = Self::T> + Send + 'static,
-        impl FnOnce(Option<Self::T>) -> Option<()> + Send + 'static,
+        impl FnOnce(Option<Self::T>) -> Option<C> + Send + 'static,
     ) {
-        (self.0, move |x| {
-            self.1(x);
-            None
-        })
-    }
-}
-
-#[allow(refining_impl_trait)]
-impl<
-        A: Send + 'static,
-        B,
-        C: Send + 'static,
-        F1: Future<Output = A> + Send + 'static,
-        Fn1: FnOnce(Option<A>) -> B + Send + 'static,
-        F2: Future<Output = C> + Send + 'static,
-        G: FnOnce(B) -> F2 + Send + 'static,
-        Fn2: FnOnce(Option<C>) -> () + Send + 'static,
-    > Task for (F1, Fn1, G, Fn2)
-{
-    type T = A;
-    fn get(
-        self,
-    ) -> (
-        impl Future<Output = Self::T> + Send + 'static,
-        impl FnOnce(Option<Self::T>) -> Option<(F2, Fn2)> + Send + 'static,
-    ) {
-        (self.0, move |x| Some((self.2(self.1(x)), self.3)))
+        self
     }
 }
 

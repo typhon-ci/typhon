@@ -100,6 +100,7 @@ impl Task {
                     .execute(&mut conn)
                     .unwrap(); // TODO: handle error properly
                 log_event(event);
+                None::<()>
             }
         };
 
