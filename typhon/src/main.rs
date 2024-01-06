@@ -58,18 +58,16 @@ async fn main() -> std::io::Result<()> {
         let leptos_options = &conf.leptos_options;
         let site_root = &leptos_options.site_root;
         App::new()
-            // webapp
+            .wrap(SessionMiddleware::new(
+                CookieSessionStore::default(),
+                secret_key.clone(),
+            ))
+            .configure(api::config)
             .route("/leptos/{tail:.*}", leptos_actix::handle_server_fns())
             .service(Files::new("/pkg", format!("{site_root}/pkg")))
             .service(Files::new("/assets", site_root))
             .leptos_routes(leptos_options.to_owned(), routes.to_owned(), App)
             .app_data(web::Data::new(leptos_options.to_owned()))
-            // server
-            .configure(api::config)
-            .wrap(SessionMiddleware::new(
-                CookieSessionStore::default(),
-                secret_key.clone(),
-            ))
     })
     .bind(&addr)?
     .run()
