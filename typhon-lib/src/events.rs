@@ -52,6 +52,7 @@ impl EventLogger {
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let _ = self.sender.send(Msg::Listen(sender));
         Some(async_stream::stream! {
+            yield Event::Ping;
             while let Some(e) = receiver.recv().await {
                 yield e;
             }

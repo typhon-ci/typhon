@@ -27,15 +27,19 @@ pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> {
         let readable_stream: web_sys::ReadableStream = body.unwrap();
         let readable_stream: sys::ReadableStream = readable_stream.unchecked_into();
         let readable_stream: ReadableStream = ReadableStream::from_raw(readable_stream);
-        readable_stream.into_stream().map(|item| {
-            let text_decoder = web_sys::TextDecoder::new().unwrap();
-            let item = text_decoder
-                .decode_with_buffer_source(&item.unwrap().into())
-                .unwrap();
-            item.strip_suffix("\n")
-                .map(|s| s.to_owned())
-                .unwrap_or(item)
-        })
+        readable_stream
+            .into_stream()
+            .filter_map(|item| core::future::ready(item.ok()))
+            .map(|item| {
+                let text_decoder = web_sys::TextDecoder::new().unwrap();
+                let buffer = text_decoder
+                    .decode_with_buffer_source(&item.into())
+                    .unwrap();
+                buffer
+                    .strip_suffix("\n")
+                    .map(|s| s.to_owned())
+                    .unwrap_or(buffer)
+            })
     }
     .into_stream()
     .flatten()

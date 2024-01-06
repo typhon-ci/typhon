@@ -547,6 +547,7 @@ pub mod responses {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Event {
+    Ping,
     ProjectNew(handles::Project),
     //ProjectDeleted(handles::Project),
     ProjectUpdated(handles::Project),
