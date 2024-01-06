@@ -1,34 +1,23 @@
 use typhon_types::*;
 
 use async_stream::stream;
+#[cfg(feature = "hydrate")]
+use futures::future::FutureExt;
 use futures_core::stream::Stream;
+#[cfg(feature = "hydrate")]
+use futures_util::stream::StreamExt;
 #[cfg(feature = "hydrate")]
 use gloo_console::log;
 #[cfg(feature = "hydrate")]
 use gloo_net::http;
 #[cfg(feature = "hydrate")]
-use gloo_utils::format::JsValueSerdeExt;
+use wasm_bindgen::JsCast;
 #[cfg(feature = "hydrate")]
-use js_sys::Promise;
-#[cfg(feature = "hydrate")]
-use wasm_bindgen::prelude::*;
+use wasm_streams::readable::*;
 
 #[cfg(feature = "hydrate")]
-#[wasm_bindgen(inline_js = "export async function read_chunk_by_chunk(reader) {
-    let next = async () => {
-        let o = await reader.read();
-        return o.done ? null : {chunk: new TextDecoder().decode(o.value), next};
-    };
-    return next();
- }
-")]
-extern "C" {
-    fn read_chunk_by_chunk(reader: js_sys::Object) -> Promise;
-}
-
-#[cfg(feature = "hydrate")]
-pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'static {
-    stream! {
+pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> {
+    async move {
         let res = req
             .send()
             .await
@@ -36,27 +25,20 @@ pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> + 'stat
             .unwrap();
         let body = res.body();
         let readable_stream: web_sys::ReadableStream = body.unwrap();
-        let reader: js_sys::Object = readable_stream.get_reader();
-        let promise = read_chunk_by_chunk(reader);
-        let mut maybe_promise = Some(promise);
-        while let Some(promise) = maybe_promise {
-            let future = wasm_bindgen_futures::JsFuture::from(promise);
-            let it = future.await.unwrap();
-            if it.is_null() {
-                maybe_promise = None;
-            } else {
-                let o = js_sys::Object::from(it);
-                let chunk = js_sys::Reflect::get(&o, &"chunk".into()).unwrap();
-                let value = chunk.into_serde().unwrap();
-                yield value;
-                let next = js_sys::Function::from(js_sys::Reflect::get(&o, &"next".into()).unwrap());
-                let promise =
-                    js_sys::Reflect::apply(&next, &js_sys::Object::new(), &js_sys::Array::new())
-                    .unwrap();
-                maybe_promise = Some(promise.into());
-            }
-        }
+        let readable_stream: sys::ReadableStream = readable_stream.unchecked_into();
+        let readable_stream: ReadableStream = ReadableStream::from_raw(readable_stream);
+        readable_stream.into_stream().map(|item| {
+            let text_decoder = web_sys::TextDecoder::new().unwrap();
+            let item = text_decoder
+                .decode_with_buffer_source(&item.unwrap().into())
+                .unwrap();
+            item.strip_suffix("\n")
+                .map(|s| s.to_owned())
+                .unwrap_or(item)
+        })
     }
+    .into_stream()
+    .flatten()
 }
 
 #[cfg(feature = "hydrate")]

@@ -11,7 +11,9 @@ typhon-lib = { workspace = true, optional = true }
 typhon-types.workspace = true
 actix-session = { workspace = true, optional = true }
 async-stream.workspace = true
+futures.workspace = true
 futures-core.workspace = true
+futures-util.workspace = true
 gloo-console = { workspace = true, optional = true }
 gloo-net = { workspace = true, optional = true }
 gloo-utils = { workspace = true, optional = true }
@@ -23,6 +25,7 @@ serde.workspace = true
 serde_json = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
+wasm-streams = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
 
 [features]
@@ -35,6 +38,7 @@ hydrate = [
     "dep:serde_json",
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
+    "dep:wasm-streams",
     "dep:web-sys",
     "leptos/hydrate",
     "leptos_router/hydrate",
