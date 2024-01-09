@@ -328,7 +328,6 @@ pub mod requests {
     pub enum Evaluation {
         Cancel,
         Info,
-        Log,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -340,13 +339,11 @@ pub mod requests {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Build {
         Info,
-        Log,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Action {
         Info,
-        Log,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -523,7 +520,6 @@ pub mod responses {
         BuildInfo(BuildInfo),
         ActionInfo(ActionInfo),
         RunInfo(RunInfo),
-        Log(Option<String>),
         User(Option<data::User>),
     }
 
@@ -579,13 +575,10 @@ impl Event {
             }
             (Ev::ProjectUpdated(h1), Req::Project(h2, Project::Info)) => h1 == h2,
             (Ev::ProjectUpdated(h1), Req::Jobset(h2, Jobset::Info)) => *h1 == h2.project,
-            (
-                Ev::EvaluationFinished(h1),
-                Req::Evaluation(h2, Evaluation::Info | Evaluation::Log),
-            ) => h1 == h2,
-            (Ev::BuildFinished(h1), Req::Build(h2, Build::Info | Build::Log)) => h1 == h2,
+            (Ev::EvaluationFinished(h1), Req::Evaluation(h2, Evaluation::Info)) => h1 == h2,
+            (Ev::BuildFinished(h1), Req::Build(h2, Build::Info)) => h1 == h2,
             (Ev::RunUpdated(h1), Req::Run(h2, Run::Info)) => h1 == h2,
-            (Ev::ActionFinished(h1), Req::Action(h2, Action::Info | Action::Log)) => h1 == h2,
+            (Ev::ActionFinished(h1), Req::Action(h2, Action::Info)) => h1 == h2,
             (_, _) => false,
         }
     }

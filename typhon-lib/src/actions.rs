@@ -171,10 +171,6 @@ impl Action {
         }
     }
 
-    pub fn log(&self, conn: &mut Conn) -> Result<Option<String>, error::Error> {
-        self.task.log(conn)
-    }
-
     pub fn spawn<F: (FnOnce(Option<String>) -> TaskStatusKind) + Send + Sync + 'static>(
         &self,
         conn: &mut Conn,

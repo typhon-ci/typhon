@@ -243,10 +243,6 @@ impl Evaluation {
         })
     }
 
-    pub fn log(&self, conn: &mut Conn) -> Result<Option<String>, Error> {
-        self.task.log(conn)
-    }
-
     pub async fn run(
         self,
         sender: mpsc::UnboundedSender<String>,

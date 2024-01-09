@@ -1,8 +1,8 @@
 use typhon_lib::error;
 use typhon_lib::handle_request;
+use typhon_lib::log;
 use typhon_lib::User;
 use typhon_lib::EVENT_LOGGER;
-use typhon_lib::{live_log_action, live_log_build};
 use typhon_types::handles;
 use typhon_types::requests::*;
 use typhon_types::responses::{Response, ResponseError};
@@ -56,7 +56,6 @@ impl Responder for ResponseWrapper {
             BuildInfo(payload) => web::Json(payload).respond_to(req),
             ActionInfo(payload) => web::Json(payload).respond_to(req),
             RunInfo(payload) => web::Json(payload).respond_to(req),
-            Log(payload) => web::Json(payload).respond_to(req),
             User(payload) => web::Json(payload).respond_to(req),
         }
     }
@@ -183,12 +182,6 @@ r!(
             Evaluation::Info,
         );
 
-    evaluation_log(path: web::Path<Uuid>) =>
-        Request::Evaluation(
-            handles::evaluation(path.into_inner()),
-            Evaluation::Log,
-        );
-
     job_info(path: web::Path<(Uuid,String,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
@@ -219,22 +212,10 @@ r!(
             Build::Info,
         );
 
-    build_log(path: web::Path<Uuid>) =>
-        Request::Build(
-            handles::build(path.into_inner()),
-            Build::Log,
-        );
-
     action_info(path: web::Path<Uuid>) =>
         Request::Action(
             handles::action(path.into_inner()),
             Action::Info,
-        );
-
-    action_log(path: web::Path<Uuid>) =>
-        Request::Action(
-            handles::action(path.into_inner()),
-            Action::Log,
         );
 
     login(body: web::Json<String>) =>
@@ -274,19 +255,23 @@ fn streaming_response(
     HttpResponse::Ok().streaming(stream)
 }
 
-async fn build_live_log(
+async fn evaluation_log(
     path: web::Path<Uuid>,
 ) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
-    let handle = handles::build(path.into_inner());
-    let maybe_stream = web::block(move || live_log_build(handle)).await??;
+    let handle = handles::Log::Evaluation(handles::evaluation(path.into_inner()));
+    let maybe_stream = web::block(move || log(handle)).await??;
     Ok(maybe_stream.map(streaming_response))
 }
 
-async fn action_live_log(
-    path: web::Path<Uuid>,
-) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
-    let handle = handles::action(path.into_inner());
-    let maybe_stream = web::block(move || live_log_action(handle)).await??;
+async fn build_log(path: web::Path<Uuid>) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
+    let handle = handles::Log::Build(handles::build(path.into_inner()));
+    let maybe_stream = web::block(move || log(handle)).await??;
+    Ok(maybe_stream.map(streaming_response))
+}
+
+async fn action_log(path: web::Path<Uuid>) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
+    let handle = handles::Log::Action(handles::action(path.into_inner()));
+    let maybe_stream = web::block(move || log(handle)).await??;
     Ok(maybe_stream.map(streaming_response))
 }
 
@@ -355,8 +340,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("/builds/{build}")
                     .route("", web::get().to(build_info))
-                    .route("/log", web::get().to(build_log))
-                    .route("/live_log", web::get().to(build_live_log)),
+                    .route("/log", web::get().to(build_log)),
             )
             .service(
                 web::scope("/projects/{project}")
@@ -394,8 +378,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("/actions/{action}")
                     .route("", web::get().to(action_info))
-                    .route("/log", web::get().to(action_log))
-                    .route("/live_log", web::get().to(action_live_log)),
+                    .route("/log", web::get().to(action_log)),
             )
             .route("/login", web::post().to(login))
             .route(

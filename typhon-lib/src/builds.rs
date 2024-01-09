@@ -55,8 +55,4 @@ impl Build {
                 build,
             }))
     }
-
-    pub fn log(&self, conn: &mut Conn) -> Result<Option<String>, Error> {
-        self.task.log(conn)
-    }
 }

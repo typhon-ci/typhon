@@ -11,6 +11,7 @@ use typhon_types::responses::TaskStatus;
 use typhon_types::Event;
 
 use diesel::prelude::*;
+use futures_core::stream::Stream;
 use std::future::Future;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
@@ -38,12 +39,23 @@ impl Task {
         TASKS.cancel(self.task.id);
     }
 
-    pub fn log(&self, conn: &mut Conn) -> Result<Option<String>, Error> {
+    pub fn log(&self, conn: &mut Conn) -> Result<Option<impl Stream<Item = String>>, Error> {
+        let stream = LOGS.listen(&self.task.id);
         let stderr = schema::logs::dsl::logs
             .find(self.task.log_id)
             .select(schema::logs::stderr)
             .first::<Option<String>>(conn)?;
-        Ok(stderr)
+        Ok(Some(async_stream::stream! {
+            if let Some(stream) = stream {
+                for await line in stream {
+                    yield line;
+                }
+            } else if let Some(stderr) = stderr {
+                for line in stderr.split('\n') {
+                    yield line.to_string();
+                }
+            }
+        }))
     }
 
     pub fn new(conn: &mut Conn) -> Result<Self, Error> {

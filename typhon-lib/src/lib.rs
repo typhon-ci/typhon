@@ -41,6 +41,7 @@ use task_manager::TaskManager;
 use diesel::prelude::*;
 use diesel::r2d2;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use futures_core::stream::Stream;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
@@ -114,11 +115,11 @@ pub fn authorize_request(user: &User, req: &requests::Request) -> bool {
         Request::Search { .. }
         | Request::Project(_, Project::Info)
         | Request::Jobset(_, Jobset::Info)
-        | Request::Evaluation(_, Evaluation::Info | Evaluation::Log)
+        | Request::Evaluation(_, Evaluation::Info)
         | Request::Job(_, Job::Info)
         | Request::Run(_, Run::Info)
-        | Request::Build(_, Build::Info | Build::Log)
-        | Request::Action(_, Action::Info | Action::Log)
+        | Request::Build(_, Build::Info)
+        | Request::Action(_, Action::Info)
         | Request::Login { .. }
         | Request::User => true,
         _ => user.is_admin(),
@@ -172,7 +173,6 @@ pub fn handle_request_aux(
                     Response::Ok
                 }
                 requests::Evaluation::Info => Response::EvaluationInfo(evaluation.info(conn)?),
-                requests::Evaluation::Log => Response::Log(evaluation.log(conn)?),
             }
         }
         requests::Request::Job(job_handle, req) => {
@@ -189,14 +189,12 @@ pub fn handle_request_aux(
             let build = Build::get(conn, &build_handle)?;
             match req {
                 requests::Build::Info => Response::BuildInfo(build.info()),
-                requests::Build::Log => Response::Log(build.log(conn)?),
             }
         }
         requests::Request::Action(action_handle, req) => {
             let action = Action::get(conn, &action_handle)?;
             match req {
                 requests::Action::Info => Response::ActionInfo(action.info()),
-                requests::Action::Log => Response::Log(action.log(conn)?),
             }
         }
         requests::Request::Run(run_handle, req) => {
@@ -248,20 +246,17 @@ pub fn log_event(event: Event) {
     EVENT_LOGGER.log(event);
 }
 
-pub fn live_log_build(
-    handle: handles::Build,
-) -> Result<Option<impl futures_core::stream::Stream<Item = String>>, Error> {
+pub fn log(handle: handles::Log) -> Result<Option<impl Stream<Item = String>>, Error> {
     let mut conn = POOL.get().unwrap();
-    let build = builds::Build::get(&mut conn, &handle)?;
-    Ok(LOGS.listen(&build.task.task.id))
-}
-
-pub fn live_log_action(
-    handle: handles::Action,
-) -> Result<Option<impl futures_core::stream::Stream<Item = String>>, Error> {
-    let mut conn = POOL.get().unwrap();
-    let action = actions::Action::get(&mut conn, &handle)?;
-    Ok(LOGS.listen(&action.task.task.id))
+    match handle {
+        handles::Log::Evaluation(handle) => evaluations::Evaluation::get(&mut conn, &handle)?
+            .task
+            .log(&mut conn),
+        handles::Log::Build(handle) => builds::Build::get(&mut conn, &handle)?.task.log(&mut conn),
+        handles::Log::Action(handle) => actions::Action::get(&mut conn, &handle)?
+            .task
+            .log(&mut conn),
+    }
 }
 
 pub fn webhook(
