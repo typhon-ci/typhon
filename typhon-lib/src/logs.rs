@@ -60,14 +60,11 @@ pub mod live {
                                 .expect("log channels need to be initialized before sending lines");
                             lines.push(line.clone());
 
-                            let mut new_listeners: Listeners = Vec::new();
-                            for listener in listeners.drain(..) {
-                                match listener.send(line.clone()) {
-                                    Ok(()) => new_listeners.push(listener),
-                                    Err(_) => (),
-                                }
-                            }
-                            *listeners = new_listeners;
+                            *listeners = listeners
+                                .iter()
+                                .filter(|listener| listener.send(line.clone()).is_ok())
+                                .cloned()
+                                .collect();
                         }
                         Msg::Listen {
                             id,
