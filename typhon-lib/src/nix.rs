@@ -120,7 +120,7 @@ async fn handle_logs(
                     if drv_id == Some(id) {
                         let line = format!(
                             "@nix {} \"action\": \"setPhase\", \"phase\": \"{}\" {}",
-                            "{", "}", phase
+                            "{", phase, "}"
                         );
                         let _ = sender.send(line);
                     }
