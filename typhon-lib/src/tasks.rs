@@ -90,6 +90,7 @@ impl Task {
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let run = async move {
+            LOGS.init(&id);
             let (res, ()) = tokio::join!(run(sender), async move {
                 while let Some(line) = receiver.recv().await {
                     LOGS.send_line(&id, line);
@@ -103,9 +104,8 @@ impl Task {
                 let mut conn = POOL.get().unwrap();
                 let (status_kind, event) = finish(res);
                 let time_finished = OffsetDateTime::now_utc();
-                let stderr = LOGS.dump(&id).unwrap_or(String::new()); // FIXME
+                let stderr = LOGS.remove(&id).unwrap_or(String::new()); // FIXME
                 let status = status_kind.into_task_status(start, Some(time_finished));
-                LOGS.reset(&id);
                 task.set_status(&mut conn, status).unwrap();
                 diesel::update(schema::logs::table.filter(schema::logs::id.eq(task.task.log_id)))
                     .set(schema::logs::stderr.eq(stderr))

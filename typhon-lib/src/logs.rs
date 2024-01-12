@@ -9,12 +9,11 @@ pub mod live {
 
     #[derive(Debug)]
     enum Msg<Id> {
-        Dump {
+        Remove {
             id: Id,
-            dump_sender: oneshot::Sender<String>,
-            not_found_sender: oneshot::Sender<bool>,
+            dump_sender: oneshot::Sender<Option<String>>,
         },
-        Reset {
+        Init {
             id: Id,
         },
         Line {
@@ -47,31 +46,18 @@ pub mod live {
                 let mut state: HashMap<Id, (Vec<String>, Listeners)> = HashMap::new();
                 while let Some(msg) = receiver.recv().await {
                     match msg {
-                        Msg::Dump {
-                            id,
-                            dump_sender,
-                            not_found_sender,
-                        } => {
-                            if let Some((lines, _listeners)) = state.get_mut(&id) {
-                                not_found_sender.send(false).unwrap();
-                                let mut dump: Vec<String> = Vec::new();
-                                for line in lines {
-                                    dump.push(line.to_string());
-                                }
-                                dump_sender.send(dump.join("\n")).unwrap();
-                            } else {
-                                not_found_sender.send(true).unwrap();
-                                drop(dump_sender);
-                            }
+                        Msg::Remove { id, dump_sender } => {
+                            dump_sender
+                                .send(state.remove(&id).map(|(lines, _)| lines.join("\n")))
+                                .unwrap();
                         }
-                        Msg::Reset { id } => {
-                            state.remove(&id);
+                        Msg::Init { id } => {
+                            state.insert(id.clone(), (Vec::new(), Vec::new()));
                         }
                         Msg::Line { id, line } => {
-                            if !state.contains_key(&id) {
-                                state.insert(id.clone(), (vec![], Vec::new()));
-                            }
-                            let (lines, ref mut listeners) = state.get_mut(&id).unwrap();
+                            let (lines, ref mut listeners) = state
+                                .get_mut(&id)
+                                .expect("log channels need to be initialized before sending lines");
                             lines.push(line.clone());
 
                             let mut new_listeners: Listeners = Vec::new();
@@ -96,7 +82,6 @@ pub mod live {
                                 listeners.push(lines_sender);
                             } else {
                                 not_found_sender.send(true).unwrap();
-                                drop(lines_sender)
                             }
                         }
                         Msg::Shutdown => break,
@@ -107,22 +92,19 @@ pub mod live {
             Self { sender, watch }
         }
 
-        pub fn dump(&self, id: &Id) -> Option<String> {
-            let (dump_sender, dump_receiver) = oneshot::channel();
-            let (not_found_sender, not_found_receiver) = oneshot::channel();
+        pub fn remove(&self, id: &Id) -> Option<String> {
+            let (dump_sender, remove_receiver) = oneshot::channel();
             self.sender
-                .send(Msg::Dump {
+                .send(Msg::Remove {
                     id: id.clone(),
                     dump_sender,
-                    not_found_sender,
                 })
                 .unwrap();
+            remove_receiver.blocking_recv().unwrap()
+        }
 
-            if not_found_receiver.blocking_recv().unwrap() {
-                None
-            } else {
-                Some(dump_receiver.blocking_recv().unwrap())
-            }
+        pub fn init(&self, id: &Id) -> () {
+            self.sender.send(Msg::Init { id: id.clone() }).unwrap();
         }
 
         pub fn listen(&self, id: &Id) -> Option<impl futures_core::stream::Stream<Item = String>> {
@@ -154,10 +136,6 @@ pub mod live {
                     line,
                 })
                 .unwrap()
-        }
-
-        pub fn reset(&self, id: &Id) {
-            self.sender.send(Msg::Reset { id: id.clone() }).unwrap()
         }
 
         pub async fn shutdown(&self) {
