@@ -346,17 +346,6 @@ fn Main(
                 </ul>
             </section>
             {job_items}
-            <section>
-                <h1>Details</h1>
-                <ul style="padding: 0;">
-                    {mk_item(
-                        EvaluationTab::Usage,
-                        view! { <Icon icon=Icon::from(BiTimerRegular)/> },
-                        view! { Usage }.into_view(),
-                    )}
-
-                </ul>
-            </section>
         </nav>
         // <div>
         <div class="contents">
@@ -378,7 +367,6 @@ fn Main(
                                 <JobSubpage job log_tab/>
                             }
                         }
-                        EvaluationTab::Usage => "Usage page, todo".into_view(),
                     }
                 }
             }

@@ -155,7 +155,6 @@ pub enum EvaluationTab {
         handle: handles::Job,
         log_tab: LogTab,
     },
-    Usage,
 }
 
 impl EvaluationTab {
@@ -222,7 +221,6 @@ impl TryFrom<Location> for Root {
                             EvaluationTab::Job { handle, log_tab }
                         }
                         [] => EvaluationTab::Summary,
-                        ["usage"] => EvaluationTab::Usage,
                         _ => Err(r)?,
                     };
                     Self::Evaluation(EvaluationPage { handle, tab })
@@ -259,7 +257,6 @@ impl From<Root> for String {
                         format!("{}/{}/{}", handle.system, handle.name, log_tab)
                     }
                     EvaluationTab::Summary => "".into(),
-                    EvaluationTab::Usage => "usage".into(),
                 }
             ),
         }
