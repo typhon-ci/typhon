@@ -143,7 +143,7 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
             transform: translateY("0.1em");
         }
     };
-    let (open, set_open) = create_signal(HashSet::<GroupId>::new());
+    let (close, set_close) = create_signal(HashSet::<GroupId>::new());
     let state: Memo<State> = create_memo(move |state: Option<&State>| {
         let mut state = state.cloned().unwrap_or_default();
         for line in contents.get() {
@@ -151,11 +151,7 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
         }
         state
     });
-    let is_visible = move |line: &Line| line.group_stack.iter().all(|id| open().contains(id));
-    // let is_visible = move |line: &Line| {
-    //     let line = line.clone();
-    //     Signal::derive(move || line.group_stack.iter().all(|id| open().contains(id)))
-    // };
+    let is_hidden = move |line: &Line| line.group_stack.iter().any(|id| close().contains(id));
     view! { class=styler_class,
         <div class="log">
             <For
@@ -170,12 +166,12 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
                             class="line"
                             class:hidden={
                                 let line = line.clone();
-                                move || !is_visible(&line)
+                                move || is_hidden(&line)
                             }
 
                             on:click=move |_| {
                                 if let Some(id) = line.starts_group {
-                                    set_open
+                                    set_close
                                         .update(move |map| {
                                             if !map.insert(id) {
                                                 map.remove(&id);
@@ -197,10 +193,10 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
                                 {move || {
                                     line.starts_group
                                         .map(|id| {
-                                            let icon = if open().contains(&id) {
-                                                BiDownArrowSolid
-                                            } else {
+                                            let icon = if close().contains(&id) {
                                                 BiRightArrowSolid
+                                            } else {
+                                                BiDownArrowSolid
                                             };
                                             view! {
                                                 <span class="icon">
