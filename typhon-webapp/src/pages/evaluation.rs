@@ -379,7 +379,7 @@ fn Main(
             .iter()
             .map(|(_, info)| TaskStatus::from(info.last_run.clone()))
             .reduce(|a, b| a.union(&b))
-            .unwrap()
+            .unwrap_or_default()
     });
     let global_status_kind: Memo<TaskStatusKind> = create_memo(move |_| global_status().into());
     let style = style! {

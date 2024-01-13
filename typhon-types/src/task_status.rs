@@ -20,6 +20,12 @@ pub enum TaskStatus {
     Canceled(Option<TimeRange>),
 }
 
+impl Default for TaskStatus {
+    fn default() -> Self {
+        Self::Pending { start: None }
+    }
+}
+
 /** The kind of status a task can have: basically [`TaskStatus`] without
  * any time information. */
 #[derive(Copy, Clone, Debug, Hash, Default, PartialEq, Eq, Serialize, Deserialize)]
