@@ -112,32 +112,6 @@ pub fn JobSubpage(#[prop(into)] job: responses::JobInfo) -> impl IntoView {
             padding-top: 2px;
             color: #8C959F;
         }
-        .search {
-            display: flex;
-            align-items: center;
-            background: #32383F;
-            border-radius: 6px;
-            padding: 0px 8px;
-            height: "32px";
-        }
-        .search input {
-            padding: 0px 8px;
-            margin: 0px;
-            background: none;
-            border: none;
-            color: inherit;
-        }
-        .search .indicator {
-            color: #8C959F;
-            font-size: 80%;
-            margin-right: 4px;
-        }
-        .search :deep(svg) {
-            color: #8C959F;
-        }
-        .search input:focus {
-            outline: none;
-        }
     };
     view! { class=style,
         <div class="header">
@@ -147,13 +121,6 @@ pub fn JobSubpage(#[prop(into)] job: responses::JobInfo) -> impl IntoView {
                     <span>{format!(" ({})", job.handle.system)}</span>
                 </h1>
                 <h2>succeeded DDD days ago in DURATION</h2>
-            </div>
-            <div class="search">
-                <Icon icon=Icon::from(BiSearchAltRegular)/>
-                <input placeholder="Search logs"/>
-                <div class="indicator">0/0</div>
-                <Icon icon=Icon::from(BiChevronUpRegular)/>
-                <Icon icon=Icon::from(BiChevronDownRegular)/>
             </div>
             <Icon icon=Icon::from(BiRefreshRegular)/>
             <Icon icon=Icon::from(BiCogRegular)/>
