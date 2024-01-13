@@ -399,6 +399,7 @@ pub mod requests {
 pub mod responses {
     use crate::data;
     use crate::handles;
+    use std::collections::HashMap;
 
     pub use crate::task_status::{TaskStatus, TaskStatusKind, TimeRange};
     use serde::{Deserialize, Serialize};
@@ -441,12 +442,60 @@ pub mod responses {
         pub name: String,
     }
 
+    fn serialize_jobs<S>(
+        jobs: &HashMap<JobSystemName, JobInfo>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut x: HashMap<String, HashMap<String, JobInfo>> = HashMap::new();
+        for (system_name, info) in jobs.clone() {
+            match x.get_mut(&system_name.system) {
+                Some(y) => {
+                    y.insert(system_name.name, info);
+                }
+                None => {
+                    let mut y = HashMap::new();
+                    y.insert(system_name.name, info);
+                    x.insert(system_name.system, y);
+                }
+            }
+        }
+        serde::Serialize::serialize(&x, serializer)
+    }
+
+    fn deserialize_jobs<'de, D>(
+        deserializer: D,
+    ) -> Result<HashMap<JobSystemName, JobInfo>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let x: HashMap<String, HashMap<String, JobInfo>> =
+            serde::Deserialize::deserialize(deserializer)?;
+        let mut jobs = HashMap::new();
+        for (system, y) in x {
+            for (name, info) in y {
+                jobs.insert(
+                    JobSystemName {
+                        system: system.clone(),
+                        name,
+                    },
+                    info,
+                );
+            }
+        }
+        Ok(jobs)
+    }
+
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
         pub handle: handles::Evaluation,
         pub actions_path: Option<String>,
         pub flake: bool,
-        pub jobs: std::collections::HashMap<JobSystemName, JobInfo>,
+        #[serde(serialize_with = "serialize_jobs")]
+        #[serde(deserialize_with = "deserialize_jobs")]
+        pub jobs: HashMap<JobSystemName, JobInfo>,
         pub jobset_name: String,
         pub project: handles::Project,
         pub status: TaskStatus,
