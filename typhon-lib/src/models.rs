@@ -10,7 +10,7 @@ use crate::schema::tasks;
 
 use diesel::prelude::*;
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = projects)]
 pub struct Project {
     pub actions_path: Option<String>,
@@ -26,7 +26,7 @@ pub struct Project {
     pub url_locked: String,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = projects)]
 pub struct NewProject<'a> {
     pub flake: bool,
@@ -35,7 +35,7 @@ pub struct NewProject<'a> {
     pub url: &'a str,
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = jobsets)]
 #[diesel(belongs_to(Project))]
 pub struct Jobset {
@@ -46,7 +46,7 @@ pub struct Jobset {
     pub url: String,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = jobsets)]
 pub struct NewJobset<'a> {
     pub flake: bool,
@@ -55,7 +55,7 @@ pub struct NewJobset<'a> {
     pub url: &'a str,
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = evaluations)]
 #[diesel(belongs_to(Project))]
 #[diesel(belongs_to(Task))]
@@ -71,7 +71,7 @@ pub struct Evaluation {
     pub uuid: String,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = evaluations)]
 pub struct NewEvaluation<'a> {
     pub actions_path: Option<&'a str>,
@@ -84,7 +84,7 @@ pub struct NewEvaluation<'a> {
     pub uuid: &'a str,
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = jobs)]
 #[diesel(belongs_to(Evaluation))]
 pub struct Job {
@@ -98,7 +98,7 @@ pub struct Job {
     pub tries: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = jobs)]
 pub struct NewJob<'a> {
     pub dist: bool,
@@ -110,20 +110,20 @@ pub struct NewJob<'a> {
     pub tries: i32,
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = logs)]
 pub struct Log {
     pub id: i32,
     pub stderr: Option<String>,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = logs)]
 pub struct NewLog<'a> {
     pub stderr: Option<&'a str>, // FIXME
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = tasks)]
 #[diesel(belongs_to(Log))]
 pub struct Task {
@@ -134,14 +134,14 @@ pub struct Task {
     pub time_finished: Option<i64>,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = tasks)]
 pub struct NewTask {
     pub log_id: i32,
     pub status: i32,
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = builds)]
 #[diesel(belongs_to(Task))]
 pub struct Build {
@@ -152,7 +152,7 @@ pub struct Build {
     pub uuid: String,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = builds)]
 pub struct NewBuild<'a> {
     pub drv: &'a str,
@@ -161,7 +161,7 @@ pub struct NewBuild<'a> {
     pub uuid: &'a str,
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = actions)]
 #[diesel(belongs_to(Project))]
 #[diesel(belongs_to(Task))]
@@ -176,7 +176,7 @@ pub struct Action {
     pub uuid: String,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = actions)]
 pub struct NewAction<'a> {
     pub input: &'a str,
@@ -188,7 +188,7 @@ pub struct NewAction<'a> {
     pub uuid: &'a str,
 }
 
-#[derive(Queryable, Clone, Identifiable, Selectable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = runs)]
 #[diesel(belongs_to(Job))]
 #[diesel(belongs_to(Task))]
@@ -202,7 +202,7 @@ pub struct Run {
     pub time_created: i64,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[diesel(table_name = runs)]
 pub struct NewRun {
     pub job_id: i32,
