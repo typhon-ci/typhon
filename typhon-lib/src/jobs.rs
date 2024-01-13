@@ -56,7 +56,8 @@ impl Job {
             &handles::project(self.project.name.clone()),
             &handle.evaluation,
             self.evaluation.id,
-            Some(system_name.clone()),
+            Some(handle.system.clone()),
+            Some(handle.name.clone()),
             conn,
         )?
         .get(&system_name)

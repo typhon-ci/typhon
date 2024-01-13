@@ -129,7 +129,8 @@ impl Evaluation {
         project_handle: &handles::Project,
         eval_handle: &handles::Evaluation,
         eval_id: i32,
-        filter_system_name: Option<responses::JobSystemName>,
+        filter_system: Option<String>,
+        filter_name: Option<String>,
         conn: &mut Conn,
     ) -> Result<HashMap<responses::JobSystemName, responses::JobInfo>, Error> {
         let (begin_action, end_action, begin_task, build_task, end_task, subruns) = diesel::alias!(
@@ -172,10 +173,11 @@ impl Evaluation {
             )
             .filter(schema::jobs::evaluation_id.eq(eval_id))
             .into_boxed();
-        if let Some(filter) = filter_system_name {
-            query = query
-                .filter(schema::jobs::system.eq(filter.system))
-                .filter(schema::jobs::name.eq(filter.name));
+        if let Some(system) = filter_system {
+            query = query.filter(schema::jobs::system.eq(system));
+        }
+        if let Some(name) = filter_name {
+            query = query.filter(schema::jobs::name.eq(name));
         }
         Ok(query
             .select((
@@ -229,6 +231,7 @@ impl Evaluation {
                     &handles::project(self.project.name.clone()),
                     &self.handle(),
                     self.evaluation.id,
+                    None,
                     None,
                     conn,
                 )?
