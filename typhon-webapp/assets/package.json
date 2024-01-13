@@ -1,0 +1,10 @@
+{
+  "name": "typhon-webapp",
+  "version": "0.0.1",
+  "main": "index.js",
+  "license": "AGPL-3.0",
+  "dependencies": {
+      "@fontsource/roboto": "^4.5.8",
+      "@fontsource/jetbrains-mono": "^4.5.8"
+  }
+}

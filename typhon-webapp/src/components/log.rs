@@ -135,7 +135,7 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
             grid-template-columns: "48px" 1fr;
         }
         .log {
-            font-family: JetBrains Mono;
+            font-family: JetBrains Mono, sans-serif;
         }
         .log :deep(.icon svg) {
             width: "0.8em";

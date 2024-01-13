@@ -20,6 +20,7 @@ bin-package = "typhon"
 lib-package = "typhon-webapp"
 lib-features = ["hydrate"]
 separate-front-target-dir = true
+assets-dir = "typhon-webapp/assets"
 
 [workspace.dependencies]
 typhon-lib = { path = "./typhon-lib" }

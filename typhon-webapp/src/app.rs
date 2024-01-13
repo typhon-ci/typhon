@@ -98,6 +98,8 @@ pub fn App() -> impl IntoView {
     view! { class=_styler_class,
         <Router>
             <Style>{include_str!("../../target/main.css")}</Style>
+            <Stylesheet href="/assets/node_modules/@fontsource/jetbrains-mono/index.css"/>
+            <Stylesheet href="/assets/node_modules/@fontsource/roboto/index.css"/>
             <Routes>
                 <Route path="/*any" view=routes::Router ssr=SsrMode::Async/>
             </Routes>

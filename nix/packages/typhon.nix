@@ -19,6 +19,13 @@
   };
 
   cargoArtifacts = craneLib.buildDepsOnly args;
+
+  npm =
+    import ../../typhon-webapp/assets/npm-nix
+    {
+      inherit system pkgs;
+      nodejs = pkgs.nodejs;
+    };
 in
   craneLib.buildPackage (args
     // {
@@ -29,7 +36,10 @@ in
         pkgs.binaryen
         pkgs.makeWrapper
       ];
-      buildPhaseCargoCommand = "cargo leptos build --release -vvv";
+      buildPhaseCargoCommand = "
+        ln -s ${npm.nodeDependencies}/node_modules typhon-webapp/assets/node_modules
+        cargo leptos build --release -vvv
+      ";
       installPhaseCommand = ''
         mkdir -p $out/bin
         cp target/release/typhon $out/bin/
