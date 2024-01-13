@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use routes::EvaluationTab;
 use typhon_types::data::TaskStatusKind;
 use typhon_types::responses::TaskStatus;
 
@@ -178,7 +179,6 @@ fn Main(
     #[prop(into)] tab: Signal<crate::routes::EvaluationTab>,
 ) -> impl IntoView {
     let active_tab = tab;
-    use crate::routes::EvaluationTab as ActiveItem;
     let item_style = style! {
         .active {
             font-weight: 400;
@@ -216,7 +216,7 @@ fn Main(
             color: gray;
         }
     };
-    let mk_item = |tab: ActiveItem, icon, contents: View| {
+    let mk_item = |tab: EvaluationTab, icon, contents: View| {
         let handle = info.handle.clone();
         view! { class=item_style,
             <li class:active={
@@ -241,7 +241,7 @@ fn Main(
         .map(|(_, info)| {
             let last_run = info.last_run.clone();
             mk_item(
-                ActiveItem::Job(info.handle.clone()),
+                EvaluationTab::Job(info.handle.clone()),
                 // FIXME: why do I need to clone twice?
                 view! { <Status status=move || TaskStatus::from(last_run.clone()).into()/> },
                 view! {
@@ -278,7 +278,7 @@ fn Main(
             <section>
                 <ul style="padding: 0;">
                     {mk_item(
-                        ActiveItem::Summary,
+                        EvaluationTab::Summary,
                         view! { <Icon icon=Icon::from(BiHomeAltRegular)/> },
                         view! { Summary }.into_view(),
                     )}
@@ -293,7 +293,7 @@ fn Main(
                 <h1>Details</h1>
                 <ul style="padding: 0;">
                     {mk_item(
-                        ActiveItem::Usage,
+                        EvaluationTab::Usage,
                         view! { <Icon icon=Icon::from(BiTimerRegular)/> },
                         view! { Usage }.into_view(),
                     )}
@@ -308,8 +308,8 @@ fn Main(
                 let jobs = info.jobs.clone();
                 move || {
                     match active_tab() {
-                        ActiveItem::Summary => "Summary page, todo".into_view(),
-                        ActiveItem::Job(job) => {
+                        EvaluationTab::Summary => "Summary page, todo".into_view(),
+                        EvaluationTab::Job(job) => {
                             let job = jobs
                                 .clone()
                                 .into_iter()
@@ -321,7 +321,7 @@ fn Main(
                                 <JobSubpage job/>
                             }
                         }
-                        ActiveItem::Usage => "Usage page, todo".into_view(),
+                        EvaluationTab::Usage => "Usage page, todo".into_view(),
                     }
                 }
             }
