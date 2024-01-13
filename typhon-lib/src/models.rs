@@ -130,8 +130,8 @@ pub struct Task {
     pub id: i32,
     pub log_id: i32,
     pub status: i32,
-    pub time_started: Option<i64>,
     pub time_finished: Option<i64>,
+    pub time_started: Option<i64>,
 }
 
 #[derive(Debug, Insertable)]
