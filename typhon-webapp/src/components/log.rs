@@ -15,7 +15,6 @@ impl Default for State {
             lines: Vector::new(),
             group_stack: Vector::new(),
             group_id: 0,
-            line_number: 0,
         }
     }
 }
@@ -132,7 +131,7 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
         .log :deep(.line) {
             display: grid;
             align-content: baseline;
-            grid-template-columns: "48px" 1fr;
+            grid-template-columns: "35px" 1fr;
         }
         .log {
             font-family: JetBrains Mono, sans-serif;

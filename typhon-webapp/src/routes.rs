@@ -134,11 +134,40 @@ impl ToHref for Root {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, strum::EnumString, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum LogTab {
+    Begin,
+    End,
+    Build,
+}
+
+impl Default for LogTab {
+    fn default() -> Self {
+        LogTab::Build
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvaluationTab {
     Summary,
-    Job(handles::Job),
+    Job {
+        handle: handles::Job,
+        log_tab: LogTab,
+    },
     Usage,
+}
+
+impl EvaluationTab {
+    pub fn drop_log_tab(&self) -> Self {
+        match self {
+            Self::Job { handle, .. } => Self::Job {
+                handle: handle.clone(),
+                log_tab: LogTab::default(),
+            },
+            _ => self.clone(),
+        }
+    }
 }
 
 impl TryFrom<Location> for Root {
@@ -158,36 +187,49 @@ impl TryFrom<Location> for Root {
             .map(|s| urlencoding::decode(s).map(|s| s.to_string()))
             .collect::<Result<Vec<_>, _>>()
             .map_err(|_| r.clone())?;
-        Ok(match &chunks.iter().map(|s| s.as_ref()).collect::<Vec<_>>()[..] {
-            [] => Self::Projects,
-            ["login"] => Self::Login,
-            ["project", project] => Self::Project(handles::project(project.to_string())),
-            ["project", project, "jobset", jobset] => {
-                let project = project.to_string();
-                let jobset = jobset.to_string();
-                let handle = handles::jobset((project, jobset));
-                let page = query()
+        Ok(
+            match &chunks.iter().map(|s| s.as_ref()).collect::<Vec<_>>()[..] {
+                [] => Self::Projects,
+                ["login"] => Self::Login,
+                ["project", project] => Self::Project(handles::project(project.to_string())),
+                ["project", project, "jobset", jobset] => {
+                    let project = project.to_string();
+                    let jobset = jobset.to_string();
+                    let handle = handles::jobset((project, jobset));
+                    let page = query()
                         .get("page")
                         .and_then(|p| p.parse::<u32>().ok())
                         .unwrap_or(1);
-                Self::Jobset {handle, page}
-            }
-            ["eval", uuid, rest @ ..] if let Ok(uuid) = uuid::Uuid::from_str(uuid) => {
-                let handle = handles::evaluation(uuid);
-                let tab = match rest {
-                    [system, name] => EvaluationTab::Job(handles::Job {
-                        evaluation: handle.clone(),
-                        system: system.to_string(),
-                        name: name.to_string(),
-                    }),
-                    [] => EvaluationTab::Summary,
-                    ["usage"] => EvaluationTab::Usage,
-                    _ => Err(r)?,
-                };
-                Self::Evaluation(EvaluationPage { handle, tab })
-            }
-            _ => Err(r)?,
-        })
+                    Self::Jobset { handle, page }
+                }
+                ["eval", uuid, rest @ ..] if let Ok(uuid) = uuid::Uuid::from_str(uuid) => {
+                    let handle = handles::evaluation(uuid);
+                    let tab = match rest {
+                        [system, name, log_tab @ ..] => {
+                            let handle = handles::Job {
+                                evaluation: handle.clone(),
+                                system: system.to_string(),
+                                name: name.to_string(),
+                            };
+                            let log_tab = match log_tab {
+                                [] => LogTab::default(),
+                                [log_tab] => match LogTab::from_str(log_tab) {
+                                    Ok(log_tab) => log_tab,
+                                    Err(_) => Err(r)?,
+                                },
+                                _ => Err(r)?,
+                            };
+                            EvaluationTab::Job { handle, log_tab }
+                        }
+                        [] => EvaluationTab::Summary,
+                        ["usage"] => EvaluationTab::Usage,
+                        _ => Err(r)?,
+                    };
+                    Self::Evaluation(EvaluationPage { handle, tab })
+                }
+                _ => Err(r)?,
+            },
+        )
     }
 }
 
@@ -212,7 +254,10 @@ impl From<Root> for String {
                 "/eval/{}/{}",
                 e.handle.uuid,
                 match e.tab {
-                    EvaluationTab::Job(handle) => format!("{}/{}", handle.system, handle.name),
+                    EvaluationTab::Job { handle, log_tab } => {
+                        let log_tab: &str = log_tab.into();
+                        format!("{}/{}/{}", handle.system, handle.name, log_tab)
+                    }
                     EvaluationTab::Summary => "".into(),
                     EvaluationTab::Usage => "usage".into(),
                 }

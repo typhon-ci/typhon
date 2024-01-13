@@ -39,6 +39,7 @@ wasm-bindgen-futures = { workspace = true, optional = true }
 wasm-streams = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
 console_error_panic_hook = {version = "0.1.7", optional = true}
+strum = { version = "0.25.0", features = ["derive"] }
 
 [features]
 default = []

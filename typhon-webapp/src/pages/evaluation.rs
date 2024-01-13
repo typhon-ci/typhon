@@ -1,100 +1,97 @@
 use crate::prelude::*;
-use routes::EvaluationTab;
+use routes::{EvaluationTab, LogTab};
+use std::collections::HashMap;
 use typhon_types::data::TaskStatusKind;
 use typhon_types::responses::TaskStatus;
 
-#[derive(Debug, Clone, Copy)]
-enum LogKind {
-    Build(Uuid),
-    Action(Uuid),
-}
-
-impl LogKind {
+fn fetch_log(log: handles::Log) -> ReadSignal<Option<String>> {
     #[cfg(feature = "ssr")]
-    fn log_signal(self) -> ReadSignal<Option<String>> {
+    {
+        let _ = log;
         create_signal(None).0
     }
-
     #[cfg(feature = "hydrate")]
-    fn log_signal(self) -> ReadSignal<Option<String>> {
-        let url = match self {
-            Self::Build(uuid) => format!("/api/builds/{}/log", uuid),
-            Self::Action(uuid) => format!("/api/actions/{}/log", uuid),
-        };
-        crate::streams::fetch_as_signal(gloo_net::http::Request::get(url.as_str()).build().unwrap())
+    {
+        use gloo_net::http::Request;
+        crate::streams::fetch_as_signal(Request::post("/api/log").json(&log).unwrap())
     }
 }
 
 #[component]
-fn LogTab(
+fn LogTabHeader(
     #[prop(into)] title: String,
     #[prop(into)] status: Signal<TaskStatus>,
-    #[prop(into)] log_kind: LogKind,
+    href: Root,
+    active: bool,
 ) -> impl IntoView {
-    let lines: ReadSignal<Option<String>> = log_kind.log_signal();
-    let job_item_style = style! {
-        details :deep(> summary > span) {
+    let style = style! {
+        .tab-header {
+            display: inline-grid;
+            grid-template-columns: auto auto 1fr auto;
+            color: inherit;
+            text-decoration: inherit;
+            font-size: 100%;
+            padding: 0 5px;
+            position: relative;
+            z-index: 1;
+        }
+        .tab-header :deep(.icon-wrapper) {
+            font-size: 75%!important;
+        }
+        .tab-header.active {
+            border-bottom: 1px solid white;
+        }
+        .tab-header :deep(> span) {
             display: inline-block;
         }
-        details :deep(> summary) {
-            padding: 4px;
-            margin: 4px;
+        .tab-header :deep(.status) {
+            width: "1.7em!important";
+            height: "1.7em!important";
         }
-        details :deep(> summary) {
-            display: grid;
-            grid-template-columns: auto auto 1fr auto;
-        }
-        details[open] :deep(> summary > .icon > *) {
-            transform: rotate(90deg);
-        }
-        details :deep(> summary > .icon > *) {
-            transition: transform 100ms;
-        }
-        details :deep(> summary > time) {
-            font-family: JetBrains Mono;
-        }
-        details :deep(> summary > .status) {
-            padding: 0 "0.5em";
+        .tab-header :deep(time) {
+            color: var(--color-gray);
+            font-size: 100%;
+            letter-spacing: -0.3px;
+            padding-left: 4px;
+            font-family: JetBrains Mono, monospace;
         }
     };
-    view! {
-        <details class=job_item_style>
-            <summary>
-                <span class="icon">
-                    <Icon icon=Icon::from(BiChevronRightRegular)/>
-                </span>
-                <span class="status">
-                    <Status status=Signal::derive(move || status().into())/>
-                </span>
-                <span>{title}</span>
-                <Duration duration=Signal::derive(move || match status() {
-                    TaskStatus::Success(range)
-                    | TaskStatus::Error(range)
-                    | TaskStatus::Canceled(Some(range)) => Some(range.into()),
-                    TaskStatus::Pending { start: Some(start) } => {
-                        let now = use_context::<crate::utils::CurrentTime>().unwrap().0;
-                        Some(now() - start)
-                    }
-                    _ => None,
-                })/>
-            </summary>
-
-            {
-                view! { <LiveLog lines/> }
-            }
-
-        </details>
+    view! { class=style,
+        <A
+            class=format!("tab-header {style} {}", if active { " active" } else { "" })
+            href=String::from(href)
+        >
+            <span class="status">
+                <Status status=Signal::derive(move || status().into())/>
+            </span>
+            <span class="title">{title}</span>
+            <Duration duration=Signal::derive(move || match status() {
+                TaskStatus::Success(range)
+                | TaskStatus::Error(range)
+                | TaskStatus::Canceled(Some(range)) => Some(range.into()),
+                TaskStatus::Pending { start: Some(start) } => {
+                    let now = use_context::<crate::utils::CurrentTime>().unwrap().0;
+                    Some(now() - start)
+                }
+                _ => None,
+            })/>
+        </A>
     }
 }
 
 #[component]
-pub fn JobSubpage(#[prop(into)] job: responses::JobInfo) -> impl IntoView {
+pub fn JobSubpage(
+    #[prop(into)] job: responses::JobInfo,
+    #[prop(into)] log_tab: LogTab,
+) -> impl IntoView {
     let style = style! {
         div.header, div.contents {
             padding: 16px;
         }
+        div.contents {
+            padding-top: 0;
+        }
         div.header {
-            border-bottom: 1px solid #32383F;
             display: grid;
             grid-template-columns: 1fr auto auto auto;
             align-items: center;
@@ -113,7 +110,59 @@ pub fn JobSubpage(#[prop(into)] job: responses::JobInfo) -> impl IntoView {
             padding-top: 2px;
             color: #8C959F;
         }
+        .tabs {
+            position: relative;
+        }
+        .tabs :deep(> *) {
+            margin-left: 10px;
+        }
+        .tabs::before {
+            position: absolute;
+            content: "''";
+            bottom: 0;
+            background: #32383F;
+            height: 1px;
+            width: 100%;
+        }
+        .active {
+            padding-top: 10px;
+        }
     };
+    let href = {
+        let eval_handle = job.handle.evaluation.clone();
+        let job_handle = job.handle.clone();
+        move |log_tab: LogTab| -> routes::Root {
+            routes::Root::Evaluation(routes::EvaluationPage {
+                handle: eval_handle.clone(),
+                tab: EvaluationTab::Job {
+                    handle: job_handle.clone(),
+                    log_tab,
+                },
+            })
+        }
+    };
+
+    let logs: Vec<_> = {
+        let run = job.last_run;
+        use handles::Log::*;
+        vec![
+            run.begin
+                .map(|x| (Action(x.handle), x.status, "Begin", LogTab::Begin)),
+            run.build
+                .map(|x| (Build(x.handle), x.status, "Build", LogTab::Build)),
+            run.end
+                .map(|x| (Action(x.handle), x.status, "End", LogTab::End)),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    };
+
+    let active_log = logs
+        .iter()
+        .find(|(.., tab)| tab == &log_tab)
+        .map(|(handle, ..)| handle);
+
     view! { class=style,
         <div class="header">
             <div class="name">
@@ -127,48 +176,37 @@ pub fn JobSubpage(#[prop(into)] job: responses::JobInfo) -> impl IntoView {
             <Icon icon=Icon::from(BiCogRegular)/>
         </div>
         <div class="contents">
-
-            {
-                let run = job.last_run;
-                vec![
-                    run
-                        .begin
-                        .map(|action| {
-                            view! {
-                                <LogTab
-                                    log_kind=LogKind::Action(action.handle.uuid)
-                                    status=move || action.status
-                                    title="Begin job"
-                                />
-                            }
-                        }),
-                    run
-                        .build
-                        .map(|build| {
-                            view! {
-                                <LogTab
-                                    log_kind=LogKind::Build(build.handle.uuid)
-                                    status=move || build.status
-                                    title="Build"
-                                />
-                            }
-                        }),
-                    run
-                        .end
-                        .map(|action| {
-                            view! {
-                                <LogTab
-                                    log_kind=LogKind::Action(action.handle.uuid)
-                                    status=move || action.status
-                                    title="Begin job"
-                                />
-                            }
-                        }),
-                ]
-            }
-
+            <div class="tabs">
+                {logs
+                    .clone()
+                    .into_iter()
+                    .map(|(log, status, title, tab)| {
+                        view! {
+                            <LogTabHeader
+                                title
+                                href=href(tab)
+                                status=move || status
+                                active=tab == log_tab
+                            />
+                        }
+                    })
+                    .collect::<Vec<_>>()}
+            </div>
+            <div class="active">
+                {active_log.map(|handle| view! { <LiveLog lines=fetch_log(handle.clone())/> })}
+            </div>
         </div>
     }
+}
+
+fn collect_multiple<T: std::hash::Hash + Eq, V>(
+    it: impl Iterator<Item = (T, V)>,
+) -> HashMap<T, Vec<V>> {
+    let mut hashmap: HashMap<T, Vec<V>> = HashMap::new();
+    for (key, value) in it {
+        hashmap.entry(key).or_insert(vec![]).push(value);
+    }
+    hashmap
 }
 
 #[component]
@@ -221,7 +259,7 @@ fn Main(
         view! { class=item_style,
             <li class:active={
                 let tab = tab.clone();
-                move || active_tab() == tab.clone()
+                move || active_tab().drop_log_tab() == tab.drop_log_tab()
             }>
 
                 <A href=Box::new(move || crate::routes::to_url(crate::routes::EvaluationPage {
@@ -234,26 +272,48 @@ fn Main(
             </li>
         }
     };
-    let items = info
-        .jobs
-        .clone()
-        .into_iter()
-        .map(|(_, info)| {
-            let last_run = info.last_run.clone();
-            mk_item(
-                EvaluationTab::Job(info.handle.clone()),
-                // FIXME: why do I need to clone twice?
-                view! { <Status status=move || TaskStatus::from(last_run.clone()).into()/> },
-                view! {
-                    <span>
-                        {info.handle.name}
-                        <span style="color: gray; font-size: 90%;">
-                            {format!(" ({})", info.handle.system)}
-                        </span>
-                    </span>
-                }
-                .into_view(),
-            )
+    let items = collect_multiple(
+        info.jobs
+            .clone()
+            .into_iter()
+            .map(|(responses::JobSystemName { system, name }, info)| (system, (name, info))),
+    );
+
+    let job_items = items
+        .iter()
+        .map(move |(system, jobs)| {
+            let system = system.clone();
+            view! {
+                <section>
+                    <h1>{system}</h1>
+                    <ul style="padding: 0;">
+                        {jobs
+                            .into_iter()
+                            .map(|(name, info)| {
+                                let last_run = info.last_run.clone();
+                                mk_item(
+                                    EvaluationTab::Job {
+                                        handle: info.handle.clone(),
+                                        log_tab: LogTab::default(),
+                                    },
+                                    view! {
+                                        // FIXME: why do I need to clone twice?
+                                        <Status status=move || {
+                                            TaskStatus::from(last_run.clone()).into()
+                                        }/>
+                                    },
+                                    view! {
+                                        // FIXME: why do I need to clone twice?
+                                        // FIXME: why do I need to clone twice?
+                                        <span>{name}</span>
+                                    }
+                                        .into_view(),
+                                )
+                            })
+                            .collect::<Vec<_>>()}
+                    </ul>
+                </section>
+            }
         })
         .collect::<Vec<_>>();
     let style = style! {
@@ -285,10 +345,7 @@ fn Main(
 
                 </ul>
             </section>
-            <section>
-                <h1>Jobs</h1>
-                <ul style="padding: 0;">{items}</ul>
-            </section>
+            {job_items}
             <section>
                 <h1>Details</h1>
                 <ul style="padding: 0;">
@@ -309,16 +366,16 @@ fn Main(
                 move || {
                     match active_tab() {
                         EvaluationTab::Summary => "Summary page, todo".into_view(),
-                        EvaluationTab::Job(job) => {
+                        EvaluationTab::Job { handle, log_tab } => {
                             let job = jobs
                                 .clone()
                                 .into_iter()
-                                .find(|(_, info)| info.handle == job)
+                                .find(|(_, info)| info.handle == handle)
                                 .unwrap()
                                 .1;
                             view! {
                                 // FIXME: why do we need to clone twice?
-                                <JobSubpage job/>
+                                <JobSubpage job log_tab/>
                             }
                         }
                         EvaluationTab::Usage => "Usage page, todo".into_view(),
