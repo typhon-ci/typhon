@@ -1,6 +1,5 @@
 use typhon_lib::error;
 use typhon_lib::handle_request;
-use typhon_lib::log;
 use typhon_lib::User;
 use typhon_lib::EVENT_LOGGER;
 use typhon_types::handles;
@@ -255,24 +254,27 @@ fn streaming_response(
     HttpResponse::Ok().streaming(stream)
 }
 
-async fn evaluation_log(
-    path: web::Path<Uuid>,
-) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
-    let handle = handles::Log::Evaluation(handles::evaluation(path.into_inner()));
-    let maybe_stream = web::block(move || log(handle)).await??;
-    Ok(maybe_stream.map(streaming_response))
-}
+mod log_routes {
+    type Response = Result<Option<HttpResponse>, ResponseErrorWrapper>;
+    use super::*;
+    use handles::Log;
 
-async fn build_log(path: web::Path<Uuid>) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
-    let handle = handles::Log::Build(handles::build(path.into_inner()));
-    let maybe_stream = web::block(move || log(handle)).await??;
-    Ok(maybe_stream.map(streaming_response))
-}
-
-async fn action_log(path: web::Path<Uuid>) -> Result<Option<HttpResponse>, ResponseErrorWrapper> {
-    let handle = handles::Log::Action(handles::action(path.into_inner()));
-    let maybe_stream = web::block(move || log(handle)).await??;
-    Ok(maybe_stream.map(streaming_response))
+    async fn serve(log: Log) -> Response {
+        let maybe_stream = web::block(move || typhon_lib::log(log)).await??;
+        Ok(maybe_stream.map(streaming_response))
+    }
+    pub async fn evaluation(path: web::Path<Uuid>) -> Response {
+        serve(Log::Evaluation(handles::evaluation(path.into_inner()))).await
+    }
+    pub async fn build(path: web::Path<Uuid>) -> Response {
+        serve(Log::Build(handles::build(path.into_inner()))).await
+    }
+    pub async fn action(path: web::Path<Uuid>) -> Response {
+        serve(Log::Action(handles::action(path.into_inner()))).await
+    }
+    pub async fn generic(path: web::Json<Log>) -> Response {
+        serve(path.into_inner()).await
+    }
 }
 
 async fn raw_request(
@@ -337,10 +339,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route("", web::post().to(raw_request))
             .route("/events", web::get().to(events))
             .route("/search", web::post().to(search))
+            .route("/log", web::post().to(log_routes::generic))
             .service(
                 web::scope("/builds/{build}")
                     .route("", web::get().to(build_info))
-                    .route("/log", web::get().to(build_log)),
+                    .route("/log", web::get().to(log_routes::build)),
             )
             .service(
                 web::scope("/projects/{project}")
@@ -362,7 +365,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/evaluations/{evaluation}")
                     .route("", web::get().to(evaluation_info))
                     .route("/cancel", web::post().to(evaluation_cancel))
-                    .route("/log", web::get().to(evaluation_log))
+                    .route("/log", web::get().to(log_routes::evaluation))
                     .service(
                         web::scope("/jobs/{system}/{job}")
                             .route("", web::get().to(job_info))
@@ -378,7 +381,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("/actions/{action}")
                     .route("", web::get().to(action_info))
-                    .route("/log", web::get().to(action_log)),
+                    .route("/log", web::get().to(log_routes::action)),
             )
             .route("/login", web::post().to(login))
             .route(
