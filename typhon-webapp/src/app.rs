@@ -92,6 +92,8 @@ pub fn App() -> impl IntoView {
             --color-green-button-bg: var(--color-lightgreen);
             --color-bg-light: var(--color-lllightgray);
             --color-disabled: var(--color-llgray);
+
+            --status-font-size: var(--font-size-huge);
         }
     };
     provide_context(utils::now_signal());

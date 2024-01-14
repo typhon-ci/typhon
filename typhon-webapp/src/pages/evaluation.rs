@@ -34,19 +34,13 @@ fn LogTabHeader(
             padding: 0 5px;
             position: relative;
             z-index: 1;
-        }
-        .tab-header :deep(.icon-wrapper) {
-            font-size: 75%!important;
+            --status-font-size: var(--font-size-normal);
         }
         .tab-header.active {
             border-bottom: 1px solid white;
         }
         .tab-header :deep(> span) {
             display: inline-block;
-        }
-        .tab-header :deep(.status) {
-            width: "1.7em!important";
-            height: "1.7em!important";
         }
         .tab-header :deep(time) {
             color: var(--color-gray);

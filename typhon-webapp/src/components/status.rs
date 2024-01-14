@@ -13,7 +13,7 @@ pub fn Status(#[prop(into)] status: Signal<TaskStatusKind>) -> impl IntoView {
             align-items: flex-start;
             width: "1em";
             height: "1em";
-            font-size: var(--font-size-huge);
+            font-size: var(--status-font-size);
         }
         .status[data-status=Success] {
             color: var(--color-success);
