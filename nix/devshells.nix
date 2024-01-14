@@ -28,6 +28,7 @@ in {
         pkg-config
         rust-analyzer
         rustfmt
+        alejandra
         sqlite
         ;
       inherit build serve watch;
