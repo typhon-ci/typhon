@@ -50,7 +50,9 @@ pub fn FlakeURI(#[prop(into)] uri: String) -> impl IntoView {
         }
     };
     match &uri.clone().split(":").collect::<Vec<_>>()[..] {
-        ["github", rest] if let [owner, repo, commit] = &rest.split("/").collect::<Vec<_>>()[..] => {
+        ["github", rest]
+            if let [owner, repo, commit] = &rest.split("/").collect::<Vec<_>>()[..] =>
+        {
             let text = format!("{}/{}", owner, repo);
             view! { class=style,
                 <div class="wrapper">
@@ -60,9 +62,10 @@ pub fn FlakeURI(#[prop(into)] uri: String) -> impl IntoView {
                         {text}
                     </Tag>
                 </div>
-            }.into_view()
-        },
-        _ => uri.into_view()
+            }
+            .into_view()
+        }
+        _ => uri.into_view(),
     }
 }
 

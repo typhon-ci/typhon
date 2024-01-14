@@ -31,7 +31,8 @@ fn LogTabHeader(
             color: inherit;
             text-decoration: inherit;
             font-size: 100%;
-            padding: 0 5px;
+            padding: 5px;
+            gap: 5px;
             position: relative;
             z-index: 1;
             --status-font-size: var(--font-size-normal);
@@ -59,16 +60,7 @@ fn LogTabHeader(
                 <Status status=Signal::derive(move || status().into())/>
             </span>
             <span class="title">{title}</span>
-            <Duration duration=Signal::derive(move || match status() {
-                TaskStatus::Success(range)
-                | TaskStatus::Error(range)
-                | TaskStatus::Canceled(Some(range)) => Some(range.into()),
-                TaskStatus::Pending { start: Some(start) } => {
-                    let now = use_context::<crate::utils::CurrentTime>().unwrap().0;
-                    Some(now() - start)
-                }
-                _ => None,
-            })/>
+            <TaskStatusDuration status/>
         </A>
     }
 }
@@ -89,6 +81,9 @@ pub fn JobSubpage(
             display: grid;
             grid-template-columns: 1fr auto auto auto;
             align-items: center;
+        }
+        h2 :deep(> time > svg) {
+            display: none;
         }
         h1, h2 {
             padding: 0;
@@ -137,7 +132,7 @@ pub fn JobSubpage(
     };
 
     let logs: Vec<_> = {
-        let run = job.last_run;
+        let run = job.last_run.clone();
         use handles::Log::*;
         vec![
             run.begin
@@ -157,6 +152,7 @@ pub fn JobSubpage(
         .find(|(.., tab)| tab == &log_tab)
         .map(|(handle, ..)| handle);
 
+    let run = job.last_run.clone();
     view! { class=style,
         <div class="header">
             <div class="name">
@@ -164,7 +160,41 @@ pub fn JobSubpage(
                     <span>{job.handle.name}</span>
                     <span>{format!(" ({})", job.handle.system)}</span>
                 </h1>
-                <h2>succeeded DDD days ago in DURATION</h2>
+                <h2>
+
+                    {
+                        let status = TaskStatus::from(run.clone());
+                        let status_signal = create_signal(status.clone()).0;
+                        let (_, end) = status.times();
+                        let make = move |label: &'static str| {
+                            let end: Option<time::OffsetDateTime> = end.clone();
+                            match end.clone() {
+                                Some(end) => {
+                                    view! {
+                                        <>
+                                            {label} {" "} <RelativeTime datetime=end/> in
+                                            <TaskStatusDuration status=status_signal/>
+                                        </>
+                                    }
+                                }
+                                None => view! { <>{label}</> },
+                            }
+                        };
+                        match &status {
+                            TaskStatus::Pending { start: None } => view! { <>pending</> },
+                            TaskStatus::Pending { start: Some(_) } => {
+                                view! {
+                                    <>running for <TaskStatusDuration status=status_signal/></>
+                                }
+                            }
+                            TaskStatus::Success(..) => make("succeeded"),
+                            TaskStatus::Error(..) => make("failed"),
+                            TaskStatus::Canceled(Some(..)) => make("canceled"),
+                            TaskStatus::Canceled(None) => view! { <>canceled</> },
+                        }
+                    }
+
+                </h2>
             </div>
             <Icon icon=Icon::from(BiRefreshRegular)/>
             <Icon icon=Icon::from(BiCogRegular)/>

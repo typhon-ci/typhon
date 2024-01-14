@@ -34,12 +34,14 @@ pub struct FlakeUri {
 impl FlakeUri {
     pub fn parse(uri: String) -> Option<Self> {
         match &uri.clone().split(":").collect::<Vec<_>>()[..] {
-            ["github", rest] if let [owner, repo, commit] = &rest.split("/").collect::<Vec<_>>()[..] => {
+            ["github", rest]
+                if let [owner, repo, commit] = &rest.split("/").collect::<Vec<_>>()[..] =>
+            {
                 let web_url = format!("https://github.com/{owner}/{repo}/tree/{commit}");
                 let r#ref = commit[..8].to_string();
-                Some(Self {r#ref, web_url})
-            },
-            _ => None
+                Some(Self { r#ref, web_url })
+            }
+            _ => None,
         }
     }
 }

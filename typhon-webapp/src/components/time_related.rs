@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use typhon_types::responses::TaskStatus;
 
 #[component]
 pub fn RelativeTime(#[prop(into)] datetime: time::OffsetDateTime) -> impl IntoView {
@@ -43,33 +44,51 @@ pub fn RelativeTime(#[prop(into)] datetime: time::OffsetDateTime) -> impl IntoVi
 
 #[component]
 pub fn Duration(#[prop(into)] duration: Signal<Option<time::Duration>>) -> impl IntoView {
-    move || match duration() {
-        Some(duration) => {
-            let seconds = duration.whole_seconds();
-            let minutes = duration.whole_minutes();
-            let hours = duration.whole_hours();
-            view! {
-                <time datetime=format!(
-                    "{}s",
-                    seconds,
-                )>
-                    // <Icon icon=Icon::from(BiTimerRegular)/>
-                    {if hours == 0 {
-                        if minutes == 0 {
-                            format!("{}s", seconds)
+    move || {
+        match duration() {
+            Some(duration) => {
+                let seconds = duration.whole_seconds();
+                let minutes = duration.whole_minutes();
+                let hours = duration.whole_hours();
+                view! {
+                    <time datetime=format!(
+                        "{}s",
+                        seconds,
+                    )>
+                        // <Icon icon=Icon::from(BiTimerRegular)/>
+                        {if hours == 0 {
+                            if minutes == 0 {
+                                format!("{}s", seconds)
+                            } else {
+                                let seconds = seconds % 60;
+                                format!("{}m {}s", minutes, seconds)
+                            }
                         } else {
-                            let seconds = seconds % 60;
-                            format!("{}m {}s", minutes, seconds)
-                        }
-                    } else {
-                        let minutes = minutes % 60;
-                        format!("{}h {}m", hours, minutes)
-                    }}
+                            let minutes = minutes % 60;
+                            format!("{}h {}m", hours, minutes)
+                        }}
 
-                </time>
+                    </time>
+                }
+                .into_view()
             }
-            .into_view()
+            _ => ().into_view(),
         }
-        _ => "pending".into_view(),
+    }
+}
+
+#[component]
+pub fn TaskStatusDuration(#[prop(into)] status: Signal<TaskStatus>) -> impl IntoView {
+    view! {
+        <Duration duration=Signal::derive(move || match status() {
+            TaskStatus::Success(range)
+            | TaskStatus::Error(range)
+            | TaskStatus::Canceled(Some(range)) => Some(range.into()),
+            TaskStatus::Pending { start: Some(start) } => {
+                let now = use_context::<crate::utils::CurrentTime>().unwrap().0;
+                Some(now() - start)
+            }
+            status => None,
+        })/>
     }
 }
