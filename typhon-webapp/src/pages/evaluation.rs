@@ -291,17 +291,11 @@ fn Main(
                                         log_tab: LogTab::default(),
                                     },
                                     view! {
-                                        // FIXME: why do I need to clone twice?
                                         <Status status=move || {
                                             TaskStatus::from(last_run.clone()).into()
                                         }/>
                                     },
-                                    view! {
-                                        // FIXME: why do I need to clone twice?
-                                        // FIXME: why do I need to clone twice?
-                                        <span>{name}</span>
-                                    }
-                                        .into_view(),
+                                    view! { <span>{name}</span> }.into_view(),
                                 )
                             })
                             .collect::<Vec<_>>()}
