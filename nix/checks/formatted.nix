@@ -14,8 +14,8 @@ pkgs.stdenv.mkDerivation {
   ];
   buildPhase = ''
     alejandra -c .
-    cargo fmt --check
     leptosfmt --check .
+    cargo fmt --check
   '';
   installPhase = "touch $out";
 }
