@@ -1,3 +1,4 @@
+mod helpers;
 mod task_status;
 
 pub mod handles {
@@ -442,65 +443,17 @@ pub mod responses {
         pub name: String,
     }
 
-    fn serialize_jobs<S>(
-        jobs: &HashMap<JobSystemName, JobInfo>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut x: HashMap<String, HashMap<String, JobInfo>> = HashMap::new();
-        for (system_name, info) in jobs.clone() {
-            match x.get_mut(&system_name.system) {
-                Some(y) => {
-                    y.insert(system_name.name, info);
-                }
-                None => {
-                    let mut y = HashMap::new();
-                    y.insert(system_name.name, info);
-                    x.insert(system_name.system, y);
-                }
-            }
-        }
-        serde::Serialize::serialize(&x, serializer)
-    }
-
-    fn deserialize_jobs<'de, D>(
-        deserializer: D,
-    ) -> Result<HashMap<JobSystemName, JobInfo>, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let x: HashMap<String, HashMap<String, JobInfo>> =
-            serde::Deserialize::deserialize(deserializer)?;
-        let mut jobs = HashMap::new();
-        for (system, y) in x {
-            for (name, info) in y {
-                jobs.insert(
-                    JobSystemName {
-                        system: system.clone(),
-                        name,
-                    },
-                    info,
-                );
-            }
-        }
-        Ok(jobs)
-    }
-
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
         pub handle: handles::Evaluation,
         pub actions_path: Option<String>,
         pub flake: bool,
-        #[serde(serialize_with = "serialize_jobs")]
-        #[serde(deserialize_with = "deserialize_jobs")]
+        #[serde(with = "crate::helpers::serialize_jobs")]
         pub jobs: HashMap<JobSystemName, JobInfo>,
         pub jobset_name: String,
         pub project: handles::Project,
         pub status: TaskStatus,
-        #[serde(serialize_with = "time::serde::timestamp::serialize")]
-        #[serde(deserialize_with = "time::serde::timestamp::deserialize")]
+        #[serde(with = "time::serde::timestamp")]
         pub time_created: OffsetDateTime,
         pub url: String,
     }
