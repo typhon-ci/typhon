@@ -26,29 +26,17 @@ pub struct Args {
     /// Verbose mode (-v, -vv, -vvv, etc)
     #[arg(long, short, action = clap::ArgAction::Count, env)]
     pub verbose: u8,
-
-    /// Timestamp (sec, ms, ns, none)
-    #[arg(long, short, env)]
-    pub timestamp: Option<stderrlog::Timestamp>,
 }
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    tracing::subscriber::set_global_default(tracing_subscriber::FmtSubscriber::new()).unwrap();
+
     let args = Args::parse();
     std::env::set_var("HASHED_PASSWORD", args.hashed_password);
 
     // Session key
     let secret_key = Key::generate();
-
-    // Setup logger
-    stderrlog::new()
-        .module(module_path!())
-        .module("typhon_lib")
-        .quiet(args.quiet)
-        .verbosity(usize::from(args.verbose))
-        .timestamp(args.timestamp.unwrap_or(stderrlog::Timestamp::Off))
-        .init()
-        .unwrap();
 
     // Run actix server
     let conf = get_configuration(None).await.unwrap();

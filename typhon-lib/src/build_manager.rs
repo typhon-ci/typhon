@@ -267,7 +267,7 @@ impl Builder {
             RUNTIME.spawn(async move {
                 let res = main_thread(sender, receiver).await;
                 if let Err(e) = res {
-                    log::error!("Build manager's main thread raised an error: {}", e);
+                    tracing::error!("Build manager's main thread raised an error: {}", e);
                 }
                 let _watch_send = watch_send;
             });

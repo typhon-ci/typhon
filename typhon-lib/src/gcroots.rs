@@ -66,7 +66,7 @@ fn update_aux(conn: &mut Conn) -> Result<(), Error> {
                 gcroots.insert(dep);
             }
         } else {
-            log::warn!("gcroots: missing derivation {}", drv);
+            tracing::warn!("gcroots: missing derivation {}", drv);
         }
         gcroots.insert(drv);
         gcroots.insert(path);
@@ -100,5 +100,5 @@ fn update_aux(conn: &mut Conn) -> Result<(), Error> {
 }
 
 pub fn update(conn: &mut Conn) -> () {
-    update_aux(conn).unwrap_or_else(|e| log::error!("error when updating gcroots: {:?}", e));
+    update_aux(conn).unwrap_or_else(|e| tracing::error!("error when updating gcroots: {:?}", e));
 }

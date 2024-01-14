@@ -16,6 +16,7 @@ futures.workspace = true
 leptos = { workspace = true, features = ["ssr"] }
 leptos_actix.workspace = true
 serde_json.workspace = true
-stderrlog.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 tokio.workspace = true
 uuid.workspace = true

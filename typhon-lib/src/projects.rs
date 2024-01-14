@@ -189,7 +189,7 @@ impl Project {
                 let status = match res {
                     Some(Ok(x)) => self_.finish_refresh(x),
                     Some(Err(e)) => {
-                        log::warn!("refresh error for project {}: {}", self_.handle(), e);
+                        tracing::warn!("refresh error for project {}: {}", self_.handle(), e);
                         Ok(TaskStatusKind::Error)
                     }
                     None => Ok(TaskStatusKind::Canceled),
