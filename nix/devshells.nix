@@ -23,13 +23,18 @@ in {
         bubblewrap
         cargo-leptos
         diesel-cli
-        leptosfmt
+        # leptosfmt
+        
         pkg-config
         rust-analyzer
         rustfmt
         sqlite
         ;
       inherit build serve watch;
+      leptosfmt = pkgs.writeShellScriptBin "rustfmt" ''
+        ${pkgs.leptosfmt}/bin/leptosfmt "$@"
+        ${pkgs.rustfmt}/bin/rustfmt "$@"
+      '';
     };
     DATABASE_URL = "typhon.sqlite";
     TYPHON_FLAKE = ../typhon-flake;

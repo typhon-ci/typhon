@@ -43,6 +43,12 @@ pub struct TimeRange {
     pub end: OffsetDateTime,
 }
 
+impl From<TimeRange> for time::Duration {
+    fn from(status: TimeRange) -> Self {
+        status.end - status.start
+    }
+}
+
 impl From<&TaskStatus> for TaskStatusKind {
     fn from(status: &TaskStatus) -> Self {
         match status {
@@ -56,7 +62,7 @@ impl From<&TaskStatus> for TaskStatusKind {
 
 impl From<TaskStatus> for TaskStatusKind {
     fn from(status: TaskStatus) -> Self {
-        status.clone().into()
+        (&status).into()
     }
 }
 
@@ -155,5 +161,37 @@ impl core::cmp::Ord for TaskStatusKind {
             (_, TaskStatusKind::Canceled) => Ordering::Less,
             (TaskStatusKind::Success, TaskStatusKind::Success) => Ordering::Greater,
         }
+    }
+}
+
+impl From<&crate::responses::RunInfo> for TaskStatus {
+    fn from(run: &crate::responses::RunInfo) -> TaskStatus {
+        vec![
+            run.begin.as_ref().map(|action| action.status),
+            run.build.as_ref().map(|build| build.status),
+            run.end.as_ref().map(|action| action.status),
+        ]
+        .into_iter()
+        .flatten()
+        .reduce(|x, y| TaskStatus::union(&x, &y))
+        .unwrap_or(TaskStatus::Pending { start: None })
+    }
+}
+
+impl From<&crate::responses::JobInfo> for TaskStatus {
+    fn from(job: &crate::responses::JobInfo) -> TaskStatus {
+        (&job.last_run).into()
+    }
+}
+
+impl From<crate::responses::RunInfo> for TaskStatus {
+    fn from(run: crate::responses::RunInfo) -> TaskStatus {
+        (&run).into()
+    }
+}
+
+impl From<crate::responses::JobInfo> for TaskStatus {
+    fn from(job: crate::responses::JobInfo) -> TaskStatus {
+        (&job).into()
     }
 }

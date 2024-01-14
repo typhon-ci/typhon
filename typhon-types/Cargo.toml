@@ -8,5 +8,6 @@ lazy_static.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_with = { version = "3.4.0", features = ["json"] }
 time.workspace = true
 uuid.workspace = true

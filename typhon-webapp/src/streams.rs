@@ -1,21 +1,19 @@
+#![cfg(feature = "hydrate")]
+
 use typhon_types::*;
 
 use async_stream::stream;
-#[cfg(feature = "hydrate")]
 use futures::future::FutureExt;
 use futures_core::stream::Stream;
-#[cfg(feature = "hydrate")]
 use futures_util::stream::StreamExt;
-#[cfg(feature = "hydrate")]
 use gloo_console::log;
-#[cfg(feature = "hydrate")]
 use gloo_net::http;
-#[cfg(feature = "hydrate")]
+//use gloo_utils::format::JsValueSerdeExt;
+//use js_sys::Promise;
+//use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-#[cfg(feature = "hydrate")]
 use wasm_streams::readable::*;
 
-#[cfg(feature = "hydrate")]
 pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> {
     async move {
         let res = req
@@ -45,7 +43,10 @@ pub fn fetch_as_stream(req: http::Request) -> impl Stream<Item = String> {
     .flatten()
 }
 
-#[cfg(feature = "hydrate")]
+pub fn fetch_as_signal(req: http::Request) -> leptos::ReadSignal<Option<String>> {
+    leptos::create_signal_from_stream(Box::pin(fetch_as_stream(req)))
+}
+
 pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
     let req = http::RequestBuilder::new("/api/events").method(http::Method::GET);
     let req = req.build().unwrap();
@@ -63,18 +64,18 @@ pub fn events_stream() -> impl Stream<Item = Event> + Unpin + 'static {
     Box::pin(s)
 }
 
-pub fn filter_events(
-    req: requests::Request,
-    event: impl Stream<Item = Option<Event>> + 'static,
-) -> impl Stream<Item = bool> + Unpin + 'static {
-    let s = stream! {
-        let mut x = false;
-        for await maybe_event in event {
-            if maybe_event.map(|event| event.invalidates(&req)).unwrap_or(true) {
-                yield x;
-                x = !x;
-            }
-        }
-    };
-    Box::pin(s)
-}
+//pub fn filter_events(
+//    req: requests::Request,
+//    event: impl Stream<Item = Option<Event>> + 'static,
+//) -> impl Stream<Item = bool> + Unpin + 'static {
+//    let s = stream! {
+//        let mut x = false;
+//        for await maybe_event in event {
+//            if maybe_event.map(|event| event.invalidates(&req)).unwrap_or(true) {
+//                yield x;
+//                x = !x;
+//            }
+//        }
+//    };
+//    Box::pin(s)
+//}

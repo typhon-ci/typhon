@@ -1,10 +1,9 @@
-use crate::home;
-use crate::login;
-use crate::server_fn;
+use crate::prelude::*;
 
 use typhon_types::*;
 
 use leptos::*;
+use leptos_meta::*;
 use leptos_router::*;
 
 #[cfg(feature = "ssr")]
@@ -33,50 +32,120 @@ pub fn App() -> impl IntoView {
     let event = event_signal();
     provide_context(AllEvents(event.clone()));
 
-    let login = create_server_action::<server_fn::Login>();
-    let logout = create_server_action::<server_fn::Logout>();
-
-    let user = create_resource(
-        move || (login.version()(), logout.version()()),
-        move |_| server_fn::handle_request(requests::Request::User),
-    );
+    let user_actions = pages::login::UserActions::new();
+    let user = create_resource(user_actions.as_signal(), move |_| async {
+        use responses as res;
+        handle_request!(requests::Request::User, |res::Response::User(user)| user)
+    });
     let user: Signal<Option<data::User>> = Signal::derive(move || match user() {
-        Some(Ok(Ok(responses::Response::User(user)))) => user,
+        Some(Ok(Ok(user))) => user,
         _ => None,
     });
     provide_context(user);
+    provide_context(user_actions);
 
-    view! {
+    let _styler_class = style! {
+        :deep(body) {
+            font-family: Roboto;
+            font-weight: 300;
+            margin: 0;
+            padding: 0;
+        }
+        :deep(:root) {
+            --font-size-huge: 20px;
+            --font-size-big: 16px;
+            --font-size-normal: 14px;
+            --font-size-small: 12px;
+            font-size: var(--font-size-normal);
+
+            --color-white: white;
+            --color-blue: #0969da;
+            --color-lightblue: #ddf4ff;
+            --color-black: #1f2328;
+            --color-ligthblack: #24292f;
+            --color-gray: #656d76;
+            --color-lgray: #6e7781;
+            --color-llgray: #8c959f;
+            --color-lightgray: #d0d7de;
+            --color-lllightgray: #f4f5f7; /* left pane selected button background */
+            --color-llightgray: #d8dee4;
+            --color-red: #cf222e;
+            --color-lightred: #d1242f;
+            --color-green: #1a7f37;
+            --color-lightgreen: #1f883d;
+            --color-orange: rgb(219, 171, 10);
+
+            --color-fg-emphasis: var(--color-white);
+            --color-fg-accent: var(--color-blue);
+            --color-bg-accent-muted: var(--color-lightblue);
+            --color-bg-emphasis: var(--color-blue);
+            --color-fg: var(--color-black);
+            --color-border-default: var(--color-lightgray);
+            --color-border-muted: var(--color-llightgray);
+            --color-fg-muted: var(--color-gray);
+            --color-bg-muted: transparent;
+            --color-fg-subtle: var(--color-lgray);
+            --color-fg-btn: var(--color-lightblack);
+            --color-danger: var(--color-lightred);
+            --color-danger-emphasis: var(--color-red);
+            --color-success: var(--color-green);
+            --color-green-button-bg: var(--color-lightgreen);
+            --color-bg-light: var(--color-lllightgray);
+            --color-disabled: var(--color-llgray);
+        }
+    };
+    provide_context(utils::now_signal());
+    view! { class=_styler_class,
         <Router>
-            <header>
-                <A href="/">
-                    <h1>"Typhon"</h1>
-                </A>
-                <Transition fallback=move || {
-                    view! { <span>"Loading..."</span> }
-                }>
-                    {move || {
-                        match user() {
-                            Some(_) => {
-                                view! { <login::Logout action=logout></login::Logout> }.into_view()
-                            }
-                            _ => view! { <A href="/login">"Log In"</A> }.into_view(),
-                        }
-                    }}
-
-                </Transition>
-            </header>
-            <hr/>
-            <main>
-                <Routes>
-                    <Route ssr=SsrMode::Async path="" view=home::Home/>
-                    <Route
-                        ssr=SsrMode::Async
-                        path="login"
-                        view=move || view! { <login::Login action=login></login::Login> }
-                    />
-                </Routes>
-            </main>
+            <Style>{include_str!("../../target/main.css")}</Style>
+            <Routes>
+                <Route path="/*any" view=routes::Router ssr=SsrMode::Async/>
+            </Routes>
         </Router>
     }
 }
+
+#[component]
+fn Project(name: String) -> impl IntoView {
+    let info = create_resource(
+        {
+            let name = name.clone();
+            move || name.clone()
+        },
+        |name: String| async move {
+            use requests as req;
+            use responses as res;
+            let project = handles::Project { name };
+            handle_request!(
+                req::Request::Project(project.clone(), req::Project::Info),
+                |res::Response::ProjectInfo(info)| info
+            )
+            .unwrap()
+        },
+    );
+    view! {
+        <Suspense>
+            <b>{format!("{:#?}", info.get())}</b>
+        </Suspense>
+    }
+    // #[derive(PartialEq, Clone, Params)]
+    // struct ProjectParams {
+    //     id: String,
+    // }
+    // let params = use_params::<ProjectParams>().get().unwrap();
+    // params.id
+}
+
+// /// This is the page of an evaluation: project is defined, jobset as well.
+// #[component]
+// fn Test() -> impl IntoView {
+//     // use handles::*;
+//     // let project = Project { name: "hi".into() };
+//     // let jobset = Jobset {
+//     //     project,
+//     //     name: "main".into(),
+//     // };
+//     // let handle = Evaluation { jobset, num: 10 };
+//     // let (handle, _) = create_signal(handle);
+//     // view! { <Evaluation handle/> }
+// }

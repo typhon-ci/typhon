@@ -9,7 +9,7 @@ use clap::Parser;
 use leptos::*;
 use leptos_actix::{generate_route_list, LeptosRoutes};
 
-use typhon_webapp::app::App;
+use typhon_webapp::App;
 
 /// Typhon, Nix-based continuous integration
 #[derive(Parser, Debug)]

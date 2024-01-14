@@ -11,22 +11,34 @@ typhon-lib = { workspace = true, optional = true }
 typhon-types.workspace = true
 actix-session = { workspace = true, optional = true }
 async-stream.workspace = true
+async-trait.workspace = true
+either.workspace = true
 futures.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
 gloo-console = { workspace = true, optional = true }
 gloo-net = { workspace = true, optional = true }
 gloo-utils = { workspace = true, optional = true }
+im.workspace = true
+itertools.workspace = true
 js-sys = { workspace = true, optional = true }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_actix = { workspace = true, optional = true }
+leptos_icons = { workspace = true, features = ["BiHomeAltRegular", "BiCheckCircleSolid", "BiErrorCircleSolid", "BiTimerRegular", "BiRefreshRegular", "BiChevronRightRegular", "BiChevronLeftRegular", "BiChevronUpRegular", "BiChevronDownRegular", "BiCogRegular", "BiSearchAltRegular", "BiLeftArrowAltSolid", "BiDotsHorizontalRoundedRegular", "BiRightArrowSolid", "BiCodeRegular", "BiGitBranchRegular", "BiLoaderAltRegular", "BiStopCircleRegular", "BiDownArrowSolid", "BiXCircleSolid", "BiGithub", "BiGitlab", "BiTrashRegular", "BiCalendarEventRegular"] }
+leptos_meta = { workspace = true, features = ["nightly"] }
 leptos_router.workspace = true
+serde-wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, optional = true }
+stylers.workspace = true
+time.workspace = true
+urlencoding.workspace = true
+uuid.workspace = true
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 wasm-streams = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
+console_error_panic_hook = {version = "0.1.7", optional = true}
 
 [features]
 default = []
@@ -40,6 +52,7 @@ hydrate = [
     "dep:wasm-bindgen-futures",
     "dep:wasm-streams",
     "dep:web-sys",
+    "dep:console_error_panic_hook",
     "leptos/hydrate",
     "leptos_router/hydrate",
 ]
@@ -50,3 +63,6 @@ ssr = [
     "leptos/ssr",
     "leptos_router/ssr",
 ]
+
+[build-dependencies]
+stylers.workspace = true
