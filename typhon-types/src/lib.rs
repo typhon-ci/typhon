@@ -499,6 +499,8 @@ pub mod responses {
         pub jobset_name: String,
         pub project: handles::Project,
         pub status: TaskStatus,
+        #[serde(serialize_with = "time::serde::timestamp::serialize")]
+        #[serde(deserialize_with = "time::serde::timestamp::deserialize")]
         pub time_created: OffsetDateTime,
         pub url: String,
     }

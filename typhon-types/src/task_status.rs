@@ -35,7 +35,11 @@ pub enum TaskStatusKind {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeRange {
+    #[serde(serialize_with = "time::serde::timestamp::serialize")]
+    #[serde(deserialize_with = "time::serde::timestamp::deserialize")]
     pub start: OffsetDateTime,
+    #[serde(serialize_with = "time::serde::timestamp::serialize")]
+    #[serde(deserialize_with = "time::serde::timestamp::deserialize")]
     pub end: OffsetDateTime,
 }
 
