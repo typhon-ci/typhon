@@ -204,7 +204,7 @@ pub fn JobSubpage(
                 {logs
                     .clone()
                     .into_iter()
-                    .map(|(log, status, title, tab)| {
+                    .map(|(_, status, title, tab)| {
                         view! {
                             <LogTabHeader
                                 title

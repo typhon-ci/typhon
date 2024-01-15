@@ -88,7 +88,7 @@ pub fn TaskStatusDuration(#[prop(into)] status: Signal<TaskStatus>) -> impl Into
                 let now = use_context::<crate::utils::CurrentTime>().unwrap().0;
                 Some(now() - start)
             }
-            status => None,
+            _ => None,
         })/>
     }
 }
