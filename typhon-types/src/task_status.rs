@@ -8,6 +8,7 @@ pub enum TaskStatus {
     Pending {
         /** when `start` is `None`, this means the task has not
          * started yet. Otherwise, the task is running. */
+        #[serde(with = "time::serde::timestamp::option")]
         start: Option<OffsetDateTime>,
     },
     /** The task is done and succeeded */
