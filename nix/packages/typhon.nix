@@ -20,12 +20,7 @@
 
   cargoArtifacts = craneLib.buildDepsOnly args;
 
-  npm =
-    import ../../typhon-webapp/assets/npm-nix
-    {
-      inherit system pkgs;
-      nodejs = pkgs.nodejs;
-    };
+  nodeDependencies = (pkgs.callPackage ../npm-nix {nodejs = pkgs.nodejs;}).nodeDependencies;
 in
   craneLib.buildPackage (args
     // {
@@ -36,10 +31,7 @@ in
         pkgs.binaryen
         pkgs.makeWrapper
       ];
-      buildPhaseCargoCommand = "
-        ln -s ${npm.nodeDependencies}/node_modules typhon-webapp/assets/node_modules
-        cargo leptos build --release -vvv
-      ";
+      buildPhaseCargoCommand = "cargo leptos build --release -vvv";
       installPhaseCommand = ''
         mkdir -p $out/bin
         cp target/release/typhon $out/bin/
@@ -48,4 +40,5 @@ in
       '';
       TYPHON_FLAKE = ../../typhon-flake;
       doNotLinkInheritedArtifacts = true;
+      preFixup = "cp -r ${nodeDependencies}/lib/node_modules $out/bin/site";
     })

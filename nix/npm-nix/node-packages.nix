@@ -32,7 +32,7 @@
     name = "typhon-webapp";
     packageName = "typhon-webapp";
     version = "0.0.1";
-    src = ./..;
+    src = ../../typhon-webapp/assets;
     dependencies = [
       sources."@fontsource/jetbrains-mono-4.5.12"
       sources."@fontsource/roboto-4.5.8"
