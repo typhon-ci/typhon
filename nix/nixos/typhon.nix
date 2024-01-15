@@ -70,7 +70,7 @@ in {
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
-          DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -v -t sec
+          DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPassword} -v
         '';
         Type = "simple";
         User = "typhon";
