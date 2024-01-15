@@ -35,6 +35,9 @@ async fn main() -> std::io::Result<()> {
     let args = Args::parse();
     std::env::set_var("HASHED_PASSWORD", args.hashed_password);
 
+    // Initialization
+    typhon_lib::init();
+
     // Session key
     let secret_key = Key::generate();
 

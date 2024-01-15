@@ -321,3 +321,8 @@ fn pool() -> DbPool {
 
     pool
 }
+
+pub fn init() {
+    // Force database migrations
+    let _ = once_cell::sync::Lazy::force(&POOL);
+}
