@@ -480,6 +480,7 @@ pub mod responses {
     pub struct ActionInfo {
         pub handle: handles::Action,
         pub input: String,
+        pub name: String,
         pub path: String,
         pub project: handles::Project,
         pub status: TaskStatus,

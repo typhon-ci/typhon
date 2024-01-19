@@ -165,6 +165,7 @@ impl Action {
         responses::ActionInfo {
             handle: self.handle(),
             input: self.action.input.clone(),
+            name: self.action.name.clone(),
             path: self.action.path.clone(),
             project: handles::project(self.project.name.clone()),
             status: self.task.status(),

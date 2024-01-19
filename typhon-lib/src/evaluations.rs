@@ -39,6 +39,7 @@ impl responses::RunInfo {
             |(action, task): (models::Action, models::Task)| responses::ActionInfo {
                 handle: handles::action(Uuid::from_str(&action.uuid).unwrap()),
                 input: action.input,
+                name: action.name,
                 path: action.path,
                 project: project_handle.clone(),
                 status: task.status(),
