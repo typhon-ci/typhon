@@ -7,45 +7,62 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Describe the summary of the statuses for an evaluation
-struct EvalStatus {
+pub struct EvalStatus {
     /// Status of the Nix evaluation
-    eval: TaskStatus,
+    pub eval: TaskStatus,
     /// Aggregate status for all the jobs
-    jobs: Option<TaskStatus>,
+    pub jobs: Option<TaskStatus>,
     /// Map from `Succeeded`/`Pending`/... to the count of jobs in the
     /// corresponding status
-    map: HashMap<TaskStatusKind, u32>,
+    pub map: HashMap<TaskStatusKind, u32>,
 }
 
 #[component]
-pub fn StatusMap(map: HashMap<TaskStatusKind, u32>) -> impl IntoView {
+pub fn StatusMap(map: HashMap<TaskStatusKind, u32>, compact: bool) -> impl IntoView {
     let style = style! {
         .statuses {
             display: inline-flex;
+        }
+        .statuses.compact {
             --status-font-size: var(--font-size-normal);
+        }
+        .statuses:not(.compact) {
+            gap: 12px;
+        }
+        .statuses:not(.compact) :deep(> .status) {
+            gap: 4px;
         }
         .statuses :deep(> .status) {
             display: flex;
-            flex-direction: column;
             align-items: center;
+        }
+        .statuses.compact :deep(> .status) {
+            flex-direction: column;
             width: 20px;
         }
-        .statuses :deep(> .status[data-n="0"] svg) {
+        .statuses:not(.compact) :deep(> .status[data-n="0"] svg) {
+            opacity: 0.6;
+        }
+        .statuses.compact :deep(> .status[data-n="0"] svg) {
             opacity: 0.3;
         }
-        .statuses :deep(> .status[data-n="0"]) {
+        .statuses.compact :deep(> .status[data-n="0"]) {
             opacity: 0.2;
+        }
+        .statuses :deep(> .status[data-n="0"]) {
             filter: saturate(0%);
         }
-        .statuses :deep(> .status > .count) {
+        .statuses.compact :deep(> .status > .count) {
             display: block;
+        }
+        .statuses :deep(> .status > .count) {
             padding-bottom: 2px;
             color: color-mix(in lch, var(--color-task-status) 70%, black);
         }
     };
     (!map.is_empty()).then(|| {
         view! { class=style,
-            <div class="statuses">
+            <div class="statuses" class:compact=compact>
 
                 {
                     use strum::IntoEnumIterator;
@@ -72,7 +89,7 @@ pub fn StatusMap(map: HashMap<TaskStatusKind, u32>) -> impl IntoView {
 }
 
 impl EvalStatus {
-    fn hybrid_status(&self) -> HybridStatusKind {
+    pub fn hybrid_status(&self) -> HybridStatusKind {
         use crate::components::status::HybridStatusKind;
         match TaskStatusKind::from(&self.eval) {
             TaskStatusKind::Pending => HybridStatusKind::EvalPending,
@@ -82,14 +99,14 @@ impl EvalStatus {
             TaskStatusKind::Error | TaskStatusKind::Canceled => HybridStatusKind::EvalStopped,
         }
     }
-    fn summary(&self) -> TaskStatus {
+    pub fn summary(&self) -> TaskStatus {
         if let Some(jobs) = self.jobs {
             jobs
         } else {
             self.eval
         }
     }
-    fn new(info: &responses::EvaluationInfo) -> Self {
+    pub fn new(info: &responses::EvaluationInfo) -> Self {
         let job_statuses: Vec<_> = info
             .jobs
             .clone()
@@ -223,7 +240,7 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
                                     </div>
                                 </div>
                                 <div class="jobs-summary">
-                                    <StatusMap map=status_infos.map/>
+                                    <StatusMap map=status_infos.map compact=true/>
                                 </div>
                                 <div class="informations">
                                     <RelativeTime datetime=created/>
