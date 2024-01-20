@@ -32,7 +32,7 @@ pub fn Jobset(
         }
     };
     let limit = Signal::derive(move || 10 as u8);
-    let offset = Signal::derive(move || page() * (limit() as u32));
+    let offset = Signal::derive(move || (page() - 1) * (limit() as u32));
     let (error, evaluations) = {
         let handle = handle.clone();
         search!(
@@ -81,16 +81,27 @@ pub fn Jobset(
         </header>
         <Trans error>
             <Evaluations count=evaluation_count evaluations/>
-            {move || {
-                let range = 1..((evaluation_count() as u32).div_ceil(PAGE_MAX_ITEMS as u32) + 1);
-                view! {
-                    <Pagination
-                        range
-                        current=page
-                        link=|p: u32| format!("/project/hi/main?page={p}").to_string()
-                    />
+
+            {
+                let handle = handle.clone();
+                move || {
+                    let range = 1..((evaluation_count() as u32).div_ceil(PAGE_MAX_ITEMS as u32)
+                        + 1);
+                    view! {
+                        <Pagination
+                            range
+                            current=page
+                            link={
+                                let handle = handle.clone();
+                                move |page: u32| String::from(Root::Jobset {
+                                    handle: handle.clone(),
+                                    page,
+                                })
+                            }
+                        />
+                    }
                 }
-            }}
+            }
 
         </Trans>
     }

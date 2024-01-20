@@ -14,7 +14,7 @@ pub fn PendingBuilds(page: u32) -> impl IntoView {
 #[component]
 pub fn PendingEvaluations(page: u32) -> impl IntoView {
     let limit = Signal::derive(move || 10 as u8);
-    let offset = Signal::derive(move || page * (limit() as u32));
+    let offset = Signal::derive(move || (page - 1) * (limit() as u32));
     let (error, evaluations) = search!(
         offset,
         limit,

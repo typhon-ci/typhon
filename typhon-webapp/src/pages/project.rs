@@ -14,7 +14,7 @@ fn Jobset(handle: handles::Jobset) -> impl IntoView {
                         view! {
                             <A href=Root::Jobset {
                                 handle: info.handle.clone(),
-                                page: 0,
+                                page: 1,
                             }>{format!("{}", info.handle.clone().name)}</A>
                         }
                     })}

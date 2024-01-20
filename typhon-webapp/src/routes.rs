@@ -230,6 +230,9 @@ impl TryFrom<Location> for Root {
                         .get("page")
                         .and_then(|p| p.parse::<u32>().ok())
                         .unwrap_or(1);
+                    if page < 1 {
+                        Err(r)?
+                    }
                     Self::Dashboard { tab, page }
                 }
                 ["project", project] => Self::Project(handles::project(project.to_string())),
@@ -241,6 +244,9 @@ impl TryFrom<Location> for Root {
                         .get("page")
                         .and_then(|p| p.parse::<u32>().ok())
                         .unwrap_or(1);
+                    if page < 1 {
+                        Err(r)?
+                    }
                     Self::Jobset { handle, page }
                 }
                 ["eval", uuid, rest @ ..] if let Ok(uuid) = uuid::Uuid::from_str(uuid) => {

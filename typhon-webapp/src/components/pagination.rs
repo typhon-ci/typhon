@@ -10,7 +10,7 @@ pub fn Pagination<F>(
     link: F,
 ) -> impl IntoView
 where
-    F: Fn(u32) -> String + 'static + Copy,
+    F: Fn(u32) -> String + 'static + Clone,
 {
     let style = style! {
         div :deep(> .page) {
@@ -43,14 +43,10 @@ where
         }
     };
     move || {
-        let render_button = |page: Option<u32>, contents: View, class: &'static str| {
+        let render_button = &|page: Option<u32>, contents: View, class: &'static str| {
+            let link = link.clone();
             move || {
                 let active = page == Some(current());
-                // let contents = view! {
-                //     <div class=format!("page {}", class) class:active=active>
-                //         {contents.clone()}
-                //     </div>
-                // };
                 match page {
                     Some(page) => view! {
                         <a class=format!("page {}", class) class:active=active href=link(page)>
@@ -74,7 +70,7 @@ where
             .chain(around(current(), 2))
             .chain(around(range.end, 1))
             .unique()
-            .scan(None, move |prev, n| {
+            .scan(None, |prev, n| {
                 let diff = prev.map(|prev| n - prev).unwrap_or(1);
                 *prev = Some(n);
                 let button = render_button(Some(n), n.into_view(), "n");
