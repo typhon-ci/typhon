@@ -98,7 +98,6 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
                         });
                         view! {
                             <div class="status">
-
                                 {
                                     let status_kind: TaskStatusKind = status_infos
                                         .status
@@ -108,14 +107,13 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
                                         <Status status=Signal::derive(move || status_kind.clone())/>
                                     }
                                 }
-
                             </div>
                             <div class="titles">
                                 <A href class="first">
                                     <FlakeURI uri=info.url/>
                                 </A>
                                 <div class="second">
-                                    Evaluation {format!("{}", info.handle.uuid)}
+                                    Evaluation <UuidLabel uuid=info.handle.uuid/>
                                 </div>
                             </div>
                             <div class="jobs-summary">

@@ -57,6 +57,7 @@ pub fn App() -> impl IntoView {
             --font-size-normal: 14px;
             --font-size-small: 12px;
             font-size: var(--font-size-normal);
+            --font-family-monospace: "JetBrains Mono";
 
             --color-white: white;
             --color-blue: #0969da;

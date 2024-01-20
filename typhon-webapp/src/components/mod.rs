@@ -5,6 +5,7 @@ pub mod pagination;
 pub mod status;
 pub mod time_related;
 pub mod trans;
+pub mod uuid_label;
 
 //pub use header::Header;
 pub use evaluations::Evaluations;
@@ -13,6 +14,7 @@ pub use pagination::Pagination;
 pub use status::Status;
 pub use time_related::*;
 pub use trans::Trans;
+pub use uuid_label::UuidLabel;
 
 use crate::prelude::*;
 

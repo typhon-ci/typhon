@@ -489,7 +489,7 @@ fn Main(
                     <span class="status">
                         <Status status=Signal::derive(move || global_status_kind())/>
                     </span>
-                    <span>Evaluation <code>{info.handle.uuid.to_string()}</code></span>
+                    <span>Evaluation <UuidLabel uuid=info.handle.uuid/></span>
                     {crate::utils::FlakeUri::parse(info.url)
                         .map(|flake| {
                             view! {
