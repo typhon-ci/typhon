@@ -16,7 +16,5 @@ pub fn UuidLabel(uuid: uuid::Uuid) -> impl IntoView {
             outline: 0;
         }
     };
-    view! {class=style,
-        <input readonly value=value/>
-    }
+    view! { class=style, <input readonly value=value/> }
 }
