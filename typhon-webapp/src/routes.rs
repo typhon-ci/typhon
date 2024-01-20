@@ -8,6 +8,10 @@ use std::{fmt::Debug, str::FromStr};
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Root<MODE: SubpageInformation = Full> {
     Login,
+    Dashboard {
+        tab: DashboardTab,
+        page: u32,
+    },
     Projects,
     Project(handles::Project),
     Jobset {
@@ -70,6 +74,7 @@ impl From<Root> for Root<Empty> {
     fn from(e: Root) -> Self {
         match e {
             Root::Login => Root::Login,
+            Root::Dashboard { tab, page } => Root::Dashboard { tab, page },
             Root::Projects => Root::Projects,
             Root::Project(h) => Root::Project(h),
             Root::Jobset { handle, .. } => Root::Jobset { handle, page: () },
@@ -82,6 +87,7 @@ impl From<Root<Empty>> for Root {
     fn from(e: Root<Empty>) -> Self {
         match e {
             Root::Login => Root::Login,
+            Root::Dashboard { tab, page } => Root::Dashboard { tab, page },
             Root::Projects => Root::Projects,
             Root::Project(h) => Root::Project(h),
             Root::Jobset { handle, .. } => Root::Jobset { handle, page: 1 },
@@ -94,6 +100,7 @@ impl From<Root<Empty>> for Option<handles::Handle> {
     fn from(e: Root<Empty>) -> Self {
         Some(match e {
             Root::Login => None?,
+            Root::Dashboard { .. } => None?,
             Root::Projects => None?,
             Root::Project(handle) => handles::Handle::Project(handle),
             Root::Jobset { handle, .. } => handles::Handle::Jobset(handle),
@@ -149,6 +156,24 @@ impl Default for LogTab {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DashboardTab {
+    Evaluations,
+    Builds,
+    Actions,
+}
+
+impl std::fmt::Display for DashboardTab {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let x = match self {
+            DashboardTab::Evaluations => "evaluations",
+            DashboardTab::Builds => "builds",
+            DashboardTab::Actions => "actions",
+        };
+        write!(f, "{x}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvaluationTab {
     Info,
     Job {
@@ -190,6 +215,23 @@ impl TryFrom<Location> for Root {
             match &chunks.iter().map(|s| s.as_ref()).collect::<Vec<_>>()[..] {
                 [] => Self::Projects,
                 ["login"] => Self::Login,
+                ["dashboard"] => Self::Dashboard {
+                    tab: DashboardTab::Builds,
+                    page: 1,
+                },
+                ["dashboard", tab] => {
+                    let tab = match tab {
+                        &"evaluations" => DashboardTab::Evaluations,
+                        &"builds" => DashboardTab::Builds,
+                        &"actions" => DashboardTab::Actions,
+                        _ => Err(r.clone())?,
+                    };
+                    let page = query()
+                        .get("page")
+                        .and_then(|p| p.parse::<u32>().ok())
+                        .unwrap_or(1);
+                    Self::Dashboard { tab, page }
+                }
                 ["project", project] => Self::Project(handles::project(project.to_string())),
                 ["project", project, "jobset", jobset] => {
                     let project = project.to_string();
@@ -242,6 +284,7 @@ impl From<Root> for String {
         }
         match r {
             Root::Login => "/login".to_string(),
+            Root::Dashboard { tab, page } => format!("/dashboard/{}?page={page}", tab),
             Root::Projects => "".to_string(),
             Root::Project(handle) => format!("/project/{}", path(handle)),
             Root::Jobset { handle, page } => format!(
@@ -272,6 +315,9 @@ pub fn Router() -> impl IntoView {
     use crate::pages::*;
     let main = move || match root_page() {
         Ok(Root::Login) => view! { <Login/> },
+        Ok(Root::Dashboard { tab, page }) => {
+            view! { <Dashboard tab page/> }
+        }
         Ok(Root::Projects) => view! { <Projects/> },
         Ok(Root::Project(handle)) => {
             view! { <Project handle/> }
