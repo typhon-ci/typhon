@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-#[component]
+#[component(transparent)]
 pub fn Trans<E: Clone + std::fmt::Display + 'static>(
     error: Signal<Option<E>>,
     children: ChildrenFn,
