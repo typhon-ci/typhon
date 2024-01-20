@@ -439,27 +439,30 @@ fn Main(
 
             {
                 let info = info.clone();
-                let jobs = info.jobs.clone();
                 move || {
                     match active_tab() {
-                        EvaluationTab::Info => view! { <div><Info info=info.clone()/></div> },
+                        EvaluationTab::Info => {
+                            view! {
+                                <div>
+                                    <Info info=info.clone()/>
+                                </div>
+                            }
+                        }
                         EvaluationTab::Job { handle, log_tab } => {
-                            if let Some(job) = jobs
-                                .clone()
-                                .into_iter()
+                            if let Some(job) = info
+                                .jobs
+                                .iter()
                                 .map(|(_, info)| info)
                                 .find(|info| info.handle == handle)
+                                .cloned()
                             {
                                 view! {
                                     <div>
-                                    // FIXME: why do we need to clone twice?
                                         <JobSubpage job log_tab/>
                                     </div>
                                 }
                             } else {
                                 view! {
-                                    // FIXME: why do we need to clone twice?
-
                                     <div>
                                         <Icon icon=Icon::from(BiErrorAltRegular)/>
                                         The requested resource was not found.
