@@ -283,28 +283,109 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
         table {
             text-align: left;
         }
+        metadata :deep(svg) {
+            display: none;
+        }
+        span.label {
+            display: block;
+            color: var(--color-gray);
+        }
+        input {
+            display: block;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font-size: var(--font-size-big);
+            font-family: var(--font-family-monospace), monospace;
+            text-overflow: ellipsis;
+        }
+        input:active, input:focus, input:focus-visible {
+            border: 0;
+            outline: 0;
+        }
+        .value {
+            padding-left: 5px;
+        }
+        .field {
+            padding: 5px;
+        }
+        .block {
+            border: 1px solid var(--color-lightgray);
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .emph {
+            font-size: var(--font-size-big);
+            font-weight: 400;
+        }
+        .blocks {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .value.status {
+            display: flex;
+            align-items: center;
+        }
+        .value.status :deep(span.status) {
+            padding: 5px;
+        }
     };
+    let map = crate::components::evaluations::EvalStatus::new(&info).map;
+    let status_kind = TaskStatusKind::from(info.status);
     view! { class=style,
-        <table>
-            <tr>
-                <th>url:</th>
-                <th>{info.url}</th>
-            </tr>
-            <tr>
-                <th>flake:</th>
-                <th>{info.flake}</th>
-            </tr>
-            <tr>
-                <th>created:</th>
-                <th>
-                    <RelativeTime datetime=info.time_created/>
-                </th>
-            </tr>
-            <tr>
-                <th>actions path:</th>
-                <th>{info.actions_path}</th>
-            </tr>
-        </table>
+        <div class="blocks">
+            <div class="block">
+                <div class="field">
+                    <span class="label">Locked Nix URL</span>
+                    <input class="value" readonly value=info.url style="width: 100%;"/>
+                </div>
+                <div class="field">
+                    <span class="label">Actions path</span>
+                    <input class="value" readonly value=info.actions_path style="width: 100%;"/>
+                </div>
+                <div class="field">
+                    <span class="label">Evaluation handle</span>
+                    <input
+                        class="value"
+                        readonly
+                        value=format!("{}", info.handle.uuid)
+                        style="width: 100%;"
+                    />
+                </div>
+                <div class="field metadata">
+                    <span class="label">Metadata</span>
+                    <div class="value">
+                        This evaluation
+                        <span class="emph">
+                            {if info.flake { "is using" } else { "is not using" }} flakes
+                        </span> and was created <span class="emph">
+                            <RelativeTime datetime=info.time_created/>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="block">
+                <div class="field">
+                    <span class="label">Nix evaluation status</span>
+                    <div class="value status">
+                        {format!("{:?}", status_kind)} <Status status=move || status_kind/>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Jobs statuses</span>
+                    <div class="value">
+                        {match &status_kind {
+                            TaskStatusKind::Success => {
+                                use crate::components::evaluations::StatusMap;
+                                view!{<StatusMap map compact=false/>}
+                            },
+                            _ => view!{<div>"Jobs requires the evaluation to be successful!"</div>}.into_view(),
+                        }}
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 }
 
