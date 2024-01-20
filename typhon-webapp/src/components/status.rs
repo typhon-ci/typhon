@@ -1,8 +1,23 @@
 use crate::prelude::*;
 use data::TaskStatusKind;
 
+use std::collections::HashMap;
+
+#[derive(Clone, Debug)]
+pub enum HybridStatusKind {
+    EvalPending,
+    EvalStopped,
+    EvalSucceeded { build: TaskStatusKind },
+}
+
 #[component]
 pub fn Status(#[prop(into)] status: Signal<TaskStatusKind>) -> impl IntoView {
+    let status = Signal::derive(move || HybridStatusKind::EvalSucceeded { build: status() });
+    view! { <HybridStatus status=status/> }
+}
+
+#[component]
+pub fn HybridStatus(#[prop(into)] status: Signal<HybridStatusKind>) -> impl IntoView {
     let style = style! {
         .status {
             display: flex;
@@ -15,6 +30,9 @@ pub fn Status(#[prop(into)] status: Signal<TaskStatusKind>) -> impl IntoView {
             height: "1em";
             font-size: var(--status-font-size);
             color: var(--color-task-status);
+        }
+        .status[data-status=EvalPending] {
+            color: var(--color-fg-muted);
         }
         .status[data-status=Pending] {
             position: relative;
@@ -29,24 +47,30 @@ pub fn Status(#[prop(into)] status: Signal<TaskStatusKind>) -> impl IntoView {
             to { transform:rotate(360deg); }
         }
     };
+    let data_status = match status() {
+        HybridStatusKind::EvalSucceeded { build } => format!("{:?}", build),
+        status => format!("{:?}", status),
+    };
     view! { class=style,
-        <span class="status" data-status=move || format!("{:?}", status())>
+        <span class="status" data-status=data_status>
             <span class="icon-wrapper">
                 {move || {
-                    view! {
-                        <Icon icon=Icon::from(
-                            match status() {
+                    let icon = match status() {
+                        HybridStatusKind::EvalPending => BiLoaderRegular,
+                        HybridStatusKind::EvalStopped => BiErrorAltRegular,
+                        HybridStatusKind::EvalSucceeded { build } => {
+                            match build {
                                 TaskStatusKind::Success => BiCheckCircleSolid,
                                 TaskStatusKind::Pending => BiLoaderAltRegular,
                                 TaskStatusKind::Error => BiXCircleSolid,
                                 TaskStatusKind::Canceled => BiStopCircleRegular,
-                            },
-                        )/>
-                    }
+                            }
+                        }
+                    };
+                    view! { <Icon icon=Icon::from(icon)/> }
                 }}
 
             </span>
-
         </span>
     }
 }

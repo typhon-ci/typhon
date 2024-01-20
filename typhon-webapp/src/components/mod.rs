@@ -11,7 +11,7 @@ pub mod uuid_label;
 pub use evaluations::Evaluations;
 pub use log::LiveLog;
 pub use pagination::Pagination;
-pub use status::Status;
+pub use status::{HybridStatus, HybridStatusKind, Status};
 pub use time_related::*;
 pub use trans::Trans;
 pub use uuid_label::UuidLabel;
