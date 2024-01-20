@@ -60,6 +60,7 @@ hydrate = [
     "dep:console_error_panic_hook",
     "dep:tracing-web",
     "leptos/hydrate",
+    "leptos_meta/hydrate",
     "leptos_router/hydrate",
 ]
 ssr = [
@@ -67,6 +68,7 @@ ssr = [
     "dep:actix-session",
     "dep:leptos_actix",
     "leptos/ssr",
+    "leptos_meta/ssr",
     "leptos_router/ssr",
 ]
 

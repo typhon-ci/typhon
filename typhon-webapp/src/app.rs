@@ -29,6 +29,8 @@ impl AllEvents {
 
 #[component]
 pub fn App() -> impl IntoView {
+    provide_meta_context();
+
     let event = event_signal();
     provide_context(AllEvents(event.clone()));
 
