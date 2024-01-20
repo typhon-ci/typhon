@@ -457,13 +457,13 @@ fn Main(
                                 .cloned()
                             {
                                 view! {
-                                    <div>
+                                    <div class="term-theme">
                                         <JobSubpage job log_tab/>
                                     </div>
                                 }
                             } else {
                                 view! {
-                                    <div>
+                                    <div class="term-theme">
                                         <Icon icon=Icon::from(BiErrorAltRegular)/>
                                         The requested resource was not found.
                                     </div>
@@ -501,8 +501,10 @@ fn Main(
         }
         div :deep(> .contents) {
             grid-area: contents;
-            background: rgb(36, 41, 47);
+        }
+        div :deep(> .contents > .term-theme) {
             border-radius: 3px;
+            background: rgb(36, 41, 47);
             color: rgb(246, 248, 250);
         }
         div :deep(.summary .tag) {
