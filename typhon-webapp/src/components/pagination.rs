@@ -8,6 +8,9 @@ where
     F: Fn(u32) -> String + 'static + Clone,
 {
     let style = style! {
+        div {
+            text-align: center;
+        }
         div :deep(> .page) {
             display: inline-block;
             text-decoration: inherit;
