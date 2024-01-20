@@ -16,10 +16,9 @@ mod utils;
 
 #[cfg(feature = "hydrate")]
 pub fn setup_tracing_web() {
-    use tracing_subscriber::fmt::format::Pretty;
     use tracing_subscriber::fmt::time::UtcTime;
     use tracing_subscriber::prelude::*;
-    use tracing_web::{performance_layer, MakeWebConsoleWriter};
+    use tracing_web::MakeWebConsoleWriter;
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false) // Only partially supported across browsers

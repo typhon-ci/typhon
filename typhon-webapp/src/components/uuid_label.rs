@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use typhon_types::responses::TaskStatus;
 
 #[component]
 pub fn UuidLabel(uuid: uuid::Uuid) -> impl IntoView {
