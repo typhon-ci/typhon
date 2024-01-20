@@ -264,35 +264,15 @@ pub fn Evaluations(
     evaluations: Signal<Vec<handles::Evaluation>>,
 ) -> impl IntoView {
     let style = style! {
-        .jobset-contents {
-            --radius: 8px;
-        }
-        .header, .rows :deep(> .row) {
-            margin: 0px 20px;
-            display: flex;
-            align-items: center;
-            border: 1px solid var(--color-border-default);
-            padding: 12px;
-        }
-        .rows :deep(> .row) {
-            border-top: 0px;
-        }
-        .header {
-            border-radius: var(--radius) var(--radius) 0 0;
-            background: var(--color-bg-light);
-        }
         .header :deep(.title) {
             flex: 1;
         }
         .header :deep(.buttons) {
             display: none;
         }
-        .rows :deep(> .row:last-child) {
-            border-radius: 0 0 var(--radius) var(--radius);
-        }
     };
     view! { class=style,
-        <div class="jobset-contents">
+        <div class="jobset-contents is-table">
             <div class="header">
                 <div class="title">{count} evaluations</div>
                 <div class="buttons">

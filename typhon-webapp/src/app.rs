@@ -115,6 +115,27 @@ pub fn App() -> impl IntoView {
         :deep(*[data-status=Pending]) {
             --color-task-status: var(--color-task-status-pending);
         }
+
+        :deep(.is-table > .header) {
+            --radius: 8px;
+        }
+        :deep(.is-table > .header, .is-table > .rows > .row) {
+            margin: 0px 20px;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--color-border-default);
+            padding: 12px;
+        }
+        :deep(.is-table > .rows > .row) {
+            border-top: 0px;
+        }
+        :deep(.is-table > .header) {
+            border-radius: var(--radius) var(--radius) 0 0;
+            background: var(--color-bg-light);
+        }
+        :deep(.is-table .rows > .row:last-child) {
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
     };
     provide_context(utils::now_signal());
     view! { class=_styler_class,
