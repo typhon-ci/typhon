@@ -24,7 +24,7 @@ itertools.workspace = true
 js-sys = { workspace = true, optional = true }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_actix = { workspace = true, optional = true }
-leptos_icons = { workspace = true, features = ["BiHomeAltRegular", "BiCheckCircleSolid", "BiErrorCircleSolid", "BiTimerRegular", "BiRefreshRegular", "BiChevronRightRegular", "BiChevronLeftRegular", "BiChevronUpRegular", "BiChevronDownRegular", "BiCogRegular", "BiSearchAltRegular", "BiLeftArrowAltSolid", "BiDotsHorizontalRoundedRegular", "BiRightArrowSolid", "BiCodeRegular", "BiGitBranchRegular", "BiLoaderAltRegular", "BiStopCircleRegular", "BiDownArrowSolid", "BiXCircleSolid", "BiGithub", "BiGitlab", "BiTrashRegular", "BiCalendarEventRegular"] }
+leptos_icons = { workspace = true, features = ["BiHomeAltRegular", "BiCheckCircleSolid", "BiErrorCircleSolid", "BiTimerRegular", "BiRefreshRegular", "BiChevronRightRegular", "BiChevronLeftRegular", "BiChevronUpRegular", "BiChevronDownRegular", "BiCogRegular", "BiSearchAltRegular", "BiLeftArrowAltSolid", "BiDotsHorizontalRoundedRegular", "BiRightArrowSolid", "BiCodeRegular", "BiGitBranchRegular", "BiLoaderAltRegular", "BiStopCircleRegular", "BiDownArrowSolid", "BiXCircleSolid", "BiGithub", "BiGitlab", "BiTrashRegular", "BiCalendarEventRegular", "BiErrorAltRegular", "BiLoaderRegular"] }
 leptos_meta = { workspace = true, features = ["nightly"] }
 leptos_router.workspace = true
 serde-wasm-bindgen.workspace = true

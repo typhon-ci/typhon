@@ -6,27 +6,106 @@ use responses::TaskStatus;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// Describe the summary of the statuses for an evaluation
 struct EvalStatus {
-    status: TaskStatus,
-    map: HashMap<TaskStatusKind, u8>,
+    /// Status of the Nix evaluation
+    eval: TaskStatus,
+    /// Aggregate status for all the jobs
+    jobs: Option<TaskStatus>,
+    /// Map from `Succeeded`/`Pending`/... to the count of jobs in the
+    /// corresponding status
+    map: HashMap<TaskStatusKind, u32>,
 }
 
-fn status_of_evaluation(info: &responses::EvaluationInfo) -> EvalStatus {
-    let statuses: Vec<_> = info
-        .jobs
-        .clone()
-        .into_values()
-        .map(TaskStatus::from)
-        .collect();
-    let mut map: HashMap<TaskStatusKind, u8> = HashMap::new();
-    for kind in &statuses {
-        *map.entry(kind.into()).or_insert(0) += 1
+#[component]
+pub fn StatusMap(map: HashMap<TaskStatusKind, u32>) -> impl IntoView {
+    let style = style! {
+        .statuses {
+            display: inline-flex;
+            --status-font-size: var(--font-size-normal);
+        }
+        .statuses :deep(> .status) {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 20px;
+        }
+        .statuses :deep(> .status[data-n="0"] svg) {
+            opacity: 0.3;
+        }
+        .statuses :deep(> .status[data-n="0"]) {
+            opacity: 0.2;
+            filter: saturate(0%);
+        }
+        .statuses :deep(> .status > .count) {
+            display: block;
+            padding-bottom: 2px;
+            color: color-mix(in lch, var(--color-task-status) 70%, black);
+        }
+    };
+    (!map.is_empty()).then(|| {
+        view! { class=style,
+            <div class="statuses">
+
+                {
+                    use strum::IntoEnumIterator;
+                    TaskStatusKind::iter()
+                        .map(|k| {
+                            let k = k.clone();
+                            let n = map.get(&k).copied().unwrap_or(0);
+                            let n = format!("{}", n);
+                            view! {
+                                <div class="status" data-n=n.clone()>
+                                    <span class="count" data-status=format!("{:?}", &k)>
+                                        {n}
+                                    </span>
+                                    <Status status=move || k/>
+                                </div>
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }
+
+            </div>
+        }
+    })
+}
+
+impl EvalStatus {
+    fn hybrid_status(&self) -> HybridStatusKind {
+        use crate::components::status::HybridStatusKind;
+        match TaskStatusKind::from(&self.eval) {
+            TaskStatusKind::Pending => HybridStatusKind::EvalPending,
+            TaskStatusKind::Success => HybridStatusKind::EvalSucceeded {
+                build: self.jobs.unwrap_or_default().into(),
+            },
+            TaskStatusKind::Error | TaskStatusKind::Canceled => HybridStatusKind::EvalStopped,
+        }
     }
-    let status = statuses
-        .into_iter()
-        .reduce(|x, y| TaskStatus::union(&x, &y))
-        .unwrap_or(info.status);
-    EvalStatus { status, map }
+    fn summary(&self) -> TaskStatus {
+        if let Some(jobs) = self.jobs {
+            jobs
+        } else {
+            self.eval
+        }
+    }
+    fn new(info: &responses::EvaluationInfo) -> Self {
+        let job_statuses: Vec<_> = info
+            .jobs
+            .clone()
+            .into_values()
+            .map(TaskStatus::from)
+            .collect();
+        let mut map: HashMap<TaskStatusKind, u32> = HashMap::new();
+        for kind in &job_statuses {
+            *map.entry(kind.into()).or_insert(0) += 1
+        }
+        let jobs = job_statuses
+            .into_iter()
+            .reduce(|x, y| TaskStatus::union(&x, &y));
+        let eval = info.status.clone();
+        Self { jobs, eval, map }
+    }
 }
 
 #[component]
@@ -78,59 +157,82 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
         )),
         |responses::Response::EvaluationInfo(info)| info
     );
+    let style = style! {
+        .row {
+            gap: 8px;
+        }
+        .titles {
+            flex: 1;
+        }
+        .informations :deep(> *) {
+            display: flex;
+            align-items: center;
+            font-size: var(--font-size-small);
+            color: var(--color-fg-muted);
+            padding-bottom: 2px;
+            padding-top: 2px;
+        }
+        .informations :deep(svg) {
+            margin-right: 4px;
+            font-size: var(--font-size-normal);
+        }
+    };
     view! {
         <Trans error>
             {move || {
                 info()
                     .map(|info| {
-                        let status_infos = status_of_evaluation(&info);
+                        let status_infos = EvalStatus::new(&info);
                         let created = info.time_created;
                         let duration = Signal::derive({
-                            let status = status_infos.status.clone();
+                            let status = status_infos.summary().clone();
                             move || {
                                 let (start, end) = status.times();
-                                start.zip(end).map(|(start, end)| end - start)
+                                let end = end
+                                    .unwrap_or_else(|| use_context::<crate::utils::CurrentTime>()
+                                        .unwrap()
+                                        .0());
+                                start.map(|start| end - start)
                             }
                         });
                         let href = Root::Evaluation(routes::EvaluationPage {
                             handle: info.handle.clone(),
                             tab: routes::EvaluationTab::Info,
                         });
-                        view! {
-                            <div class="status">
+                        view! { class=style,
+                            <div class="row">
+                                <div class="status">
 
-                                {
-                                    let status_kind: TaskStatusKind = status_infos
-                                        .status
-                                        .clone()
-                                        .into();
-                                    view! {
-                                        <Status status=Signal::derive(move || status_kind.clone())/>
+                                    {
+                                        let status_kind: HybridStatusKind = status_infos
+                                            .hybrid_status();
+                                        view! {
+                                            <HybridStatus status=Signal::derive(move || {
+                                                status_kind.clone()
+                                            })/>
+                                        }
                                     }
-                                }
 
-                            </div>
-                            <div class="titles">
-                                <A href class="first">
-                                    <FlakeURI uri=info.url/>
-                                </A>
-                                <div class="second">
-                                    Evaluation <UuidLabel uuid=info.handle.uuid/>
+                                </div>
+                                <div class="titles">
+                                    <A href class="first">
+                                        <FlakeURI uri=info.url/>
+                                    </A>
+                                    <div class="second">
+                                        Evaluation <UuidLabel uuid=info.handle.uuid/>
+                                    </div>
+                                </div>
+                                <div class="jobs-summary">
+                                    <StatusMap map=status_infos.map/>
+                                </div>
+                                <div class="informations">
+                                    <RelativeTime datetime=created/>
+                                    <div>
+                                        <Icon icon=Icon::from(BiTimerRegular)/>
+                                        <Duration duration/>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="jobs-summary">
-                                {move || format!("{:#?}", status_infos.map)}
-                            </div>
-                            <div class="informations">
-                                <RelativeTime datetime=created/>
-                                <div>
-                                    <Icon icon=Icon::from(BiTimerRegular)/>
-                                    <Duration duration/>
-                                </div>
-                            </div>
-                            <button>
-                                <Icon icon=Icon::from(BiTrashRegular)/>
-                            </button>
                         }
                     })
             }}
@@ -171,27 +273,6 @@ pub fn Evaluations(
         .rows :deep(> .row:last-child) {
             border-radius: 0 0 var(--radius) var(--radius);
         }
-        .rows :deep(> .row > .titles) {
-            flex: 1;
-        }
-        .rows :deep(> .row > div) {
-            padding-right: 8px;
-        }
-        .rows :deep(> .row > div:last-child) {
-            padding-right: 0px;
-        }
-        .rows :deep(> .row > .informations > *) {
-            display: flex;
-            align-items: center;
-            font-size: var(--font-size-small);
-            color: var(--color-fg-muted);
-            padding-bottom: 2px;
-            padding-top: 2px;
-        }
-        .rows :deep(> .row > .informations svg) {
-            margin-right: 4px;
-            font-size: var(--font-size-normal);
-        }
     };
     view! { class=style,
         <div class="jobset-contents">
@@ -209,11 +290,7 @@ pub fn Evaluations(
                     each=evaluations
                     key=|handle| handle.uuid.clone()
                     children=move |handle| {
-                        view! {
-                            <div class="row">
-                                <Evaluation handle/>
-                            </div>
-                        }
+                        view! { <Evaluation handle/> }
                     }
                 />
 

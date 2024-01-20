@@ -85,18 +85,16 @@ fn LogTabHeader(
         }
     };
     view! { class=style,
-        <div class:tab-header=true class:active=true>
-            <A class={format!("body {style}")} href=String::from(href)>
-               <span class="status">
-                   <Status status=Signal::derive(move || status().into())/>
-               </span>
-               <span class="title">{title}</span>
-               <TaskStatusDuration status/>
+        <div class:tab-header=true class:active=active>
+            <A class=format!("body {style}") href=String::from(href)>
+                <span class="status">
+                    <Status status=Signal::derive(move || status().into())/>
+                </span>
+                <span class="title">{title}</span>
+                <TaskStatusDuration status/>
             </A>
             <div class="tooltip">
-              <pre>
-                 {serde_json::to_string(&handle)}
-              </pre>
+                <pre>{serde_json::to_string(&handle)}</pre>
             </div>
         </div>
     }
