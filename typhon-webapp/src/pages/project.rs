@@ -12,10 +12,14 @@ fn Jobset(handle: handles::Jobset) -> impl IntoView {
                 {info()
                     .map(|info| {
                         view! {
-                            <A href=Root::Jobset {
+                            <div class="row">
+                                    <div class="column">
+                                        <A href=Root::Jobset {
                                 handle: info.handle.clone(),
                                 page: 1,
                             }>{format!("{}", info.handle.clone().name)}</A>
+                                    </div>
+                                </div>
                         }
                     })}
 
@@ -59,22 +63,9 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
     ));
     view! {
         <Trans error>
-            <ul>
-                <For
-                    each=jobsets
-                    key=|handle| handle.name.clone()
-                    children=move |handle| {
-                        view! {
-                            <li>
-                                <Jobset handle/>
-                            </li>
-                        }
-                    }
-                />
-
-            </ul>
-
-            {
+            <div class="is-table">
+            <div class="header">
+                        {
                 let handle_name = handle.name.clone();
                 view! {
                     <ActionForm action=update_jobsets>
@@ -93,6 +84,27 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
                     </ActionForm>
                 }
             }
+                    <div class="header-columns">
+                    </div>
+                </div>
+                <div class="rows">
+                <For
+                    each=jobsets
+                    key=|handle| handle.name.clone()
+                    children=move |handle| {
+                        view! {
+                                <Jobset handle/>
+                        }
+                    }
+                />
+
+                </div>
+
+
+            </div>
+            <ul>
+
+            </ul>
 
         // FIXME: forms need to be in the transition component or else there are hydration bugs
         </Trans>
