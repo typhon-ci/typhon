@@ -11,13 +11,25 @@ use leptos_actix::{generate_route_list, LeptosRoutes};
 
 use typhon_webapp::App;
 
+const RANDOM_KEY: &str = "random";
+
 /// Typhon, Nix-based continuous integration
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(name = "Typhon")]
 pub struct Args {
     /// Hashed password
     #[arg(long, short = 'p', env)]
     pub hashed_password: String,
+
+    /// Cookie secret
+    #[arg(long, value_parser={|s: &str| -> Result<Key, String> {
+        if RANDOM_KEY == s {
+            return Ok(Key::generate());
+        }
+        let hex = hex::decode(s).map_err(|e| e.to_string())?;
+        Key::try_from(&hex[..]).map_err(|e| e.to_string())
+    }}, default_value=RANDOM_KEY, env)]
+    pub cookie_secret: Key,
 
     /// Silence all output
     #[arg(long, short, env)]
@@ -38,9 +50,6 @@ async fn main() -> std::io::Result<()> {
     // Initialization
     typhon_lib::init();
 
-    // Session key
-    let secret_key = Key::generate();
-
     // Run actix server
     let conf = get_configuration(None).await.unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -51,7 +60,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(SessionMiddleware::new(
                 CookieSessionStore::default(),
-                secret_key.clone(),
+                args.cookie_secret.clone(),
             ))
             .configure(api::config)
             .route("/leptos/{tail:.*}", leptos_actix::handle_server_fns())

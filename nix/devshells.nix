@@ -6,6 +6,7 @@
 }: let
   env = ''
     export HASHED_PASSWORD=$(echo -n "password" | sha256sum | head -c 64)
+    export COOKIE_SECRET=$(seq 100 | xxd -cu -l 64 -p)
     export TIMESTAMP="sec"
     export VERBOSE=3
   '';
