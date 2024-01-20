@@ -1,8 +1,10 @@
 use crate::prelude::*;
 use routes::{EvaluationTab, LogTab};
-use std::collections::HashMap;
+
 use typhon_types::data::TaskStatusKind;
 use typhon_types::responses::TaskStatus;
+
+use std::collections::HashMap;
 
 fn fetch_log(log: handles::Log) -> ReadSignal<Option<String>> {
     #[cfg(feature = "ssr")]
@@ -223,14 +225,22 @@ pub fn JobSubpage(
     }
 }
 
-fn collect_multiple<T: std::hash::Hash + Eq, V>(
-    it: impl Iterator<Item = (T, V)>,
-) -> HashMap<T, Vec<V>> {
-    let mut hashmap: HashMap<T, Vec<V>> = HashMap::new();
-    for (key, value) in it {
-        hashmap.entry(key).or_insert(vec![]).push(value);
+fn collect_jobs(
+    jobs: HashMap<responses::JobSystemName, responses::JobInfo>,
+) -> Vec<(String, Vec<(String, responses::JobInfo)>)> {
+    let mut hashmap: HashMap<String, Vec<(String, responses::JobInfo)>> = HashMap::new();
+    for (key, value) in jobs {
+        hashmap
+            .entry(key.system)
+            .or_insert(vec![])
+            .push((key.name, value));
     }
-    hashmap
+    let mut res = hashmap.into_iter().collect::<Vec<_>>();
+    for (_, x) in &mut res {
+        x.sort_unstable_by(|(a, _), (b, _)| Ord::cmp(a, b));
+    }
+    res.sort_unstable_by(|(a, _), (b, _)| Ord::cmp(a, b));
+    res
 }
 
 #[component]
@@ -327,12 +337,7 @@ fn Main(
             </li>
         }
     };
-    let items = collect_multiple(
-        info.jobs
-            .clone()
-            .into_iter()
-            .map(|(responses::JobSystemName { system, name }, info)| (system, (name, info))),
-    );
+    let items = collect_jobs(info.jobs.clone());
 
     let job_items = items
         .iter()
