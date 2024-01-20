@@ -378,10 +378,16 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
                         {match &status_kind {
                             TaskStatusKind::Success => {
                                 use crate::components::evaluations::StatusMap;
-                                view!{<StatusMap map compact=false/>}
-                            },
-                            _ => view!{<div>"Jobs requires the evaluation to be successful!"</div>}.into_view(),
+                                view! { <StatusMap map compact=false/> }
+                            }
+                            _ => {
+                                view! {
+                                    <div>"Jobs requires the evaluation to be successful!"</div>
+                                }
+                                    .into_view()
+                            }
                         }}
+
                     </div>
                 </div>
             </div>

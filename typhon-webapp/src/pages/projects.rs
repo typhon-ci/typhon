@@ -9,7 +9,7 @@ pub(crate) fn Projects() -> impl IntoView {
         |total, responses::search::Results::Projects(projects)| (total, projects)
     );
     let projects = Signal::derive(move || projects().unwrap_or((0, Vec::new())));
-    let _total = Signal::derive(move || projects().0);
+    let count = Signal::derive(move || projects().0);
     let projects = Signal::derive(move || projects().1);
     let action = request_action!(
         CreateProject,
@@ -21,47 +21,116 @@ pub(crate) fn Projects() -> impl IntoView {
             },
         }
     );
-    view! {
+    /// TODO split this view in two views, one for the table, one the the form
+    let style = style! {
+        .rows :deep(> .row), .header-columns {
+            display: grid;
+            grid-template-columns: 1fr 4fr 2fr;
+            gap: 10px;
+        }
+        .header-columns {
+            padding-top: 6px;
+            color: var(--color-fg-subtle);
+            font-size: var(--font-size-small);
+        }
+        .header {
+            display: block!important;
+            padding-bottom: 6px;
+        }
+        .is-table {
+            padding-top: 20px;
+        }
+        .summary {
+
+        }
+        .row :deep(.empty-field) {
+            font-style: italic;
+            opacity: 0.5;
+        }
+    };
+    fn with_placeholder(text: &str) -> impl IntoView {
+        match text.trim() {
+            "" => view! {<span style="opacity: 0.3;">"<empty>"</span>},
+            text => view! {<span>text</span>},
+        }
+    }
+    view! { class=style,
         <Trans error>
-            <table>
-                <tr>
-                    <th>"Id"</th>
-                    <th>"Name"</th>
-                    <th>"Description"</th>
-                </tr>
-                <For
-                    each=projects
-                    key=|(handle, _)| handle.clone()
-                    children=move |(handle, metadata)| {
-                        view! {
-                            <tr>
-                                <td>
-                                    <A href=routes::Root::Project(handle.clone())>{handle.name}</A>
-                                </td>
-                                <td>{metadata.title}</td>
-                                <td>{metadata.description}</td>
-                            </tr>
+            <div class="is-table">
+                <div class="header">
+                    <div class="summary">{count} projects</div>
+                    <div class="header-columns">
+                        <div class="column id">"Identifier"</div>
+                        <div class="column name">"Name"</div>
+                        <div class="column description">"Description"</div>
+                    </div>
+                </div>
+                <div class="rows">
+                    <For
+                        each=projects
+                        key=|(handle, _)| handle.clone()
+                        children=move |(handle, metadata)| {
+                            view! {
+                                <div class="row">
+                                    <div class="column id">
+                                        <A href=routes::Root::Project(
+                                            handle.clone(),
+                                        )>{handle.name}</A>
+                                    </div>
+                                    <div class="column name">{with_placeholder(&metadata.title)}</div>
+                                    <div class="column description">{with_placeholder(&metadata.description)}</div>
+                                </div>
+                            }
                         }
-                    }
+                    />
+
+                </div>
+                <Pagination
+                    max=10
+                    count
+                    current=Signal::derive(|| 1)
+                    link=|_: u32| "todo".to_string()
                 />
 
-            </table>
+            </div>
         </Trans>
         <ActionForm action>
-            <h2>"New project"</h2>
+            <h2>"Add a project"</h2>
             <div>
-                <label for="name">"name"</label>
-                <input type="string" name="name"/>
+                <label class="label" for="name">
+                    "Name"
+                </label>
+                <input class="input" id="name"/>
             </div>
             <div>
-                <label for="url">"url"</label>
-                <input type="string" name="url"/>
+                <label class="label" for="url">
+                    "Nix url"
+                </label>
+                <input class="input" id="url"/>
             </div>
             <div>
-                <label for="flake">"flake"</label>
-                <input type="checkbox" name="flake"/>
+                <label class="label" for="description">
+                    "Description"
+                </label>
+                <textarea class="input" id="description"/>
             </div>
-            <input type="submit" value="New project"/>
+            <fieldset>
+                <legend>Flake</legend>
+                <div class="input">
+                    <div>
+                        <input type="radio" name="nix-kind" id="flake"/>
+                        <label for="nix-kind">Flake</label>
+                    </div>
+                    <div>
+                        <input type="radio" name="nix-kind" id="legacy"/>
+                        <label for="nix-kind">Legacy</label>
+                    </div>
+                </div>
+            </fieldset>
+            <button type="submit">
+                <Icon icon=Icon::from(BiPlusCircleSolid)/>
+                Add
+            </button>
         </ActionForm>
     }
 }
