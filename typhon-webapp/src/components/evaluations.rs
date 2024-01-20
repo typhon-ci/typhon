@@ -262,25 +262,20 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
 pub fn Evaluations(
     count: Signal<u32>,
     evaluations: Signal<Vec<handles::Evaluation>>,
+    #[prop(optional)] buttons: Option<Box<dyn Fn() -> View>>,
 ) -> impl IntoView {
     let style = style! {
         .header :deep(.title) {
             flex: 1;
         }
         .header :deep(.buttons) {
-            display: none;
         }
     };
     view! { class=style,
         <div class="jobset-contents is-table">
             <div class="header">
                 <div class="title">{count} evaluations</div>
-                <div class="buttons">
-                    <button>Event <Icon icon=Icon::from(BiChevronDownRegular)/></button>
-                    <button>Status <Icon icon=Icon::from(BiChevronDownRegular)/></button>
-                    <button>Branch <Icon icon=Icon::from(BiChevronDownRegular)/></button>
-                    <button>Actor <Icon icon=Icon::from(BiChevronDownRegular)/></button>
-                </div>
+                <div class="buttons">{buttons.map(|buttons| buttons())}</div>
             </div>
             <div class="rows">
                 <For

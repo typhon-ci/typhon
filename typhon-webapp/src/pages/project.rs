@@ -13,13 +13,13 @@ fn Jobset(handle: handles::Jobset) -> impl IntoView {
                     .map(|info| {
                         view! {
                             <div class="row">
-                                    <div class="column">
-                                        <A href=Root::Jobset {
-                                handle: info.handle.clone(),
-                                page: 1,
-                            }>{format!("{}", info.handle.clone().name)}</A>
-                                    </div>
+                                <div class="column">
+                                    <A href=Root::Jobset {
+                                        handle: info.handle.clone(),
+                                        page: 1,
+                                    }>{format!("{}", info.handle.clone().name)}</A>
                                 </div>
+                            </div>
                         }
                     })}
 
@@ -64,46 +64,41 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
     view! {
         <Trans error>
             <div class="is-table">
-            <div class="header">
-                        {
-                let handle_name = handle.name.clone();
-                view! {
-                    <ActionForm action=update_jobsets>
-                        <input type="hidden" name="name" value=handle_name/>
-                        <input type="submit" value="Update jobsets"/>
-                    </ActionForm>
-                }
-            }
+                <div class="header">
 
-            {
-                let handle_name = handle.name.clone();
-                view! {
-                    <ActionForm action=refresh>
-                        <input type="hidden" name="name" value=handle_name/>
-                        <input type="submit" value="Refresh"/>
-                    </ActionForm>
-                }
-            }
-                    <div class="header-columns">
-                    </div>
-                </div>
-                <div class="rows">
-                <For
-                    each=jobsets
-                    key=|handle| handle.name.clone()
-                    children=move |handle| {
+                    {
+                        let handle_name = handle.name.clone();
                         view! {
-                                <Jobset handle/>
+                            <ActionForm action=update_jobsets>
+                                <input type="hidden" name="name" value=handle_name/>
+                                <input type="submit" value="Update jobsets"/>
+                            </ActionForm>
                         }
                     }
-                />
+                    {
+                        let handle_name = handle.name.clone();
+                        view! {
+                            <ActionForm action=refresh>
+                                <input type="hidden" name="name" value=handle_name/>
+                                <input type="submit" value="Refresh"/>
+                            </ActionForm>
+                        }
+                    }
+                    <div class="header-columns"></div>
+                </div>
+                <div class="rows">
+                    <For
+                        each=jobsets
+                        key=|handle| handle.name.clone()
+                        children=move |handle| {
+                            view! { <Jobset handle/> }
+                        }
+                    />
 
                 </div>
-
 
             </div>
             <ul>
-
             </ul>
 
         // FIXME: forms need to be in the transition component or else there are hydration bugs

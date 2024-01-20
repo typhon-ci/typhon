@@ -65,20 +65,35 @@ pub fn Jobset(
         <header>
             <span>Jobset {handle.name.clone()}</span>
 
-            {
-                let handle = handle.clone();
-                view! {
-                    <ActionForm action>
-                        <input type="hidden" name="project" value=handle.project.name/>
-                        <input type="hidden" name="jobset" value=handle.name/>
-                        <input type="submit" value="Evaluate"/>
-                    </ActionForm>
-                }
-            }
-
         </header>
         <Trans error>
-            <Evaluations count=evaluation_count evaluations/>
+
+            {
+                view! {
+                    <Evaluations
+                        count=evaluation_count
+                        evaluations
+                        buttons={
+                            let handle = handle.clone();
+                            Box::new(move || {
+                                let handle = handle.clone();
+                                view! {
+                                    <ActionForm action>
+                                        <input
+                                            type="hidden"
+                                            name="project"
+                                            value=handle.project.name
+                                        />
+                                        <input type="hidden" name="jobset" value=handle.name/>
+                                        <input type="submit" value="Evaluate"/>
+                                    </ActionForm>
+                                }
+                                    .into_view()
+                            })
+                        }
+                    />
+                }
+            }
             <Pagination
                 max=10
                 count=evaluation_count

@@ -50,8 +50,8 @@ pub(crate) fn Projects() -> impl IntoView {
     };
     fn with_placeholder(text: &str) -> impl IntoView {
         match text.trim() {
-            "" => view! {<span style="opacity: 0.3;">"<empty>"</span>},
-            text => view! {<span>text</span>},
+            "" => view! { <span style="opacity: 0.3;">"<empty>"</span> },
+            text => view! { <span>text</span> },
         }
     }
     view! { class=style,
@@ -77,8 +77,12 @@ pub(crate) fn Projects() -> impl IntoView {
                                             handle.clone(),
                                         )>{handle.name}</A>
                                     </div>
-                                    <div class="column name">{with_placeholder(&metadata.title)}</div>
-                                    <div class="column description">{with_placeholder(&metadata.description)}</div>
+                                    <div class="column name">
+                                        {with_placeholder(&metadata.title)}
+                                    </div>
+                                    <div class="column description">
+                                        {with_placeholder(&metadata.description)}
+                                    </div>
                                 </div>
                             }
                         }
@@ -112,7 +116,7 @@ pub(crate) fn Projects() -> impl IntoView {
                 <label class="label" for="description">
                     "Description"
                 </label>
-                <textarea class="input" id="description"/>
+                <textarea class="input" id="description"></textarea>
             </div>
             <fieldset>
                 <legend>Flake</legend>
