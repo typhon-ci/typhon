@@ -67,6 +67,7 @@ serde_repr = "0.1"
 sha256 = "1.4"
 stderrlog = "0.5"
 strip-ansi-escapes = "0.2"
+strum = "0.25"
 stylers = "1.0.0-alpha"
 time = { version = "0.3", features = ["serde"] }
 tokio = { version = "1.33", features = ["full"] }
