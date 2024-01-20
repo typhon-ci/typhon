@@ -25,12 +25,8 @@ pub fn setup_tracing_web() {
         .with_ansi(false) // Only partially supported across browsers
         .with_timer(UtcTime::rfc_3339())
         .with_writer(MakeWebConsoleWriter::new()); // write events to the console
-    let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
 
-    tracing_subscriber::registry()
-        .with(fmt_layer)
-        .with(perf_layer)
-        .init()
+    tracing_subscriber::registry().with(fmt_layer).init()
 }
 
 #[cfg(feature = "hydrate")]
