@@ -428,7 +428,7 @@ fn Main(
                     {mk_item(
                         EvaluationTab::Info,
                         view! { <Icon icon=Icon::from(BiHomeAltRegular)/> },
-                        view! { Informations }.into_view(),
+                        view! { Overview }.into_view(),
                     )}
 
                 </ul>
