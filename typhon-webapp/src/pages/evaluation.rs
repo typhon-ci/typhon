@@ -23,47 +23,82 @@ fn fetch_log(log: handles::Log) -> ReadSignal<Option<String>> {
 fn LogTabHeader(
     #[prop(into)] title: String,
     #[prop(into)] status: Signal<TaskStatus>,
+    handle: handles::Log,
     href: Root,
     active: bool,
 ) -> impl IntoView {
     let style = style! {
         .tab-header {
-            display: inline-grid;
-            grid-template-columns: auto auto 1fr auto;
+            position: relative;
+            display: inline;
+        }
+        .body {
             color: inherit;
             text-decoration: inherit;
             font-size: 100%;
+
+            display: inline-grid;
+            grid-template-columns: auto auto 1fr auto;
             padding: 5px;
             gap: 5px;
-            position: relative;
             z-index: 1;
+            position: relative;
             --status-font-size: var(--font-size-normal);
         }
-        .tab-header.active {
+        .tab-header.active .body {
             border-bottom: 1px solid white;
         }
-        .tab-header :deep(> span) {
+        .body :deep(> span) {
             display: inline-block;
         }
-        .tab-header :deep(time) {
+        .body :deep(> time) {
             color: var(--color-gray);
             font-size: 100%;
             letter-spacing: -0.3px;
             padding-left: 4px;
             font-family: JetBrains Mono, monospace;
         }
+        .tab-header:hover .tooltip {
+            transition-duration: 40ms;
+            transition-delay: 600ms;
+            transition-timing-function: ease-in;
+            transition-property: opacity;
+            opacity: 1;
+        }
+        .tooltip {
+            opacity: 0;
+            transition: opacity 100ms;
+            overflow: hidden;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translate(-50%);
+            background: var(--color-black);
+            border-radius: 5px;
+            border: 1px solid var(--color-gray);
+            font-size: var(--font-size-small);
+            letter-spacing: -1px;
+            z-index: 5;
+        }
+        .tooltip pre {
+            margin: 4px;
+        }
     };
     view! { class=style,
-        <A
-            class=format!("tab-header {style} {}", if active { " active" } else { "" })
-            href=String::from(href)
-        >
-            <span class="status">
-                <Status status=Signal::derive(move || status().into())/>
-            </span>
-            <span class="title">{title}</span>
-            <TaskStatusDuration status/>
-        </A>
+        <div class:tab-header=true class:active=true>
+            <A class={format!("body {style}")} href=String::from(href)>
+               <span class="status">
+                   <Status status=Signal::derive(move || status().into())/>
+               </span>
+               <span class="title">{title}</span>
+               <TaskStatusDuration status/>
+            </A>
+            <div class="tooltip">
+              <pre>
+                 {serde_json::to_string(&handle)}
+              </pre>
+            </div>
+        </div>
     }
 }
 
@@ -206,10 +241,11 @@ pub fn JobSubpage(
                 {logs
                     .clone()
                     .into_iter()
-                    .map(|(_, status, title, tab)| {
+                    .map(|(handle, status, title, tab)| {
                         view! {
                             <LogTabHeader
                                 title
+                                handle
                                 href=href(tab)
                                 status=move || status
                                 active=tab == log_tab
