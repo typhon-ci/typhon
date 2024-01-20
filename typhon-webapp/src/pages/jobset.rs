@@ -177,7 +177,7 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
                         });
                         let href = Root::Evaluation(routes::EvaluationPage {
                             handle: info.handle.clone(),
-                            tab: routes::EvaluationTab::Summary,
+                            tab: routes::EvaluationTab::Info,
                         });
                         view! {
                             <div class="status">

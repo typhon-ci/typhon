@@ -234,6 +234,37 @@ fn collect_multiple<T: std::hash::Hash + Eq, V>(
 }
 
 #[component]
+fn Info(info: responses::EvaluationInfo) -> impl IntoView {
+    let style = style! {
+        table {
+            text-align: left;
+        }
+    };
+    view! { class=style,
+        <table>
+            <tr>
+                <th>url:</th>
+                <th>{info.url}</th>
+            </tr>
+            <tr>
+                <th>flake:</th>
+                <th>{info.flake}</th>
+            </tr>
+            <tr>
+                <th>created:</th>
+                <th>
+                    <RelativeTime datetime=info.time_created/>
+                </th>
+            </tr>
+            <tr>
+                <th>actions path:</th>
+                <th>{info.actions_path}</th>
+            </tr>
+        </table>
+    }
+}
+
+#[component]
 fn Main(
     #[allow(unused)]
     #[prop(into)]
@@ -356,9 +387,9 @@ fn Main(
             <section>
                 <ul style="padding: 0;">
                     {mk_item(
-                        EvaluationTab::Summary,
+                        EvaluationTab::Info,
                         view! { <Icon icon=Icon::from(BiHomeAltRegular)/> },
-                        view! { Summary }.into_view(),
+                        view! { Info }.into_view(),
                     )}
 
                 </ul>
@@ -368,10 +399,11 @@ fn Main(
         <div class="contents">
 
             {
+                let info = info.clone();
                 let jobs = info.jobs.clone();
                 move || {
                     match active_tab() {
-                        EvaluationTab::Summary => "Summary page, todo".into_view(),
+                        EvaluationTab::Info => view! { <Info info=info.clone()/> },
                         EvaluationTab::Job { handle, log_tab } => {
                             let job = jobs
                                 .clone()

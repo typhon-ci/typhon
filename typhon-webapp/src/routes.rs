@@ -61,7 +61,7 @@ impl From<EvaluationPage<Empty>> for EvaluationPage {
     fn from(e: EvaluationPage<Empty>) -> Self {
         Self {
             handle: e.handle,
-            tab: EvaluationTab::Summary,
+            tab: EvaluationTab::Info,
         }
     }
 }
@@ -150,7 +150,7 @@ impl Default for LogTab {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvaluationTab {
-    Summary,
+    Info,
     Job {
         handle: handles::Job,
         log_tab: LogTab,
@@ -220,7 +220,7 @@ impl TryFrom<Location> for Root {
                             };
                             EvaluationTab::Job { handle, log_tab }
                         }
-                        [] => EvaluationTab::Summary,
+                        [] => EvaluationTab::Info,
                         _ => Err(r)?,
                     };
                     Self::Evaluation(EvaluationPage { handle, tab })
@@ -256,7 +256,7 @@ impl From<Root> for String {
                         let log_tab: &str = log_tab.into();
                         format!("{}/{}/{}", handle.system, handle.name, log_tab)
                     }
-                    EvaluationTab::Summary => "".into(),
+                    EvaluationTab::Info => "".into(),
                 }
             ),
         }
@@ -287,7 +287,7 @@ pub fn Router() -> impl IntoView {
             let handle = Signal::derive(move || e.handle.clone());
             let tab = create_memo(move |_| match page() {
                 Ok(Root::Evaluation(e)) => e.tab,
-                _ => EvaluationTab::Summary,
+                _ => EvaluationTab::Info,
             });
             view! { <Evaluation handle tab/> }
         }
