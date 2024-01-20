@@ -96,7 +96,24 @@ pub fn App() -> impl IntoView {
             --color-bg-light: var(--color-lllightgray);
             --color-disabled: var(--color-llgray);
 
+            --color-task-status-success: var(--color-success);
+            --color-task-status-error: var(--color-danger);
+            --color-task-status-canceled: var(--color-fg-muted);
+            --color-task-status-pending: var(--color-orange);
+
             --status-font-size: var(--font-size-huge);
+        }
+        :deep(*[data-status=Success]) {
+            --color-task-status: var(--color-task-status-success);
+        }
+        :deep(*[data-status=Error]) {
+            --color-task-status: var(--color-task-status-error);
+        }
+        :deep(*[data-status=Canceled]) {
+            --color-task-status: var(--color-task-status-canceled);
+        }
+        :deep(*[data-status=Pending]) {
+            --color-task-status: var(--color-task-status-pending);
         }
     };
     provide_context(utils::now_signal());

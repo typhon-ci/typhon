@@ -14,20 +14,11 @@ pub fn Status(#[prop(into)] status: Signal<TaskStatusKind>) -> impl IntoView {
             width: "1em";
             height: "1em";
             font-size: var(--status-font-size);
-        }
-        .status[data-status=Success] {
-            color: var(--color-success);
-        }
-        .status[data-status=Error] {
-            color: var(--color-danger);
-        }
-        .status[data-status=Canceled] {
-            color: var(--color-fg-muted);
+            color: var(--color-task-status);
         }
         .status[data-status=Pending] {
             position: relative;
             display: inline-block;
-            color: var(--color-orange);
             animation-name: spin;
             animation-duration: 2000ms;
             animation-iteration-count: infinite;
