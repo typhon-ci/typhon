@@ -48,8 +48,20 @@ pub(crate) fn Projects() -> impl IntoView {
             </table>
         </Trans>
         <ActionForm action>
-            name: <input type="string" name="name"/> url: <input type="string" name="url"/> flake:
-            <input type="checkbox" name="flake"/> <input type="submit"/>
+            <h2>"New project"</h2>
+            <div>
+                <label for="name">"name"</label>
+                <input type="string" name="name"/>
+            </div>
+            <div>
+                <label for="url">"url"</label>
+                <input type="string" name="url"/>
+            </div>
+            <div>
+                <label for="flake">"flake"</label>
+                <input type="checkbox" name="flake"/>
+            </div>
+            <input type="submit" value="New project"/>
         </ActionForm>
     }
 }
