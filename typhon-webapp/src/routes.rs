@@ -267,9 +267,6 @@ use crate::components::header::*;
 
 #[component]
 pub fn Router() -> impl IntoView {
-    // use crate::evaluation::Evaluation;
-    // use crate::jobset::Jobset;
-    // use crate::{Projects};
     let page = Signal::derive(|| Root::try_from(use_location()));
     let root_page = create_memo(move |_| page().map(Root::<Empty>::from));
     use crate::pages::*;

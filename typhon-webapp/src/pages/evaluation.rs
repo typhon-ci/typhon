@@ -365,7 +365,6 @@ fn Main(
             </section>
             {job_items}
         </nav>
-        // <div>
         <div class="contents">
 
             {

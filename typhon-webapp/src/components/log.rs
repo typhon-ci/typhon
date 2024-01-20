@@ -23,7 +23,6 @@ impl State {
         let mut state = self;
         struct Command {
             name: String,
-            // parameters: Vec<(String, String)>,
             rest: String,
         }
         fn parse_nix_phase(line: &str) -> Option<Command> {
@@ -33,7 +32,6 @@ impl State {
             {
                 ["", phase] if let Some(phase) = phase.split(r#"""#).next() => Some(Command {
                     name: "nix-phase".into(),
-                    // parameters: vec![],
                     rest: phase.into(),
                 }),
                 _ => None,
@@ -43,7 +41,6 @@ impl State {
             match &line.split("::").collect::<Vec<_>>()[..] {
                 ["", name, rest @ ..] => Some(Command {
                     name: name.to_string(),
-                    // parameters: vec![],
                     rest: rest.join("::"),
                 }),
                 _ => None,
