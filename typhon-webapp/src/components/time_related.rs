@@ -30,7 +30,7 @@ pub fn RelativeTime(#[prop(into)] datetime: time::OffsetDateTime) -> impl IntoVi
         if seconds >= 100 {
             return format!("{minutes} min{} ago", plural(minutes));
         }
-        format!("{seconds} second{} ago", plural(seconds))
+        format!("{seconds} sec{} ago", plural(seconds))
     }
     let now = use_context::<crate::utils::CurrentTime>().unwrap().0;
     let duration = move || now() - datetime;
