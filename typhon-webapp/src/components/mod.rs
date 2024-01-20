@@ -1,3 +1,4 @@
+pub mod evaluations;
 pub mod header;
 pub mod log;
 pub mod pagination;
@@ -6,6 +7,7 @@ pub mod time_related;
 pub mod trans;
 
 //pub use header::Header;
+pub use evaluations::Evaluations;
 pub use log::LiveLog;
 pub use pagination::Pagination;
 pub use status::Status;
