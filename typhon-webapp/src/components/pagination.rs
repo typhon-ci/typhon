@@ -1,14 +1,9 @@
 use crate::prelude::*;
 
-use core::ops::Range;
 use itertools::Itertools;
 
 #[component]
-pub fn Pagination<F>(
-    #[prop(into)] range: Range<u32>,
-    #[prop(into)] current: Signal<u32>,
-    link: F,
-) -> impl IntoView
+pub fn Pagination<F>(max: u32, count: Signal<u32>, current: Signal<u32>, link: F) -> impl IntoView
 where
     F: Fn(u32) -> String + 'static + Clone,
 {
@@ -43,6 +38,7 @@ where
         }
     };
     move || {
+        let range = 1..((count() as u32).div_ceil(max) + 1);
         let render_button = &|page: Option<u32>, contents: View, class: &'static str| {
             let link = link.clone();
             move || {

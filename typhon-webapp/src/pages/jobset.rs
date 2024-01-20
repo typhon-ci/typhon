@@ -1,7 +1,5 @@
 use crate::prelude::*;
 
-const PAGE_MAX_ITEMS: u8 = 8;
-
 #[component]
 pub fn Jobset(
     #[prop(into)] handle: handles::Jobset,
@@ -81,28 +79,18 @@ pub fn Jobset(
         </header>
         <Trans error>
             <Evaluations count=evaluation_count evaluations/>
-
-            {
-                let handle = handle.clone();
-                move || {
-                    let range = 1..((evaluation_count() as u32).div_ceil(PAGE_MAX_ITEMS as u32)
-                        + 1);
-                    view! {
-                        <Pagination
-                            range
-                            current=page
-                            link={
-                                let handle = handle.clone();
-                                move |page: u32| String::from(Root::Jobset {
-                                    handle: handle.clone(),
-                                    page,
-                                })
-                            }
-                        />
-                    }
+            <Pagination
+                max=10
+                count=evaluation_count
+                current=page
+                link={
+                    let handle = handle.clone();
+                    move |page: u32| String::from(Root::Jobset {
+                        handle: handle.clone(),
+                        page,
+                    })
                 }
-            }
-
+            />
         </Trans>
     }
 }

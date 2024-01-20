@@ -32,11 +32,21 @@ pub fn PendingEvaluations(page: u32) -> impl IntoView {
     let evaluations = Signal::derive(move || evaluations().unwrap_or((0, Vec::new())));
     let count = Signal::derive(move || evaluations().0);
     let evaluations = Signal::derive(move || evaluations().1);
+    let current = Signal::derive(move || page);
     view! {
         <h1>"Pending evaluations:"</h1>
         <Trans error>
             <Evaluations count evaluations/>
         </Trans>
+        <Pagination
+            max=10
+            count
+            current
+            link=move |page: u32| String::from(Root::Dashboard {
+                tab: DashboardTab::Evaluations,
+                page,
+            })
+        />
     }
 }
 
