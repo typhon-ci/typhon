@@ -100,7 +100,7 @@ pub fn LiveLog(#[prop(into)] lines: leptos::ReadSignal<Option<String>>) -> impl 
     let contents = Signal::derive(move || {
         lines()
             .map(|contents| {
-                contents
+                strip_ansi_escapes::strip_str(contents)
                     .split("\n")
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>()
@@ -129,6 +129,10 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
             display: grid;
             align-content: baseline;
             grid-template-columns: "35px" 1fr;
+        }
+        .log :deep(.line pre) {
+            display: inline-block;
+            margin: 0px;
         }
         .log {
             font-family: JetBrains Mono, sans-serif;
@@ -178,14 +182,10 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
                         >
 
                             <span class="n">{i + 1}</span>
-                            <span
-                                class="l"
-                                style=format!(
-                                    "margin-left: {}px;",
-                                    (line.group_stack.len() + 1) * 16,
-                                )
-                            >
-
+                            <pre style=format!(
+                                "margin-left: {}px;",
+                                (line.group_stack.len() + 1) * 16,
+                            )>
                                 {move || {
                                     line.starts_group
                                         .map(|id| {
@@ -201,9 +201,8 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
                                             }
                                         })
                                 }}
-
                                 {line.contents}
-                            </span>
+                            </pre>
                         </div>
                     }
                 }

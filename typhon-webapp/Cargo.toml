@@ -30,6 +30,7 @@ leptos_router.workspace = true
 serde-wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, optional = true }
+strip-ansi-escapes.workspace = true
 stylers.workspace = true
 time = {workspace = true, features = ["wasm-bindgen"]}
 tracing.workspace = true
