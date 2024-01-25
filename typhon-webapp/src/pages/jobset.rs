@@ -5,6 +5,7 @@ pub fn Jobset(
     #[prop(into)] handle: handles::Jobset,
     #[prop(into)] page: Signal<u32>,
 ) -> impl IntoView {
+    let user: Signal<Option<data::User>> = use_context().unwrap();
     let style = style! {
         .pages :deep(a.page) {
             text-decoration: inherit;
@@ -61,39 +62,35 @@ pub fn Jobset(
             requests::Jobset::Evaluate(true),
         )
     });
+    let signal_handle = {
+        let handle = handle.clone();
+        Signal::derive(move || handle.clone())
+    };
     view! { class=style,
         <header>
             <span>Jobset {handle.name.clone()}</span>
-
         </header>
         <Trans error>
-
-            {
-                view! {
-                    <Evaluations
-                        count=evaluation_count
-                        evaluations
-                        buttons={
-                            let handle = handle.clone();
-                            Box::new(move || {
-                                let handle = handle.clone();
-                                view! {
-                                    <ActionForm action>
-                                        <input
-                                            type="hidden"
-                                            name="project"
-                                            value=handle.project.name
-                                        />
-                                        <input type="hidden" name="jobset" value=handle.name/>
-                                        <input type="submit" value="Evaluate"/>
-                                    </ActionForm>
-                                }
-                                    .into_view()
-                            })
-                        }
-                    />
-                }
-            }
+            <Evaluations
+                count=evaluation_count
+                evaluations
+                buttons=Box::new(move || {
+                    view! {
+                        <Show when=move || user().is_some()>
+                            <ActionForm action>
+                                <input
+                                    type="hidden"
+                                    name="project"
+                                    value=signal_handle().project.name
+                                />
+                                <input type="hidden" name="jobset" value=signal_handle().name/>
+                                <input type="submit" value="Evaluate"/>
+                            </ActionForm>
+                        </Show>
+                    }
+                        .into_view()
+                })
+            />
             <Pagination
                 max=10
                 count=evaluation_count

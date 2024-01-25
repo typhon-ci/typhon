@@ -30,6 +30,7 @@ fn Jobset(handle: handles::Jobset) -> impl IntoView {
 
 #[component]
 pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
+    let user: Signal<Option<data::User>> = use_context().unwrap();
     let (error, info) = {
         let handle = handle.clone();
         resource!(
@@ -61,29 +62,24 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
         handles::Project { name },
         requests::Project::Refresh,
     ));
+    let handle_name = {
+        let handle_name = handle.name.clone();
+        Signal::derive(move || handle_name.clone())
+    };
     view! {
         <Trans error>
             <div class="is-table">
                 <div class="header">
-
-                    {
-                        let handle_name = handle.name.clone();
-                        view! {
-                            <ActionForm action=update_jobsets>
-                                <input type="hidden" name="name" value=handle_name/>
-                                <input type="submit" value="Update jobsets"/>
-                            </ActionForm>
-                        }
-                    }
-                    {
-                        let handle_name = handle.name.clone();
-                        view! {
-                            <ActionForm action=refresh>
-                                <input type="hidden" name="name" value=handle_name/>
-                                <input type="submit" value="Refresh"/>
-                            </ActionForm>
-                        }
-                    }
+                    <Show when=move || { user().is_some() }>
+                        <ActionForm action=update_jobsets>
+                            <input type="hidden" name="name" value=handle_name/>
+                            <input type="submit" value="Update jobsets"/>
+                        </ActionForm>
+                        <ActionForm action=refresh>
+                            <input type="hidden" name="name" value=handle_name/>
+                            <input type="submit" value="Refresh"/>
+                        </ActionForm>
+                    </Show>
                     <div class="header-columns"></div>
                 </div>
                 <div class="rows">

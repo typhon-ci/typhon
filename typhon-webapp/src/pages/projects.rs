@@ -2,6 +2,7 @@ use crate::prelude::*;
 
 #[component]
 pub(crate) fn Projects() -> impl IntoView {
+    let user: Signal<Option<data::User>> = use_context().unwrap();
     let (error, projects) = search!(
         Signal::derive(|| 0),
         Signal::derive(|| 100),
@@ -98,30 +99,32 @@ pub(crate) fn Projects() -> impl IntoView {
 
             </div>
         </Trans>
-        <ActionForm action>
-            <h2>"Add a project"</h2>
-            <div>
-                <label class="label" for="name">
-                    "Identifier"
-                </label>
-                <input class="input" id="name"/>
-            </div>
-            <div>
-                <label class="label" for="url">
-                    "URL"
-                </label>
-                <input class="input" id="url"/>
-            </div>
-            <div>
-                <label class="label" for="flake">
-                    "Flake"
-                </label>
-                <input class="input" id="flake" type="checkbox" checked=true/>
-            </div>
-            <button type="submit">
-                <Icon icon=Icon::from(BiPlusCircleSolid)/>
-                "Add"
-            </button>
-        </ActionForm>
+        <Show when=move || user().is_some()>
+            <ActionForm action>
+                <h2>"Add a project"</h2>
+                <div>
+                    <label class="label" for="name">
+                        "Identifier"
+                    </label>
+                    <input class="input" id="name"/>
+                </div>
+                <div>
+                    <label class="label" for="url">
+                        "URL"
+                    </label>
+                    <input class="input" id="url"/>
+                </div>
+                <div>
+                    <label class="label" for="flake">
+                        "Flake"
+                    </label>
+                    <input class="input" id="flake" type="checkbox" checked=true/>
+                </div>
+                <button type="submit">
+                    <Icon icon=Icon::from(BiPlusCircleSolid)/>
+                    "Add"
+                </button>
+            </ActionForm>
+        </Show>
     }
 }
