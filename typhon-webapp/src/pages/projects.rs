@@ -102,38 +102,25 @@ pub(crate) fn Projects() -> impl IntoView {
             <h2>"Add a project"</h2>
             <div>
                 <label class="label" for="name">
-                    "Name"
+                    "Identifier"
                 </label>
                 <input class="input" id="name"/>
             </div>
             <div>
                 <label class="label" for="url">
-                    "Nix url"
+                    "URL"
                 </label>
                 <input class="input" id="url"/>
             </div>
             <div>
-                <label class="label" for="description">
-                    "Description"
+                <label class="label" for="flake">
+                    "Flake"
                 </label>
-                <textarea class="input" id="description"></textarea>
+                <input class="input" id="flake" type="checkbox" checked=true/>
             </div>
-            <fieldset>
-                <legend>Flake</legend>
-                <div class="input">
-                    <div>
-                        <input type="radio" name="nix-kind" id="flake"/>
-                        <label for="nix-kind">Flake</label>
-                    </div>
-                    <div>
-                        <input type="radio" name="nix-kind" id="legacy"/>
-                        <label for="nix-kind">Legacy</label>
-                    </div>
-                </div>
-            </fieldset>
             <button type="submit">
                 <Icon icon=Icon::from(BiPlusCircleSolid)/>
-                Add
+                "Add"
             </button>
         </ActionForm>
     }
