@@ -98,8 +98,7 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
                 </div>
 
             </div>
-            <ul>
-            </ul>
+            <ul></ul>
 
         // FIXME: forms need to be in the transition component or else there are hydration bugs
         </Trans>
