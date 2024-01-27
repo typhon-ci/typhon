@@ -35,15 +35,19 @@ in {
     # $ echo -n "password" | sha256sum | head -c 64
     hashedPassword =
       "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
-
-    # the domain of your instance
-    domain = "typhon-ci.org";
   };
 
-  # configure https
+  # configure nginx
   services.nginx.virtualHosts."typhon-ci.org" = {
+    enable = true;
     forceSSL = true;
     enableACME = true;
+    virtualHosts."example.com" = {
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:3000";
+        recommendedProxySettings = true;
+      };
+    };
   };
 }
 ```
@@ -58,8 +62,6 @@ Mandatory:
 - `services.typhon.enable`: a boolean to activate the Typhon instance.
 - `services.typhon.hashedPassword`: a string containing the digest of the admin
   password. Use `sha256sum` to compute this value.
-- `services.typhon.domain`: a string containing the domain at which the Typhon
-  instance is served.
 
 Optional:
 

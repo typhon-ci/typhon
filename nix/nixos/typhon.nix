@@ -35,10 +35,6 @@ in {
       type = types.str;
       description = "Sha256 of the admin password for the Typhon instance";
     };
-    domain = mkOption {
-      type = types.str;
-      description = "Domain name for the Typhon instance";
-    };
   };
 
   config = mkIf cfg.enable {
@@ -78,16 +74,6 @@ in {
       };
       requires = ["typhon-init.service"];
       after = ["typhon-init.service"];
-    };
-
-    services.nginx = {
-      enable = true;
-      virtualHosts.${cfg.domain} = {
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:3000";
-          recommendedProxySettings = true;
-        };
-      };
     };
   };
 }
