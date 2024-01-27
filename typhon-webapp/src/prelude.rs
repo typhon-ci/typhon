@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 pub use leptos::*;
-pub use leptos_icons::BiIcon::*;
 pub use leptos_icons::*;
 pub use leptos_router::{ActionForm, ToHref, A};
 pub use serde::{Deserialize, Serialize};

@@ -16,10 +16,12 @@ mod server_fn {
         );
         match res {
             Ok(Ok(())) => {
-                let session = extract!(Session);
-                session
-                    .insert("user", User::Admin)
-                    .map_err(|_| ServerFnError::ServerError("TODO".to_string()))?;
+                let session: Session = extract().await?;
+                session.insert("user", User::Admin).map_err(|_| {
+                    ServerFnError::<server_fn::error::NoCustomError>::ServerError(
+                        "TODO".to_string(),
+                    )
+                })?;
                 redirect("/");
                 Ok(())
             }
@@ -32,7 +34,7 @@ mod server_fn {
     pub async fn logout() -> Result<(), ServerFnError> {
         use actix_session::Session;
         use leptos_actix::{extract, redirect};
-        let session = extract!(Session);
+        let session: Session = extract().await?;
         session.remove("user");
         redirect("/");
         Ok(())

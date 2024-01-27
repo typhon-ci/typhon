@@ -154,7 +154,7 @@ pub fn FlakeURI(#[prop(into)] uri: String) -> impl IntoView {
                 <div class="wrapper">
                     <span class="commit">Commit <code>{commit[..8].to_string()}</code></span>
                     <Tag href=format!("https://github.com/{owner}/{repo}")>
-                        <Icon icon=Icon::from(BiGithub)/>
+                        <Icon icon=icondata::BiGithub/>
                         {text}
                     </Tag>
                 </div>
@@ -245,7 +245,7 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
                                 <div class="informations">
                                     <RelativeTime datetime=created/>
                                     <div>
-                                        <Icon icon=Icon::from(BiTimerRegular)/>
+                                        <Icon icon=icondata::BiTimerRegular/>
                                         <Duration duration/>
                                     </div>
                                 </div>

@@ -27,9 +27,9 @@ typhon-lib = { path = "./typhon-lib" }
 typhon-types = { path = "./typhon-types" }
 typhon-webapp = { path = "./typhon-webapp" }
 actix-files = "0.6"
-actix-session = { version = "0.8", features = ["cookie-session"] }
+actix-session = { version = "0.9", features = ["cookie-session"] }
 actix-web = "4.4"
-age = { version = "0.8", features = ["armor"] }
+age = { version = "0.9", features = ["armor"] }
 async-recursion = "1.0"
 async-stream = "0.3"
 async-trait = "0.1"
@@ -43,40 +43,41 @@ futures = "0.3"
 futures-core = "0.3"
 futures-util = "0.3"
 gloo-console = "0.3"
-gloo-net = "0.4"
+gloo-net = "0.5"
 gloo-storage = "0.3"
 gloo-utils = "0.2"
 hex = "0.4"
+icondata = "0.3"
 im = "15.1"
-itertools = "0.11"
+itertools = "0.12"
 js-sys = "0.3"
 lazy_static = "1.4"
-leptos = "0.5"
-leptos_actix = "0.5"
-leptos_icons = "0.1"
-leptos_meta = "0.5"
-leptos_router = "0.5"
+leptos = "0.6"
+leptos_actix = "0.6"
+leptos_icons = "0.3"
+leptos_meta = "0.6"
+leptos_router = "0.6"
+once_cell = "1.19"
+regex = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+serde_json = "1.0"
+serde_repr = "0.1"
+serde_with = "3.5"
+sha256 = "1.5"
+stderrlog = "0.5"
+strip-ansi-escapes = "0.2"
+strum = "0.26"
+stylers = "1.0.0-alpha"
+time = { version = "0.3", features = ["serde"] }
+tokio = { version = "1.35", features = ["full"] }
+tokio-stream = "0.1"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-web = "0.1"
-once_cell = "1.18"
-regex = "1.10"
-serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.4"
-serde_json = "1.0"
-serde_repr = "0.1"
-serde_with = "3.4"
-sha256 = "1.4"
-stderrlog = "0.5"
-strip-ansi-escapes = "0.2"
-strum = "0.25"
-stylers = "1.0.0-alpha"
-time = { version = "0.3", features = ["serde"] }
-tokio = { version = "1.33", features = ["full"] }
-tokio-stream = "0.1"
 urlencoding = "2.1"
-uuid = { version = "1.6", features = ["v7", "serde"] }
+uuid = { version = "1.7", features = ["v7", "serde"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-wasm-streams = "0.3"
+wasm-streams = "0.4"
 web-sys = { version = "0.3", features = ["Navigator", "Clipboard", "ReadableStream", "Response", "TextDecoder"] }

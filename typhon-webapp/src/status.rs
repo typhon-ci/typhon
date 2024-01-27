@@ -1,5 +1,4 @@
 use leptos::*;
-use leptos_icons::BiIcon::*;
 use leptos_icons::*;
 use stylers::style;
 
@@ -14,13 +13,13 @@ pub fn Status(success: bool) -> impl IntoView {
         }
     };
     let icon = if success {
-        BiCheckCircleSolid
+        icondata::BiCheckCircleSolid
     } else {
-        BiErrorCircleSolid
+        icondata::BiErrorCircleSolid
     };
     view! { class=styler_class,
         <span class="status" class:success=success>
-            <Icon icon=Icon::from(icon)/>
+            <Icon icon/>
         </span>
     }
 }

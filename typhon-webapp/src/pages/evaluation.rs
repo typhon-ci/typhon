@@ -231,8 +231,8 @@ pub fn JobSubpage(
 
                 </h2>
             </div>
-            <Icon icon=Icon::from(BiRefreshRegular)/>
-            <Icon icon=Icon::from(BiCogRegular)/>
+            <Icon icon=icondata::BiRefreshRegular/>
+            <Icon icon=icondata::BiCogRegular/>
         </div>
         <div class="contents">
             <div class="tabs">
@@ -514,7 +514,7 @@ fn Main(
                 <ul style="padding: 0;">
                     {mk_item(
                         EvaluationTab::Info,
-                        view! { <Icon icon=Icon::from(BiHomeAltRegular)/> },
+                        view! { <Icon icon=icondata::BiHomeAltRegular/> },
                         view! { Overview }.into_view(),
                     )}
 
@@ -551,7 +551,7 @@ fn Main(
                             } else {
                                 view! {
                                     <div class="term-theme">
-                                        <Icon icon=Icon::from(BiErrorAltRegular)/>
+                                        <Icon icon=icondata::BiErrorAltRegular/>
                                         The requested resource was not found.
                                     </div>
                                 }
@@ -645,7 +645,7 @@ fn Main(
                 </div>
                 <button class="rerun-jobs">Re-run all jobs</button>
                 <button class="more">
-                    <Icon icon=Icon::from(BiDotsHorizontalRoundedRegular)/>
+                    <Icon icon=icondata::BiDotsHorizontalRoundedRegular/>
                 </button>
             </header>
             {main}

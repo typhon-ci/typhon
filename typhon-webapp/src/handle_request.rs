@@ -42,10 +42,12 @@ pub mod core {
         use actix_session::Session;
         use leptos_actix::extract;
         use typhon_lib::User;
-        let session = extract!(Session);
+        let session: Session = extract().await?;
         let user: User = session
             .get("user")
-            .map_err(|_| ServerFnError::ServerError("TODO".to_string()))?
+            .map_err(|_| {
+                ServerFnError::<server_fn::error::NoCustomError>::ServerError("TODO".to_string())
+            })?
             .unwrap_or(User::Anonymous);
         Ok(typhon_lib::handle_request(user, request).await)
     }

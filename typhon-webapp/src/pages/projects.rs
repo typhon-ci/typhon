@@ -121,7 +121,7 @@ pub(crate) fn Projects() -> impl IntoView {
                     <input class="input" id="flake" type="checkbox" checked=true/>
                 </div>
                 <button type="submit">
-                    <Icon icon=Icon::from(BiPlusCircleSolid)/>
+                    <Icon icon=icondata::BiPlusCircleSolid/>
                     "Add"
                 </button>
             </ActionForm>

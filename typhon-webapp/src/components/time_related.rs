@@ -36,7 +36,7 @@ pub fn RelativeTime(#[prop(into)] datetime: time::OffsetDateTime) -> impl IntoVi
     let duration = move || now() - datetime;
     view! {
         <time datetime=move || format!("{}s", duration().whole_seconds())>
-            <Icon icon=Icon::from(BiCalendarEventRegular)/>
+            <Icon icon=icondata::BiCalendarEventRegular/>
             {move || human_approx_duration(duration())}
         </time>
     }
@@ -44,36 +44,33 @@ pub fn RelativeTime(#[prop(into)] datetime: time::OffsetDateTime) -> impl IntoVi
 
 #[component]
 pub fn Duration(#[prop(into)] duration: Signal<Option<time::Duration>>) -> impl IntoView {
-    move || {
-        match duration() {
-            Some(duration) => {
-                let seconds = duration.whole_seconds();
-                let minutes = duration.whole_minutes();
-                let hours = duration.whole_hours();
-                view! {
-                    <time datetime=format!(
-                        "{}s",
-                        seconds,
-                    )>
-                        // <Icon icon=Icon::from(BiTimerRegular)/>
-                        {if hours == 0 {
-                            if minutes == 0 {
-                                format!("{}s", seconds)
-                            } else {
-                                let seconds = seconds % 60;
-                                format!("{}m {}s", minutes, seconds)
-                            }
+    move || match duration() {
+        Some(duration) => {
+            let seconds = duration.whole_seconds();
+            let minutes = duration.whole_minutes();
+            let hours = duration.whole_hours();
+            view! {
+                <time datetime=format!(
+                    "{}s",
+                    seconds,
+                )>
+                    {if hours == 0 {
+                        if minutes == 0 {
+                            format!("{}s", seconds)
                         } else {
-                            let minutes = minutes % 60;
-                            format!("{}h {}m", hours, minutes)
-                        }}
+                            let seconds = seconds % 60;
+                            format!("{}m {}s", minutes, seconds)
+                        }
+                    } else {
+                        let minutes = minutes % 60;
+                        format!("{}h {}m", hours, minutes)
+                    }}
 
-                    </time>
-                }
-                .into_view()
+                </time>
             }
-            _ => ().into_view(),
+            .into_view()
         }
+        _ => ().into_view(),
     }
 }
 

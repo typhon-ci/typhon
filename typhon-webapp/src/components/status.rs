@@ -55,6 +55,7 @@ pub fn HybridStatus(#[prop(into)] status: Signal<HybridStatusKind>) -> impl Into
         <span class="status" data-status=data_status>
             <span class="icon-wrapper">
                 {move || {
+                    use icondata::*;
                     let icon = match status() {
                         HybridStatusKind::EvalPending => BiLoaderRegular,
                         HybridStatusKind::EvalStopped => BiErrorAltRegular,

@@ -190,13 +190,13 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
                                     line.starts_group
                                         .map(|id| {
                                             let icon = if close().contains(&id) {
-                                                BiRightArrowSolid
+                                                icondata::BiRightArrowSolid
                                             } else {
-                                                BiDownArrowSolid
+                                                icondata::BiDownArrowSolid
                                             };
                                             view! {
                                                 <span class="icon">
-                                                    <Icon icon=Icon::from(icon)/>
+                                                    <Icon icon/>
                                                 </span>
                                             }
                                         })

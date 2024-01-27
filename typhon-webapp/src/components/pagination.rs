@@ -83,13 +83,13 @@ where
             .flatten();
 
         let prev = view! {
-            <Icon icon=Icon::from(BiChevronLeftRegular)/>
+            <Icon icon=icondata::BiChevronLeftRegular/>
             "Previous"
         }
         .into_view();
         let next = view! {
             "Next"
-            <Icon icon=Icon::from(BiChevronRightRegular)/>
+            <Icon icon=icondata::BiChevronRightRegular/>
         }
         .into_view();
         let prev = render_button(
