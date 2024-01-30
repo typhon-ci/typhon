@@ -8,7 +8,7 @@ mod server_fn {
     pub async fn login(password: String) -> Result<(), ServerFnError> {
         use crate::prelude::*;
         use actix_session::Session;
-        use leptos_actix::{extract, redirect};
+        use leptos_actix::extract;
         use typhon_types::data::User;
         let res = handle_request!(
             requests::Request::Login { password },
@@ -22,7 +22,8 @@ mod server_fn {
                         "TODO".to_string(),
                     )
                 })?;
-                redirect("/");
+                //FIXME: a redirect will prevent the deserialization of the output
+                //redirect("/");
                 Ok(())
             }
             Ok(Err(_)) => Err(ServerFnError::ServerError("TODO".to_string())),
@@ -33,10 +34,11 @@ mod server_fn {
     #[server(Logout, "/leptos", "Url", "logout")]
     pub async fn logout() -> Result<(), ServerFnError> {
         use actix_session::Session;
-        use leptos_actix::{extract, redirect};
+        use leptos_actix::extract;
         let session: Session = extract().await?;
         session.remove("user");
-        redirect("/");
+        //FIXME: a redirect will prevent the deserialization of the output
+        //redirect("/");
         Ok(())
     }
 }
