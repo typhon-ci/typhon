@@ -17,9 +17,7 @@ pub(crate) use crate::{
     app::AllEvents,
     components::*,
     // evaluation::Evaluation,
-    handle_request::{
-        handle_request, handle_request_srv_err, request_action, resource, search, HandleRequest,
-    },
+    handle_request::{handle_request, request_action, resource, search, HandleRequest},
     //log::LiveLog,
     pages,
     routes::{self, Root},

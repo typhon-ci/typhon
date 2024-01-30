@@ -53,7 +53,7 @@ pub mod core {
     }
 }
 
-macro_rules! handle_request_srv_err {
+macro_rules! handle_request {
     ($req:expr, |$res:pat_param| $body:expr) => {
         match $crate::handle_request::core::handle_request($req).await {
             Ok(Ok($res)) => Ok(Ok($body)),
@@ -62,12 +62,6 @@ macro_rules! handle_request_srv_err {
             Ok(Err(e)) => Ok(Err(e)),
             Err(e) => Err(e),
         }
-    };
-}
-
-macro_rules! handle_request {
-    ($req:expr, |$res:pat_param| $body:expr) => {
-        $crate::handle_request::handle_request_srv_err!($req, |$res| $body)
     };
 }
 
@@ -138,4 +132,4 @@ macro_rules! request_action {
 }
 
 pub(crate) use core::HandleRequest;
-pub(crate) use {handle_request, handle_request_srv_err, request_action, resource, search};
+pub(crate) use {handle_request, request_action, resource, search};
