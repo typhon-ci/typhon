@@ -4,7 +4,7 @@ use leptos_router::*;
 mod server_fn {
     use leptos::*;
 
-    #[server(Login, "/leptos")]
+    #[server(Login, "/leptos", "Url", "login")]
     pub async fn login(password: String) -> Result<(), ServerFnError> {
         use crate::prelude::*;
         use actix_session::Session;
@@ -30,7 +30,7 @@ mod server_fn {
         }
     }
 
-    #[server(Logout, "/leptos")]
+    #[server(Logout, "/leptos", "Url", "logout")]
     pub async fn logout() -> Result<(), ServerFnError> {
         use actix_session::Session;
         use leptos_actix::{extract, redirect};

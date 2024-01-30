@@ -35,7 +35,7 @@ pub mod core {
         Signal::derive(move || (req(), count().unwrap_or(0)))
     }
 
-    #[server(HandleRequest, "/leptos")]
+    #[server(HandleRequest, "/leptos", "Url", "handle_request")]
     pub async fn handle_request(
         request: requests::Request,
     ) -> Result<Result<responses::Response, responses::ResponseError>, ServerFnError> {
