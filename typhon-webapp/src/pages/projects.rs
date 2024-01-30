@@ -99,33 +99,33 @@ pub(crate) fn Projects() -> impl IntoView {
                 />
 
             </div>
+            <Show when=move || user().is_some()>
+                <ActionForm action>
+                    <h2>"Add a project"</h2>
+                    <div>
+                        <label class="label" for="name">
+                            "Identifier"
+                        </label>
+                        <input name="name" class="input" id="name"/>
+                    </div>
+                    <div>
+                        <label class="label" for="url">
+                            "URL"
+                        </label>
+                        <input name="url" class="input" id="url"/>
+                    </div>
+                    <div>
+                        <label class="label" for="flake">
+                            "Flake"
+                        </label>
+                        <input name="flake" class="input" id="flake" type="checkbox" checked=true/>
+                    </div>
+                    <button type="submit">
+                        <Icon icon=icondata::BiPlusCircleSolid/>
+                        "Add"
+                    </button>
+                </ActionForm>
+            </Show>
         </Trans>
-        <Show when=move || user().is_some()>
-            <ActionForm action>
-                <h2>"Add a project"</h2>
-                <div>
-                    <label class="label" for="name">
-                        "Identifier"
-                    </label>
-                    <input class="input" id="name"/>
-                </div>
-                <div>
-                    <label class="label" for="url">
-                        "URL"
-                    </label>
-                    <input class="input" id="url"/>
-                </div>
-                <div>
-                    <label class="label" for="flake">
-                        "Flake"
-                    </label>
-                    <input class="input" id="flake" type="checkbox" checked=true/>
-                </div>
-                <button type="submit">
-                    <Icon icon=icondata::BiPlusCircleSolid/>
-                    "Add"
-                </button>
-            </ActionForm>
-        </Show>
     }
 }
