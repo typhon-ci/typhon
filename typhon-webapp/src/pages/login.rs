@@ -1,3 +1,5 @@
+use crate::prelude::*;
+
 use leptos::*;
 use leptos_router::*;
 
@@ -64,26 +66,29 @@ impl UserActions {
 
 #[component]
 pub fn Login() -> impl IntoView {
+    let user: Signal<Option<data::User>> = use_context().unwrap();
     let action = use_context::<UserActions>().unwrap().login;
     let value = action.value();
     let has_error = move || value.with(|val| matches!(val, Some(Err(_))));
     view! {
-        <ActionForm action>
-            <h2>"Log In"</h2>
-            <div>
-                <label for="password">"Password"</label>
-                <input type="password" placeholder="Password" name="password"/>
-            </div>
-            <button type="submit">"Log In"</button>
-            {move || {
-                if has_error() {
-                    view! { "Failed to log in!" }.into_view()
-                } else {
-                    view! {}.into_view()
-                }
-            }}
+        <Show when=move || user().is_none() fallback=|| view! { "You are logged in!" }>
+            <ActionForm action>
+                <h2>"Log In"</h2>
+                <div>
+                    <label for="password">"Password"</label>
+                    <input type="password" placeholder="Password" name="password"/>
+                </div>
+                <button type="submit">"Log In"</button>
+                {move || {
+                    if has_error() {
+                        view! { "Failed to log in!" }.into_view()
+                    } else {
+                        view! {}.into_view()
+                    }
+                }}
 
-        </ActionForm>
+            </ActionForm>
+        </Show>
     }
 }
 
