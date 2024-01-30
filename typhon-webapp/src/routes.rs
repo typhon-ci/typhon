@@ -249,7 +249,7 @@ impl TryFrom<Location> for Root {
                     }
                     Self::Jobset { handle, page }
                 }
-                ["eval", uuid, rest @ ..] if let Ok(uuid) = uuid::Uuid::from_str(uuid) => {
+                ["evaluation", uuid, rest @ ..] if let Ok(uuid) = uuid::Uuid::from_str(uuid) => {
                     let handle = handles::evaluation(uuid);
                     let tab = match rest {
                         [system, name, log_tab @ ..] => {
