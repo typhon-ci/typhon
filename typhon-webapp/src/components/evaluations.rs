@@ -90,7 +90,6 @@ pub fn StatusMap(map: HashMap<TaskStatusKind, u32>, compact: bool) -> impl IntoV
 
 impl EvalStatus {
     pub fn hybrid_status(&self) -> HybridStatusKind {
-        use crate::components::status::HybridStatusKind;
         match TaskStatusKind::from(&self.eval) {
             TaskStatusKind::Pending => HybridStatusKind::EvalPending,
             TaskStatusKind::Success => HybridStatusKind::EvalSucceeded {

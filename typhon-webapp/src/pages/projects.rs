@@ -22,7 +22,7 @@ pub(crate) fn Projects() -> impl IntoView {
             },
         }
     );
-    /// TODO split this view in two views, one for the table, one the the form
+    // TODO split this view in two views, one for the table, one the the form
     let style = style! {
         .rows :deep(> .row), .header-columns {
             display: grid;
@@ -50,9 +50,10 @@ pub(crate) fn Projects() -> impl IntoView {
         }
     };
     fn with_placeholder(text: &str) -> impl IntoView {
-        match text.trim() {
-            "" => view! { <span style="opacity: 0.3;">"<empty>"</span> },
-            text => view! { <span>text</span> },
+        if text.is_empty() {
+            view! { <span style="opacity: 0.3;">"<empty>"</span> }
+        } else {
+            view! { <span>{text.to_string()}</span> }
         }
     }
     view! { class=style,

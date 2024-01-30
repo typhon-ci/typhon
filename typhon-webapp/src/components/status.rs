@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use data::TaskStatusKind;
 
-use std::collections::HashMap;
-
 #[derive(Clone, Debug)]
 pub enum HybridStatusKind {
     EvalPending,

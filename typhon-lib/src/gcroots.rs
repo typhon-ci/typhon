@@ -9,6 +9,7 @@ use std::fs::{remove_dir_all, rename, DirBuilder};
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
+#[allow(dead_code)] // FIXME: maybe use Display instead of Debug?
 #[derive(Debug)]
 enum Error {
     DbError(diesel::result::Error),
