@@ -298,7 +298,7 @@ impl From<Root> for String {
                 handle.project.name, handle.name
             ),
             Root::Evaluation(e) => format!(
-                "/eval/{}/{}",
+                "/evaluation/{}/{}",
                 e.handle.uuid,
                 match e.tab {
                     EvaluationTab::Job { handle, log_tab } => {
