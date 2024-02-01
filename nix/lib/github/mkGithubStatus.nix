@@ -15,7 +15,6 @@ utils: lib: {
       mkScript = system: ''
         input=$(cat)
 
-        drv=$(echo "$input" | jq '.input.drv' -r)
         evaluation=$(echo "$input" | jq '.input.evaluation' -r)
         job=$(echo "$input" | jq '.input.job' -r)
         status=$(echo "$input" | jq '.input.status' -r)
