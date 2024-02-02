@@ -381,9 +381,7 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
                                 view! { <StatusMap map compact=false/> }
                             }
                             _ => {
-                                view! {
-                                    <div>"Jobs requires the evaluation to be successful!"</div>
-                                }
+                                view! { <div>"Jobs require the evaluation to be successful!"</div> }
                                     .into_view()
                             }
                         }}
