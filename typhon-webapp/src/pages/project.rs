@@ -78,8 +78,21 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
                         <ActionForm action=refresh>
                             <input type="hidden" name="name" value=handle_name/>
                             <input type="submit" value="Refresh"/>
+
                         </ActionForm>
                     </Show>
+                    {move || {
+                        info()
+                            .map(|info| {
+                                info.last_refresh
+                                    .map(|status| {
+                                        let status: data::TaskStatusKind = status.into();
+                                        view! { <Status status=move || status.clone()/> }
+                                    })
+                            })
+                            .flatten()
+                    }}
+
                     <div class="header-columns"></div>
                 </div>
                 <div class="rows">
