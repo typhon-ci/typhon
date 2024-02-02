@@ -38,13 +38,13 @@ in {
   };
 
   # configure nginx
-  services.nginx.virtualHosts."typhon-ci.org" = {
+  services.nginx = {
     enable = true;
     forceSSL = true;
     enableACME = true;
     virtualHosts."example.com" = {
       locations."/" = {
-        proxyPass = "http://127.0.0.1:3000";
+        proxyPass = "http://localhost:3000";
         recommendedProxySettings = true;
       };
     };
