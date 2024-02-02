@@ -41,7 +41,7 @@ pub mod core {
     ) -> Result<Result<responses::Response, responses::ResponseError>, ServerFnError> {
         use actix_session::Session;
         use leptos_actix::extract;
-        use typhon_lib::User;
+        use typhon_core::User;
         let session: Session = extract().await?;
         let user: User = session
             .get("user")
@@ -49,7 +49,7 @@ pub mod core {
                 ServerFnError::<server_fn::error::NoCustomError>::ServerError("TODO".to_string())
             })?
             .unwrap_or(User::Anonymous);
-        Ok(typhon_lib::handle_request(user, request).await)
+        Ok(typhon_core::handle_request(user, request).await)
     }
 }
 

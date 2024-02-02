@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "typhon",
-  "typhon-lib",
+  "typhon-core",
   "typhon-types",
   "typhon-webapp",
 ]
@@ -22,7 +22,7 @@ lib-features = ["hydrate"]
 assets-dir = "typhon-webapp/assets"
 
 [workspace.dependencies]
-typhon-lib = { path = "./typhon-lib" }
+typhon-core = { path = "./typhon-core" }
 typhon-types = { path = "./typhon-types" }
 typhon-webapp = { path = "./typhon-webapp" }
 actix-files = "0.6"

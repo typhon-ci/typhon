@@ -1,7 +1,7 @@
 # Hacking
 
 Typhon is written in Rust. It consists of four packages:
-- `typhon-lib` is the core logic of Typhon
+- `typhon-core` is the core logic of Typhon
 - `typhon-webapp` is the frontend application
 - `typhon-types` is a common library shared between the two
 - `typhon` is the server and the main package

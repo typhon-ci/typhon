@@ -48,7 +48,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("HASHED_PASSWORD", args.hashed_password);
 
     // Initialization
-    typhon_lib::init();
+    typhon_core::init();
 
     // Run actix server
     let conf = get_configuration(None).await.unwrap();
@@ -74,7 +74,7 @@ async fn main() -> std::io::Result<()> {
     .await?;
 
     // Graceful shutdown
-    typhon_lib::shutdown().await;
+    typhon_core::shutdown().await;
 
     Ok(())
 }

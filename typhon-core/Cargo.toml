@@ -1,5 +1,5 @@
 [package]
-name = "typhon-lib"
+name = "typhon-core"
 version.workspace = true
 edition.workspace = true
 

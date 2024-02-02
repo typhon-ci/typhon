@@ -7,7 +7,7 @@ edition.workspace = true
 crate-type = [ "cdylib", "rlib" ]
 
 [dependencies]
-typhon-lib = { workspace = true, optional = true }
+typhon-core = { workspace = true, optional = true }
 typhon-types.workspace = true
 actix-session = { workspace = true, optional = true }
 async-stream.workspace = true
@@ -64,7 +64,7 @@ hydrate = [
     "leptos_router/hydrate",
 ]
 ssr = [
-    "dep:typhon-lib",
+    "dep:typhon-core",
     "dep:actix-session",
     "dep:leptos_actix",
     "leptos/ssr",

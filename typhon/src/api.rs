@@ -1,7 +1,7 @@
-use typhon_lib::error;
-use typhon_lib::handle_request;
-use typhon_lib::User;
-use typhon_lib::EVENT_LOGGER;
+use typhon_core::error;
+use typhon_core::handle_request;
+use typhon_core::User;
+use typhon_core::EVENT_LOGGER;
 use typhon_types::handles;
 use typhon_types::requests::*;
 use typhon_types::responses::{Response, ResponseError};
@@ -260,7 +260,7 @@ mod log_routes {
     use handles::Log;
 
     async fn serve(log: Log) -> Response {
-        let maybe_stream = web::block(move || typhon_lib::log(log)).await??;
+        let maybe_stream = web::block(move || typhon_core::log(log)).await??;
         Ok(maybe_stream.map(streaming_response))
     }
     pub async fn evaluation(path: web::Path<Uuid>) -> Response {
@@ -303,7 +303,7 @@ async fn webhook(
     req: HttpRequest,
     body: String,
 ) -> Result<HttpResponse, ResponseErrorWrapper> {
-    let input = typhon_lib::webhooks::Input {
+    let input = typhon_core::webhooks::Input {
         headers: req
             .headers()
             .into_iter()
@@ -324,7 +324,7 @@ async fn webhook(
     };
 
     let handle = handles::project(path.into_inner());
-    let requests = web::block(move || typhon_lib::webhook(handle, input)).await??;
+    let requests = web::block(move || typhon_core::webhook(handle, input)).await??;
     for req in requests {
         handle_request(User::Admin, req)
             .await

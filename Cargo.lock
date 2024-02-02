@@ -3935,14 +3935,14 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "typhon-lib",
+ "typhon-core",
  "typhon-types",
  "typhon-webapp",
  "uuid",
 ]
 
 [[package]]
-name = "typhon-lib"
+name = "typhon-core"
 version = "0.0.1"
 dependencies = [
  "age",
@@ -4013,7 +4013,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-web",
- "typhon-lib",
+ "typhon-core",
  "typhon-types",
  "urlencoding",
  "uuid",
