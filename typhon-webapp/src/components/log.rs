@@ -129,6 +129,7 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
             display: grid;
             align-content: baseline;
             grid-template-columns: "35px" 1fr;
+            white-space: normal;
         }
         .log :deep(.line pre) {
             display: inline-block;
