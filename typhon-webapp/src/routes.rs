@@ -343,11 +343,68 @@ pub fn Router() -> impl IntoView {
             });
             view! { <Evaluation handle tab/> }
         }
-        Err(loc) => format!("Unknow view: {:#?}", loc).into_view(),
+        Err(loc) => view! { <BadLocation loc/> },
     };
     let route = Signal::derive(move || root_page().ok());
     view! {
         <Header route/>
         <main>{main}</main>
+    }
+}
+
+#[component]
+fn BadLocation(loc: leptos_router::Location) -> impl IntoView {
+    pub use stylers::style;
+    let style = style! {
+        main {
+            padding: 20px;
+        }
+        #wrapper {
+            text-align: center;
+        }
+        details {
+            margin-top: 30px;
+            font-size: 12px;
+            color: var(--color-lgray);
+        }
+        pre {
+            color: black;
+            font-size: 11px;
+        }
+    };
+    view! { class=style,
+        <main>
+            <div id="wrapper">
+                <h1>404</h1>
+                <div>The page was not found!</div>
+            </div>
+            <details>
+                <summary>Details</summary>
+                <pre>
+
+                    {
+                        #[derive(Debug)]
+                        pub struct Location {
+                            pub pathname: String,
+                            pub search: String,
+                            pub query: leptos_router::ParamsMap,
+                            pub hash: String,
+                            pub state: leptos_router::State,
+                        }
+                        format!(
+                            "{:#?}",
+                            Location {
+                                pathname: (loc.pathname)(),
+                                search: (loc.search)(),
+                                query: (loc.query)(),
+                                hash: (loc.hash)(),
+                                state: (loc.state)(),
+                            },
+                        )
+                    }
+
+                </pre>
+            </details>
+        </main>
     }
 }
