@@ -68,7 +68,7 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
     };
     view! {
         <Trans error>
-            <div class="is-table">
+            <div class="is-table" style="padding-top: 20px;">
                 <div class="header">
                     <Show when=move || { user().is_some() }>
                         <ActionForm action=update_jobsets>
