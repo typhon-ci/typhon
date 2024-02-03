@@ -68,6 +68,29 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
     };
     view! {
         <Trans error>
+            {info()
+                .map(|info| {
+                    view! {
+                        <table>
+                            <tr>
+                                <td>"URL"</td>
+                                <td>{info.url}</td>
+                            </tr>
+                            <tr>
+                                <td>"Locked URL"</td>
+                                <td>{info.url_locked}</td>
+                            </tr>
+                            <tr>
+                                <td>"Flake"</td>
+                                <td>{info.flake}</td>
+                            </tr>
+                            <tr>
+                                <td>"Public key"</td>
+                                <td>{info.public_key}</td>
+                            </tr>
+                        </table>
+                    }
+                })}
             <div class="is-table" style="padding-top: 20px;">
                 <div class="header">
                     <Show when=move || { user().is_some() }>
@@ -106,8 +129,7 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
 
                 </div>
 
-            </div>
-            <ul></ul>
+            </div> <ul></ul>
 
         // FIXME: forms need to be in the transition component or else there are hydration bugs
         </Trans>

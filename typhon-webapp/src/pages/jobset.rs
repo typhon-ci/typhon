@@ -30,9 +30,19 @@ pub fn Jobset(
             font-size: var(--font-size-huge);
         }
     };
+    let (error_info, info) = {
+        let handle = handle.clone();
+        resource!(
+            Signal::derive(move || requests::Request::Jobset(
+                handle.clone(),
+                requests::Jobset::Info
+            )),
+            |responses::Response::JobsetInfo(info)| info
+        )
+    };
     let limit = Signal::derive(move || 10 as u8);
     let offset = Signal::derive(move || (page() - 1) * (limit() as u32));
-    let (error, evaluations) = {
+    let (error_evaluations, evaluations) = {
         let handle = handle.clone();
         search!(
             offset,
@@ -70,7 +80,25 @@ pub fn Jobset(
         <header>
             <span>Jobset {handle.name.clone()}</span>
         </header>
-        <Trans error>
+        <Trans error=error_info>
+            {info()
+                .map(|info| {
+                    view! {
+                        <table>
+                            <tr>
+                                <td>"URL"</td>
+                                <td>{info.url}</td>
+                            </tr>
+                            <tr>
+                                <td>"Flake"</td>
+                                <td>{info.flake}</td>
+                            </tr>
+                        </table>
+                    }
+                })}
+
+        </Trans>
+        <Trans error=error_evaluations>
             <Evaluations
                 count=evaluation_count
                 evaluations
