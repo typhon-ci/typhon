@@ -21,14 +21,6 @@ pub fn Jobset(
             background: rgb(9, 105, 218);
             color: white;
         }
-        header {
-            display: block-inline;
-            align-items: center;
-            padding: 12px;
-        }
-        header :deep(> span) {
-            font-size: var(--font-size-huge);
-        }
     };
     let (error_info, info) = {
         let handle = handle.clone();
@@ -76,27 +68,29 @@ pub fn Jobset(
         let handle = handle.clone();
         Signal::derive(move || handle.clone())
     };
+    let item_name = handle.name.clone();
     view! { class=style,
-        <header>
-            <span>Jobset {handle.name.clone()}</span>
-        </header>
         <Trans error=error_info>
-            {info()
-                .map(|info| {
-                    view! {
-                        <table>
-                            <tr>
-                                <td>"URL"</td>
-                                <td>{info.url}</td>
-                            </tr>
-                            <tr>
-                                <td>"Flake"</td>
-                                <td>{info.flake}</td>
-                            </tr>
-                        </table>
-                    }
-                })}
+            <PageHeader item_kind="Jobset" item_name=item_name.clone()>
+                {move || {
+                    info()
+                        .map(|info| {
+                            view! {
+                                <table>
+                                    <tr>
+                                        <td>"URL"</td>
+                                        <td>{info.url}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>"Flake"</td>
+                                        <td>{info.flake}</td>
+                                    </tr>
+                                </table>
+                            }
+                        })
+                }}
 
+            </PageHeader>
         </Trans>
         <Trans error=error_evaluations>
             <Evaluations

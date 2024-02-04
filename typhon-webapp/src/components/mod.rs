@@ -19,6 +19,40 @@ pub use uuid_label::UuidLabel;
 use crate::prelude::*;
 
 #[component]
+pub fn PageHeader(
+    children: Children,
+    #[prop(into)] item_kind: String,
+    #[prop(into)] item_name: String,
+) -> impl IntoView {
+    let style = style! {
+        header {
+            display: block;
+            padding: 12px 18px;
+        }
+        div.title {
+            font-size: var(--font-size-huge);
+        }
+        .name {
+            font-family: var(--font-family-monospace);
+        }
+        .details {
+            color: --color-lgray;
+            font-size: 10px;
+        }
+    };
+    view! { class=style,
+        <header>
+            <div class="title">
+                <span class="kind">{item_kind}</span>
+                {" "}
+                <span class="name">{item_name}</span>
+            </div>
+            <div class="details">{children()}</div>
+        </header>
+    }
+}
+
+#[component]
 pub fn Tag(children: Children, #[prop(into)] href: String) -> impl IntoView {
     let style = style! {
         a {
