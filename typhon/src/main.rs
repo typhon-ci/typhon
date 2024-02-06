@@ -11,15 +11,18 @@ use leptos_actix::{generate_route_list, LeptosRoutes};
 
 use typhon_webapp::App;
 
+use std::fs::File;
+use std::io::Read;
+
 const RANDOM_KEY: &str = "random";
 
 /// Typhon, Nix-based continuous integration
 #[derive(Parser)]
 #[command(name = "Typhon")]
 pub struct Args {
-    /// Hashed password
-    #[arg(long, short = 'p', env)]
-    pub hashed_password: String,
+    /// Path to a file containing the admin password
+    #[arg(long, short, env)]
+    pub password: String,
 
     /// Cookie secret
     #[arg(long, value_parser={|s: &str| -> Result<Key, String> {
@@ -45,9 +48,12 @@ async fn main() -> std::io::Result<()> {
     tracing::subscriber::set_global_default(tracing_subscriber::FmtSubscriber::new()).unwrap();
 
     let args = Args::parse();
-    std::env::set_var("HASHED_PASSWORD", args.hashed_password);
 
     // Initialization
+    let mut password_file = File::open(args.password)?;
+    let mut password = String::new();
+    password_file.read_to_string(&mut password)?;
+    std::env::set_var("PASSWORD", password);
     typhon_core::init();
 
     // Run actix server
