@@ -175,7 +175,6 @@ impl From<&crate::responses::RunInfo> for TaskStatus {
     fn from(run: &crate::responses::RunInfo) -> TaskStatus {
         vec![
             run.begin.as_ref().map(|action| action.status),
-            run.build.as_ref().map(|build| build.status),
             run.end.as_ref().map(|action| action.status),
         ]
         .into_iter()
