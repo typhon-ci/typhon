@@ -44,11 +44,10 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use futures_core::stream::Stream;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use sha256::digest;
 
 #[derive(Debug)]
 pub struct Settings {
-    pub hashed_password: String,
+    pub password: String,
 }
 
 pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
@@ -78,7 +77,7 @@ pub static RUNTIME: Lazy<tokio::runtime::Runtime> =
     Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
 pub static POOL: Lazy<DbPool> = Lazy::new(pool);
 pub static SETTINGS: Lazy<Settings> = Lazy::new(|| Settings {
-    hashed_password: std::env::var("HASHED_PASSWORD").unwrap(),
+    password: std::env::var("PASSWORD").unwrap(),
 });
 pub static RUNS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
 pub static TASKS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
@@ -100,8 +99,10 @@ impl User {
         }
     }
     pub fn from_password(password: &[u8]) -> Self {
-        let hash = digest(password);
-        if hash == SETTINGS.hashed_password {
+        if String::from_utf8(password.to_vec())
+            .map(|x| x == SETTINGS.password)
+            .unwrap_or(false)
+        {
             User::Admin
         } else {
             User::Anonymous
@@ -208,8 +209,7 @@ pub fn handle_request_aux(
             }
         }
         requests::Request::Login { password } => {
-            let hash = digest(password.as_bytes());
-            if hash == SETTINGS.hashed_password {
+            if *password == SETTINGS.password {
                 Response::Ok
             } else {
                 Err(Error::LoginError)?
