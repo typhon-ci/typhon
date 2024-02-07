@@ -172,15 +172,30 @@ impl core::cmp::Ord for TaskStatusKind {
 }
 
 impl From<&crate::responses::RunInfo> for TaskStatus {
-    fn from(run: &crate::responses::RunInfo) -> TaskStatus {
-        vec![
-            run.begin.as_ref().map(|action| action.status),
-            run.end.as_ref().map(|action| action.status),
-        ]
-        .into_iter()
-        .flatten()
-        .reduce(|x, y| TaskStatus::union(&x, &y))
-        .unwrap_or(TaskStatus::Pending { start: None })
+    fn from(run: &crate::responses::RunInfo) -> Self {
+        let start = run
+            .begin
+            .as_ref()
+            .map(|info| info.status.times().0)
+            .flatten();
+        let end = run.end.as_ref().map(|info| info.status.times().1).flatten();
+        let kinds = (
+            run.begin.as_ref().map(|info| info.status.into()),
+            run.build.as_ref().map(|info| info.status.into()),
+            run.end.as_ref().map(|info| info.status.into()),
+        );
+        let kind = match kinds {
+            (None, _, _) | (_, None, _) | (_, _, None) | (_, _, Some(TaskStatusKind::Pending)) => {
+                TaskStatusKind::Pending
+            }
+            (
+                Some(TaskStatusKind::Success),
+                Some(TaskStatusKind::Success),
+                Some(TaskStatusKind::Success),
+            ) => TaskStatusKind::Success,
+            _ => TaskStatusKind::Error,
+        };
+        kind.into_task_status(start, end)
     }
 }
 
