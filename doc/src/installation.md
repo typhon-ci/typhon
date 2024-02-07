@@ -31,10 +31,9 @@ in {
   services.typhon = {
     enable = true;
 
-    # the admin password
-    # $ echo -n "password" | sha256sum | head -c 64
-    hashedPassword =
-      "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
+    # path to the admin password
+    # $ echo -n password > /etc/secrets/password.txt
+    passwordFile = "/etc/secrets/password.txt";
   };
 
   # configure nginx
@@ -60,8 +59,8 @@ Here is a list of options exposed by the NixOS module.
 Mandatory:
 
 - `services.typhon.enable`: a boolean to activate the Typhon instance.
-- `services.typhon.hashedPassword`: a string containing the digest of the admin
-  password. Use `sha256sum` to compute this value.
+- `services.typhon.passwordFile`: a string containing the path to the admin
+  password.
 
 Optional:
 

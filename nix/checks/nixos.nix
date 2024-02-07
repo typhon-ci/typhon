@@ -14,7 +14,7 @@ pkgs.testers.nixosTest ({pkgs, ...}: {
       imports = [typhon];
       services.typhon = {
         enable = true;
-        hashedPassword = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+        passwordFile = "${pkgs.writeText "password" "password"}";
       };
       services.nginx = {
         enable = true;
@@ -29,7 +29,7 @@ pkgs.testers.nixosTest ({pkgs, ...}: {
   };
 
   testScript = {nodes, ...}: let
-    curl = "${pkgs.curl}/bin/curl -sf -H 'password: hello'";
+    curl = "${pkgs.curl}/bin/curl -sf -H 'password: password'";
     url = "http://127.0.0.1/api";
   in ''
     typhon.start()
