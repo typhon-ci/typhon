@@ -11,9 +11,6 @@ use leptos_actix::{generate_route_list, LeptosRoutes};
 
 use typhon_webapp::App;
 
-use std::fs::File;
-use std::io::Read;
-
 const RANDOM_KEY: &str = "random";
 
 /// Typhon, Nix-based continuous integration
@@ -50,9 +47,7 @@ async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     // Initialization
-    let mut password_file = File::open(args.password)?;
-    let mut password = String::new();
-    password_file.read_to_string(&mut password)?;
+    let password = std::fs::read_to_string(args.password)?;
     std::env::set_var("PASSWORD", password);
     typhon_core::init();
 
