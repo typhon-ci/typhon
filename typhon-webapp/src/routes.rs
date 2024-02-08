@@ -289,7 +289,8 @@ impl From<Root> for String {
             Root::Project(handle) => format!("/project/{}", encode(&handle.name)),
             Root::Jobset { handle, page } => format!(
                 "/project/{}/jobset/{}?page={page}",
-                encode(&handle.project.name), encode(&handle.name)
+                encode(&handle.project.name),
+                encode(&handle.name),
             ),
             Root::Evaluation(e) => format!(
                 "/evaluation/{}/{}",
@@ -297,7 +298,12 @@ impl From<Root> for String {
                 match e.tab {
                     EvaluationTab::Job { handle, log_tab } => {
                         let log_tab: &str = log_tab.into();
-                        format!("{}/{}/{}", encode(&handle.system), encode(&handle.name), log_tab)
+                        format!(
+                            "{}/{}/{}",
+                            encode(&handle.system),
+                            encode(&handle.name),
+                            log_tab,
+                        )
                     }
                     EvaluationTab::Info => "".into(),
                 }
