@@ -36,6 +36,8 @@
           builtins.removeAttrs (builtins.readDir path) ["default.nix"]
         )
       );
+
+    jqJsonToBashArray = ''to_entries | map("[" + .key + "]=\"" + (.value | tostring) + "\"") | join(" ")'';
   };
 in
   self

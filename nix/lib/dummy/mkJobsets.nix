@@ -1,5 +1,5 @@
 utils: lib: {
-  mkSimpleJobsets = {
+  mkJobsets = {
     url,
     flake ? true,
     refs ? {},
@@ -13,5 +13,5 @@ utils: lib: {
       }
     );
   in
-    lib.mkDummyAction {output = builtins.toJSON jobsets;};
+    lib.builders.mkDummyAction {output = builtins.toJSON jobsets;};
 }
