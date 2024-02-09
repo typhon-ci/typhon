@@ -18,18 +18,19 @@ in {
   default = pkgs.mkShell {
     name = "typhon-devshell";
     packages = builtins.attrValues {
-      inherit (pkgs) nix;
       inherit (rust) rustToolchain;
       inherit
         (pkgs)
+        alejandra
         bubblewrap
         cargo-leptos
         diesel-cli
         leptosfmt
+        nix
+        nodejs
         pkg-config
         rust-analyzer
         rustfmt
-        alejandra
         sqlite
         ;
       inherit build serve watch format;
