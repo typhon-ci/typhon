@@ -223,7 +223,7 @@ pub fn JobSubpage(
                                 }
                             }
                             TaskStatus::Success(..) => make("succeeded"),
-                            TaskStatus::Error(..) => make("failed"),
+                            TaskStatus::Failure(..) => make("failed"),
                             TaskStatus::Canceled(Some(..)) => make("canceled"),
                             TaskStatus::Canceled(None) => view! { <>canceled</> },
                         }

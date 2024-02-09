@@ -190,12 +190,12 @@ impl Project {
                     Some(Ok(x)) => self_.finish_refresh(x),
                     Some(Err(e)) => {
                         tracing::warn!("refresh error for project {}: {}", self_.handle(), e);
-                        Ok(TaskStatusKind::Error)
+                        Ok(TaskStatusKind::Failure)
                     }
                     None => Ok(TaskStatusKind::Canceled),
                 };
                 (
-                    status.unwrap_or(TaskStatusKind::Error),
+                    status.unwrap_or(TaskStatusKind::Failure),
                     Event::ProjectUpdated(self_.handle()),
                 )
             }
@@ -253,10 +253,10 @@ impl Project {
                                 if self_.finish_update_jobsets(decls).is_ok() {
                                     TaskStatusKind::Success
                                 } else {
-                                    TaskStatusKind::Error
+                                    TaskStatusKind::Failure
                                 }
                             }
-                            Err(_) => TaskStatusKind::Error,
+                            Err(_) => TaskStatusKind::Failure,
                         }
                     }
                     None => TaskStatusKind::Canceled,
@@ -305,12 +305,12 @@ impl Project {
                     }
                     Err(_) => {
                         let _ = sender.send(None);
-                        TaskStatusKind::Error
+                        TaskStatusKind::Failure
                     }
                 },
                 None => {
                     let _ = sender.send(None);
-                    TaskStatusKind::Error
+                    TaskStatusKind::Failure
                 }
             }
         };

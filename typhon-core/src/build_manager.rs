@@ -135,7 +135,7 @@ fn finish_build(drv: DrvPath, sender: mpsc::UnboundedSender<Msg>, res: Output) -
     let _ = sender.send(Msg::Finished(drv, res.clone()));
     match res {
         Some(Some(())) => TaskStatusKind::Success,
-        Some(None) => TaskStatusKind::Error,
+        Some(None) => TaskStatusKind::Failure,
         None => TaskStatusKind::Canceled,
     }
 }

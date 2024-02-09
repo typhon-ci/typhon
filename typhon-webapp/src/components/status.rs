@@ -61,7 +61,7 @@ pub fn HybridStatus(#[prop(into)] status: Signal<HybridStatusKind>) -> impl Into
                             match build {
                                 TaskStatusKind::Success => BiCheckCircleSolid,
                                 TaskStatusKind::Pending => BiLoaderAltRegular,
-                                TaskStatusKind::Error => BiXCircleSolid,
+                                TaskStatusKind::Failure => BiXCircleSolid,
                                 TaskStatusKind::Canceled => BiStopCircleRegular,
                             }
                         }

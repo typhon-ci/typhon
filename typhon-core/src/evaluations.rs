@@ -99,9 +99,9 @@ impl Evaluation {
         match r {
             Some(Ok(new_jobs)) => match self.create_new_jobs(&mut conn, new_jobs) {
                 Ok(()) => TaskStatusKind::Success,
-                Err(_) => TaskStatusKind::Error,
+                Err(_) => TaskStatusKind::Failure,
             },
-            Some(Err(_)) => TaskStatusKind::Error,
+            Some(Err(_)) => TaskStatusKind::Failure,
             None => TaskStatusKind::Canceled,
         }
     }
