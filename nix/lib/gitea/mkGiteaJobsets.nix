@@ -1,5 +1,4 @@
-utils: lib:
-{
+utils: lib: {
   mkGiteaJobsets = {
     instance,
     owner,

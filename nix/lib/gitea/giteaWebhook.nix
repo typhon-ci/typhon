@@ -1,5 +1,4 @@
-utils: lib:
-{
+utils: lib: {
   giteaWebhook = lib.mkActionScript {
     mkPath = system: let
       pkgs = utils.pkgs.${system};
