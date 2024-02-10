@@ -46,22 +46,21 @@ use once_cell::sync::{Lazy, OnceCell};
 use serde::{Deserialize, Serialize};
 
 /// Global settings for Typhon. `Settings::init` is expected to be
-/// called exactly once to initialize the state, then `Settings::get`
-/// retrieve the state.
+/// called exactly once for initialization, then `Settings::get`
+/// retrieves the settings.
 #[derive(Debug)]
 pub struct Settings {
     pub password: String,
 }
 
 const _: () = {
-    static STATE: OnceCell<Settings> = OnceCell::new();
+    static CELL: OnceCell<Settings> = OnceCell::new();
     impl Settings {
         fn get() -> &'static Self {
-            STATE.get().expect("Settings were not initialized")
+            CELL.get().expect("Settings were not initialized")
         }
         fn init(settings: Self) {
-            STATE
-                .set(settings)
+            CELL.set(settings)
                 .expect("Settings were already initalized")
         }
     }
