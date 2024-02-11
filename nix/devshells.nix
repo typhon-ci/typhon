@@ -13,23 +13,24 @@
   build = pkgs.writeShellScriptBin "build" "cargo leptos build";
   serve = pkgs.writeShellScriptBin "serve" "${env}cargo leptos serve";
   watch = pkgs.writeShellScriptBin "watch" "${env}cargo leptos watch";
-  format = pkgs.writeShellScriptBin "format" "alejandra . ; rustfmt typhon*/ ; leptosfmt typhon*/";
+  format = pkgs.writeShellScriptBin "format" "alejandra . ; cargo fmt ; leptosfmt typhon*/";
 in {
   default = pkgs.mkShell {
     name = "typhon-devshell";
     packages = builtins.attrValues {
-      inherit (pkgs) nix;
       inherit (rust) rustToolchain;
       inherit
         (pkgs)
+        alejandra
         bubblewrap
         cargo-leptos
         diesel-cli
         leptosfmt
+        nix
+        nodejs # npm
         pkg-config
         rust-analyzer
         rustfmt
-        alejandra
         sqlite
         ;
       inherit build serve watch format;

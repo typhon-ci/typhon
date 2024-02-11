@@ -1,5 +1,6 @@
 utils: lib: {
-  mkGithubStatus = {
+  mkGiteaStatus = {
+    instance,
     owner,
     repo,
     typhon_url,
@@ -21,7 +22,7 @@ utils: lib: {
         system=$(echo "$input" | jq '.input.system' -r)
         url=$(echo "$input" | jq '.input.url' -r)
 
-        token=$(echo "$input" | jq '.secrets.github_token' -r)
+        token=$(echo "$input" | jq '.secrets.gitea_token' -r)
 
         rev=$(nix eval --json --expr "builtins.parseFlakeRef \"$url\"" | jq '.rev' -r)
         system_encoded=$(echo -n "$system" | jq '@uri' -sRr)
@@ -58,11 +59,10 @@ utils: lib: {
 
         curl -sf \
           --cacert ${utils.pkgs.${system}.cacert}/etc/ssl/certs/ca-bundle.crt \
-          -X POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer $token" \
-          "https://api.github.com/repos/${owner}/${repo}/statuses/$rev" \
-          -d "$payload" \
+          --json "$payload" \
+          -H "Accept: application/json" \
+          -H "Authorization: token $token" \
+          "https://${instance}/api/v1/repos/${owner}/${repo}/statuses/$rev" \
           >&2
       '';
     };

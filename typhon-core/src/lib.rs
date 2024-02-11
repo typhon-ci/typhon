@@ -42,13 +42,29 @@ use diesel::prelude::*;
 use diesel::r2d2;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use futures_core::stream::Stream;
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use serde::{Deserialize, Serialize};
 
+/// Global settings for Typhon. `Settings::init` is expected to be
+/// called exactly once for initialization, then `Settings::get`
+/// retrieves the settings.
 #[derive(Debug)]
 pub struct Settings {
     pub password: String,
 }
+
+const _: () = {
+    static CELL: OnceCell<Settings> = OnceCell::new();
+    impl Settings {
+        fn get() -> &'static Self {
+            CELL.get().expect("Settings were not initialized")
+        }
+        fn init(settings: Self) {
+            CELL.set(settings)
+                .expect("Settings were already initalized")
+        }
+    }
+};
 
 pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
 pub type Conn =
@@ -76,9 +92,6 @@ impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::E
 pub static RUNTIME: Lazy<tokio::runtime::Runtime> =
     Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
 pub static POOL: Lazy<DbPool> = Lazy::new(pool);
-pub static SETTINGS: Lazy<Settings> = Lazy::new(|| Settings {
-    password: std::env::var("PASSWORD").unwrap(),
-});
 pub static RUNS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
 pub static TASKS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
 pub static LOGS: Lazy<logs::live::Cache<i32>> = Lazy::new(logs::live::Cache::new);
@@ -100,7 +113,7 @@ impl User {
     }
     pub fn from_password(password: &[u8]) -> Self {
         if String::from_utf8(password.to_vec())
-            .map(|x| x == SETTINGS.password)
+            .map(|x| x == Settings::get().password)
             .unwrap_or(false)
         {
             User::Admin
@@ -151,7 +164,6 @@ pub fn handle_request_aux(
                 requests::Project::Info => return Ok(Response::ProjectInfo(project.info(conn)?)),
                 requests::Project::Refresh => project.refresh(conn)?,
                 requests::Project::SetDecl(decl) => project.set_decl(conn, decl)?,
-                requests::Project::SetPrivateKey(key) => project.set_private_key(conn, &key)?,
                 requests::Project::UpdateJobsets => project.update_jobsets(conn)?,
             };
             Response::Ok
@@ -209,7 +221,7 @@ pub fn handle_request_aux(
             }
         }
         requests::Request::Login { password } => {
-            if *password == SETTINGS.password {
+            if *password == Settings::get().password {
                 Response::Ok
             } else {
                 Err(Error::LoginError)?
@@ -322,7 +334,8 @@ fn pool() -> DbPool {
     pool
 }
 
-pub fn init() {
+pub fn init(settings: Settings) {
+    Settings::init(settings);
     // Force database migrations
     let _ = once_cell::sync::Lazy::force(&POOL);
 }
