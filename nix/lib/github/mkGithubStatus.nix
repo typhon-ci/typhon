@@ -24,7 +24,9 @@ utils: lib: {
         token=$(echo "$input" | jq '.secrets.github_token' -r)
 
         rev=$(nix eval --json --expr "builtins.parseFlakeRef \"$url\"" | jq '.rev' -r)
-        target_url="${typhon_url}/evaluation/$evaluation/$system/$job"
+        system_encoded=$(echo -n "$system" | jq '@uri' -sRr)
+        job_encoded=$(echo -n "$job" | jq '@uri' -sRr)
+        target_url="${typhon_url}/evaluation/$evaluation/$system_encoded/$job_encoded"
         context="Typhon: $system / $job"
 
         case $status in
