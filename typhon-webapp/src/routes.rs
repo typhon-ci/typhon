@@ -281,21 +281,16 @@ impl TryFrom<Location> for Root {
 
 impl From<Root> for String {
     fn from(r: Root) -> Self {
-        fn path<T: Into<Vec<String>>>(handle: T) -> String {
-            let vec: Vec<String> = handle.into();
-            vec.iter()
-                .map(|s| urlencoding::encode(s).to_string())
-                .collect::<Vec<_>>()
-                .join("/")
-        }
+        use urlencoding::encode;
         match r {
             Root::Login => "/login".to_string(),
             Root::Dashboard { tab, page } => format!("/dashboard/{}?page={page}", tab),
             Root::Projects => "".to_string(),
-            Root::Project(handle) => format!("/project/{}", path(handle)),
+            Root::Project(handle) => format!("/project/{}", encode(&handle.name)),
             Root::Jobset { handle, page } => format!(
                 "/project/{}/jobset/{}?page={page}",
-                handle.project.name, handle.name
+                encode(&handle.project.name),
+                encode(&handle.name),
             ),
             Root::Evaluation(e) => format!(
                 "/evaluation/{}/{}",
@@ -303,7 +298,12 @@ impl From<Root> for String {
                 match e.tab {
                     EvaluationTab::Job { handle, log_tab } => {
                         let log_tab: &str = log_tab.into();
-                        format!("{}/{}/{}", handle.system, handle.name, log_tab)
+                        format!(
+                            "{}/{}/{}",
+                            encode(&handle.system),
+                            encode(&handle.name),
+                            log_tab,
+                        )
                     }
                     EvaluationTab::Info => "".into(),
                 }
