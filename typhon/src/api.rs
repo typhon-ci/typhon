@@ -145,12 +145,6 @@ r!(
             Project::SetDecl(body.into_inner()),
         );
 
-    project_set_private_key(path: web::Path<String>, body: web::Json<String>) =>
-        Request::Project(
-            handles::project(path.into_inner()),
-            Project::SetPrivateKey(body.into_inner()),
-        );
-
     project_update_jobsets(path: web::Path<String>) =>
         Request::Project(
             handles::project(path.into_inner()),
@@ -353,7 +347,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/refresh", web::post().to(project_refresh))
                     .route("/update_jobsets", web::post().to(project_update_jobsets))
                     .route("/set_decl", web::post().to(project_set_decl))
-                    .route("/set_private_key", web::post().to(project_set_private_key))
                     .route("/webhook", web::post().to(webhook))
                     .service(
                         web::scope("/jobsets/{jobset}")
