@@ -27,7 +27,7 @@ in {
         diesel-cli
         leptosfmt
         nix
-        nodejs
+        nodejs # npm
         pkg-config
         rust-analyzer
         rustfmt
