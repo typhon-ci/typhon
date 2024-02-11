@@ -13,7 +13,7 @@
   build = pkgs.writeShellScriptBin "build" "cargo leptos build";
   serve = pkgs.writeShellScriptBin "serve" "${env}cargo leptos serve";
   watch = pkgs.writeShellScriptBin "watch" "${env}cargo leptos watch";
-  format = pkgs.writeShellScriptBin "format" "alejandra . ; rustfmt typhon*/ ; leptosfmt typhon*/";
+  format = pkgs.writeShellScriptBin "format" "alejandra . ; cargo fmt ; leptosfmt typhon*/";
 in {
   default = pkgs.mkShell {
     name = "typhon-devshell";

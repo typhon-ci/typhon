@@ -315,7 +315,6 @@ pub mod requests {
         Info,
         Refresh,
         SetDecl(ProjectDecl),
-        SetPrivateKey(String),
         UpdateJobsets,
     }
 
