@@ -228,15 +228,6 @@ impl Project {
         Ok(())
     }
 
-    pub fn set_private_key(&self, conn: &mut Conn, key: &String) -> Result<(), Error> {
-        let _ = age::x25519::Identity::from_str(key).map_err(|_| Error::Todo)?;
-        diesel::update(&self.project)
-            .set(schema::projects::key.eq(key))
-            .execute(conn)?;
-        log_event(Event::ProjectUpdated(self.handle()));
-        Ok(())
-    }
-
     pub fn update_jobsets(&self, conn: &mut Conn) -> Result<(), Error> {
         // run action `jobsets`
         let action = self.new_action(

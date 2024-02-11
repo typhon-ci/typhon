@@ -164,7 +164,6 @@ pub fn handle_request_aux(
                 requests::Project::Info => return Ok(Response::ProjectInfo(project.info(conn)?)),
                 requests::Project::Refresh => project.refresh(conn)?,
                 requests::Project::SetDecl(decl) => project.set_decl(conn, decl)?,
-                requests::Project::SetPrivateKey(key) => project.set_private_key(conn, &key)?,
                 requests::Project::UpdateJobsets => project.update_jobsets(conn)?,
             };
             Response::Ok
