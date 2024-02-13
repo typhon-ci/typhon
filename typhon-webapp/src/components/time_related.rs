@@ -79,7 +79,7 @@ pub fn TaskStatusDuration(#[prop(into)] status: Signal<TaskStatus>) -> impl Into
     view! {
         <Duration duration=Signal::derive(move || match status() {
             TaskStatus::Success(range)
-            | TaskStatus::Error(range)
+            | TaskStatus::Failure(range)
             | TaskStatus::Canceled(Some(range)) => Some(range.into()),
             TaskStatus::Pending { start: Some(start) } => {
                 let now = use_context::<crate::utils::CurrentTime>().unwrap().0;

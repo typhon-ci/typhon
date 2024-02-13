@@ -203,7 +203,7 @@ impl Action {
                 let status = match res {
                     Some(Err(_)) => {
                         let _ = finish(None);
-                        TaskStatusKind::Error
+                        TaskStatusKind::Failure
                     }
                     Some(Ok(stdout)) => finish(Some(stdout)),
                     None => {

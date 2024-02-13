@@ -14,7 +14,7 @@ pub enum TaskStatus {
     /** The task is done and succeeded */
     Success(TimeRange),
     /** The task is done and failed */
-    Error(TimeRange),
+    Failure(TimeRange),
     /** The task was canceled: either while running (then the payload
      * is a `Some(TimeRange {start,end})`) or before running. */
     // TODO: we should have either a TimeRange or a {end}, right?
@@ -38,7 +38,7 @@ pub enum TaskStatusKind {
     #[default]
     Pending = 0,
     Success = 1,
-    Error = 2,
+    Failure = 2,
     Canceled = 3,
 }
 
@@ -61,7 +61,7 @@ impl From<&TaskStatus> for TaskStatusKind {
         match status {
             TaskStatus::Pending { .. } => Self::Pending,
             TaskStatus::Success(..) => Self::Success,
-            TaskStatus::Error(..) => Self::Error,
+            TaskStatus::Failure(..) => Self::Failure,
             TaskStatus::Canceled(..) => Self::Canceled,
         }
     }
@@ -75,7 +75,8 @@ impl From<TaskStatus> for TaskStatusKind {
 
 const SUCCESS_TIME_INVARIANT: &str =
     "a `TaskStatus::Success` requires a start time and an end time";
-const ERROR_TIME_INVARIANT: &str = "a `TaskStatus::Error` requires a start time and an end time";
+const FAILURE_TIME_INVARIANT: &str =
+    "a `TaskStatus::Failure` requires a start time and an end time";
 impl TaskStatusKind {
     /** Promotes a `TaskStatusKind` to a `TaskStatus`, given a start
      * time and a finish time. Note those are optional: a success task
@@ -90,7 +91,7 @@ impl TaskStatusKind {
         match self {
             Self::Pending => TaskStatus::Pending { start },
             Self::Success => TaskStatus::Success(range.expect(SUCCESS_TIME_INVARIANT)),
-            Self::Error => TaskStatus::Error(range.expect(ERROR_TIME_INVARIANT)),
+            Self::Failure => TaskStatus::Failure(range.expect(FAILURE_TIME_INVARIANT)),
             Self::Canceled => TaskStatus::Canceled(range),
         }
     }
@@ -101,7 +102,7 @@ impl TaskStatus {
     pub fn times(self) -> (Option<OffsetDateTime>, Option<OffsetDateTime>) {
         match self {
             Self::Pending { start } => (start, None),
-            Self::Success(range) | Self::Error(range) | Self::Canceled(Some(range)) => {
+            Self::Success(range) | Self::Failure(range) | Self::Canceled(Some(range)) => {
                 (Some(range.start), Some(range.end))
             }
             Self::Canceled(None) => (None, None),
@@ -116,7 +117,7 @@ impl TaskStatus {
         let rhs_kind: TaskStatusKind = rhs.into();
         let range = start.zip(end).map(|(start, end)| TimeRange { start, end });
         match lhs_kind.max(rhs_kind) {
-            TaskStatusKind::Error => Self::Error(range.expect(ERROR_TIME_INVARIANT)),
+            TaskStatusKind::Failure => Self::Failure(range.expect(FAILURE_TIME_INVARIANT)),
             TaskStatusKind::Pending => Self::Pending { start },
             TaskStatusKind::Canceled => Self::Canceled(range),
             TaskStatusKind::Success => Self::Success(range.expect(SUCCESS_TIME_INVARIANT)),
@@ -127,7 +128,7 @@ impl TaskStatus {
 impl TryFrom<i32> for TaskStatusKind {
     type Error = ();
     fn try_from(n: i32) -> Result<TaskStatusKind, ()> {
-        let arr = [Self::Pending, Self::Success, Self::Error, Self::Canceled];
+        let arr = [Self::Pending, Self::Success, Self::Failure, Self::Canceled];
         arr.get(n as usize).ok_or(()).copied()
     }
 }
@@ -142,7 +143,7 @@ impl std::fmt::Display for TaskStatusKind {
         match self {
             Self::Pending => write!(f, "pending"),
             Self::Success => write!(f, "success"),
-            Self::Error => write!(f, "error"),
+            Self::Failure => write!(f, "failure"),
             Self::Canceled => write!(f, "canceled"),
         }
     }
@@ -160,8 +161,8 @@ impl core::cmp::Ord for TaskStatusKind {
             return Ordering::Equal;
         }
         match (self, rhs) {
-            (TaskStatusKind::Error, _) => Ordering::Greater,
-            (_, TaskStatusKind::Error) => Ordering::Less,
+            (TaskStatusKind::Failure, _) => Ordering::Greater,
+            (_, TaskStatusKind::Failure) => Ordering::Less,
             (TaskStatusKind::Pending, _) => Ordering::Greater,
             (_, TaskStatusKind::Pending) => Ordering::Less,
             (TaskStatusKind::Canceled, _) => Ordering::Greater,
@@ -193,7 +194,7 @@ impl From<&crate::responses::RunInfo> for TaskStatus {
                 Some(TaskStatusKind::Success),
                 Some(TaskStatusKind::Success),
             ) => TaskStatusKind::Success,
-            _ => TaskStatusKind::Error,
+            _ => TaskStatusKind::Failure,
         };
         kind.into_task_status(start, end)
     }

@@ -188,7 +188,7 @@ impl Run {
             let res = build_handle.wait().await;
             match res {
                 Some(Some(())) => TaskStatusKind::Success,
-                Some(None) => TaskStatusKind::Error,
+                Some(None) => TaskStatusKind::Failure,
                 None => TaskStatusKind::Canceled,
             }
         };
@@ -261,7 +261,7 @@ impl Run {
 
         let finish = move |res| match res {
             Some(_) => TaskStatusKind::Success,
-            None => TaskStatusKind::Error,
+            None => TaskStatusKind::Failure,
         };
 
         action.spawn(conn, finish)?;

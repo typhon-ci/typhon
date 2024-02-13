@@ -28,21 +28,7 @@ utils: lib: {
         job_encoded=$(echo -n "$job" | jq '@uri' -sRr)
         target_url="${typhon_url}/evaluation/$evaluation/$system_encoded/$job_encoded"
         context="Typhon: $system / $job"
-
-        case $status in
-          "error")
-            state="failure"
-            ;;
-          "pending")
-            state="pending"
-            ;;
-          "success")
-            state="success"
-            ;;
-          *)
-            state="error"
-            ;;
-        esac
+        state="$status"
 
         payload=$(echo null | jq \
           --arg state "$state" \
