@@ -41,7 +41,7 @@ in {
       default =
         if cfg.hashedPassword == null
         then null
-        else pkgs.writeText "typhon-password" cfg.hashedPassword;
+        else builtins.toString (pkgs.writeText "typhon-password" cfg.hashedPassword);
       description = "Path to a file containing the hash of the admin password";
     };
   };
