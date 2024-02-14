@@ -37,7 +37,7 @@
         )
       );
 
-    jqJsonToBashArray = ''to_entries | .[] | "[" + .key + "]=" + (.value | tostring | @sh)'';
+    jqJsonToBashArray = ''to_entries | .[] | "[" + (.key | @sh) + "]=" + (.value | tostring | @sh)'';
   };
 in
   self
