@@ -5,7 +5,8 @@
   rust ? import ./rust.nix {inherit inputs system;},
 }: let
   env = ''
-    export PASSWORD=/dev/null
+    echo -n "password" | argon2 "Guérande" -id -e > /tmp/password.txt
+    export PASSWORD=/tmp/password.txt
     export COOKIE_SECRET=$(seq 100 | xxd -cu -l 64 -p)
     export TIMESTAMP="sec"
     export VERBOSE=3
@@ -26,6 +27,7 @@ in {
         cargo-leptos
         diesel-cli
         leptosfmt
+        libargon2
         nix
         nodejs # npm
         pkg-config

@@ -63,6 +63,14 @@ const _: () = {
             CELL.set(settings)
                 .expect("Settings were already initalized")
         }
+        fn verify_password(&self, password: &[u8]) -> bool {
+            use argon2::{Argon2, PasswordHash, PasswordVerifier};
+            let password_hash =
+                PasswordHash::new(&self.password).expect("Unable to parse the password hash");
+            Argon2::default()
+                .verify_password(password, &password_hash)
+                .is_ok()
+        }
     }
 };
 
@@ -112,10 +120,7 @@ impl User {
         }
     }
     pub fn from_password(password: &[u8]) -> Self {
-        if String::from_utf8(password.to_vec())
-            .map(|x| x == Settings::get().password)
-            .unwrap_or(false)
-        {
+        if Settings::get().verify_password(password) {
             User::Admin
         } else {
             User::Anonymous
@@ -221,7 +226,7 @@ pub fn handle_request_aux(
             }
         }
         requests::Request::Login { password } => {
-            if *password == Settings::get().password {
+            if Settings::get().verify_password(password.as_bytes()) {
                 Response::Ok
             } else {
                 Err(Error::LoginError)?

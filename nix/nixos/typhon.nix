@@ -31,9 +31,9 @@ in {
       default = "/var/lib/typhon";
       description = "Home directory for the Typhon instance";
     };
-    passwordFile = mkOption {
+    hashedPasswordFile = mkOption {
       type = types.str;
-      description = "Path to a file containing the admin password";
+      description = "Path to a file containing the hash of the admin password";
     };
   };
 
@@ -66,7 +66,7 @@ in {
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
-          DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.passwordFile} -v
+          DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.hashedPasswordFile} -v
         '';
         Type = "simple";
         User = "typhon";

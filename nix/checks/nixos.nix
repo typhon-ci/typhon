@@ -14,7 +14,9 @@ pkgs.testers.nixosTest ({pkgs, ...}: {
       imports = [typhon];
       services.typhon = {
         enable = true;
-        passwordFile = "${pkgs.writeText "password" "password"}";
+        hashedPasswordFile = builtins.toString (pkgs.runCommand "password" {} ''
+          echo -n "password" | ${pkgs.libargon2}/bin/argon2 "Guérande" -id -e > $out
+        '');
       };
       services.nginx = {
         enable = true;
