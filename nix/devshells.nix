@@ -5,8 +5,7 @@
   rust ? import ./rust.nix {inherit inputs system;},
 }: let
   env = ''
-    echo -n $(echo -n "password" | argon2 "Guérande" -id -e) > /tmp/password.txt
-    export PASSWORD=/tmp/password.txt
+    export PASSWORD=$(echo -n "password" | argon2 "Guérande" -id -e)
     export COOKIE_SECRET=$(seq 100 | xxd -cu -l 64 -p)
     export TIMESTAMP="sec"
     export VERBOSE=3
