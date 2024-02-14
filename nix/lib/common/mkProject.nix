@@ -45,13 +45,13 @@ _: lib: {
         begin = lib.compose.steps [
           {
             name = "Set status";
-            action = status;
+            value = status;
           }
         ];
         end = lib.compose.steps [
           {
             name = "Set status";
-            action = status;
+            value = status;
           }
         ];
       };
