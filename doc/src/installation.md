@@ -32,7 +32,7 @@ in {
     enable = true;
 
     # path to the admin password
-    # $ echo -n password | argon2 SaltSalt -id -e > /etc/secrets/password.txt
+    # $ echo -n $(echo -n password | argon2 SaltSalt -id -e) > /etc/secrets/password.txt
     hashedPasswordFile = "/etc/secrets/password.txt";
   };
 
