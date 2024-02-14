@@ -37,7 +37,7 @@
         )
       );
 
-    jqJsonToBashArray = ''to_entries | map("[" + .key + "]=\"" + (.value | tostring) + "\"") | join(" ")'';
+    jqJsonToBashArray = ''to_entries | .[] | "[" + .key + "]=" + (.value | tostring | @sh)'';
   };
 in
   self
