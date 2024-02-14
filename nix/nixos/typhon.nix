@@ -31,13 +31,29 @@ in {
       default = "/var/lib/typhon";
       description = "Home directory for the Typhon instance";
     };
+    hashedPassword = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "The hash of the admin password";
+    };
     hashedPasswordFile = mkOption {
-      type = types.str;
+      type = types.nullOr types.str;
+      default =
+        if cfg.hashedPassword == null
+        then null
+        else pkgs.writeText "typhon-password" cfg.hashedPassword;
       description = "Path to a file containing the hash of the admin password";
     };
   };
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.hashedPasswordFile != null || cfg.hashedPassword != null;
+        message = "`hashedPasswordFile` or `hashedPassword` must be set";
+      }
+    ];
+
     users.users.typhon = {
       home = cfg.home;
       group = "typhon";
