@@ -60,24 +60,27 @@ pub struct NewJobset<'a> {
 #[diesel(belongs_to(Project))]
 #[diesel(belongs_to(Task))]
 pub struct Evaluation {
-    pub actions_path: Option<String>,
-    pub flake: bool,
     pub id: i32,
+    pub jobset_flake: bool,
     pub jobset_name: String,
+    pub jobset_url: String,
+    pub project_flake: bool,
     pub project_id: i32,
+    pub project_url: String,
     pub task_id: i32,
     pub time_created: i64,
-    pub url: String,
     pub uuid: String,
 }
 
 #[derive(Debug, Insertable)]
 #[diesel(table_name = evaluations)]
 pub struct NewEvaluation<'a> {
-    pub actions_path: Option<&'a str>,
-    pub flake: bool,
+    pub jobset_flake: bool,
     pub jobset_name: &'a str,
+    pub jobset_url: &'a str,
+    pub project_flake: bool,
     pub project_id: i32,
+    pub project_url: &'a str,
     pub task_id: i32,
     pub time_created: i64,
     pub url: &'a str,

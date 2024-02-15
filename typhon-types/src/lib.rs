@@ -445,16 +445,17 @@ pub mod responses {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
         pub handle: handles::Evaluation,
-        pub actions_path: Option<String>,
-        pub flake: bool,
         #[serde(with = "crate::helpers::serialize_jobs")]
         pub jobs: HashMap<JobSystemName, JobInfo>,
+        pub jobset_flake: bool,
         pub jobset_name: String,
+        pub jobset_url: String,
         pub project: handles::Project,
+        pub project_flake: bool,
+        pub project_url: String,
         pub status: TaskStatus,
         #[serde(with = "time::serde::timestamp")]
         pub time_created: OffsetDateTime,
-        pub url: String,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

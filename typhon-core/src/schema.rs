@@ -25,14 +25,15 @@ diesel::table! {
 
 diesel::table! {
     evaluations (id) {
-        actions_path -> Nullable<Text>,
-        flake -> Bool,
         id -> Integer,
+        jobset_flake -> Bool,
         jobset_name -> Text,
+        jobset_url -> Text,
+        project_flake -> Bool,
         project_id -> Integer,
+        project_url -> Text,
         task_id -> Integer,
         time_created -> BigInt,
-        url -> Text,
         uuid -> Text,
     }
 }
