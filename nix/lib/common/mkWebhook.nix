@@ -19,7 +19,7 @@ utils: lib: {
         [ "$signatureSent" == "$signatureComputed" ]
 
         event=$(echo "$headers" | jq -r '."x-github-event"')
-        [ "$event" == "push" ] || (echo '[]' && exit 0)
+        [ "$event" == "push" ] || { echo '[]'; exit 0; }
 
         name=$(echo "$body" | jq '.ref|split("/")|.[2:]|join("/")')
         before=$(echo "$body" | jq -r '.before')
