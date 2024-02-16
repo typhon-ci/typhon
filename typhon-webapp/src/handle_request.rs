@@ -115,16 +115,20 @@ macro_rules! search {
 }
 
 macro_rules! request_action {
-    ($name:ident, |$($id:ident : $ty:ty),*| $body: expr) => {
+    ($name:ident, |$($id:ident : $ty:ty),*| $body: expr$(,)?) => {
+        crate::handle_request::request_action!($name, |$($id : $ty),*| $body, |res| res)
+    };
+    ($name:ident, |$($id:ident : $ty:ty),*| $body: expr, |$res:ident| $then: expr$(,)?) => {
         {
             #[server($name, "/leptos")]
             async fn f(
                 $($id : $ty,)*
             ) -> Result<Result<(), responses::ResponseError>, ServerFnError> {
-                handle_request!(
+                let $res = handle_request!(
                     $body,
                     |_| ()
-                )
+                );
+                $then
             }
             create_server_action::<$name>()
         }
