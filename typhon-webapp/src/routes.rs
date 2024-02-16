@@ -13,6 +13,7 @@ pub enum Root<MODE: SubpageInformation = Full> {
         page: u32,
     },
     Projects,
+    AddProject,
     Project(handles::Project),
     Jobset {
         handle: handles::Jobset,
@@ -76,6 +77,7 @@ impl From<Root> for Root<Empty> {
             Root::Login => Root::Login,
             Root::Dashboard { tab, page } => Root::Dashboard { tab, page },
             Root::Projects => Root::Projects,
+            Root::AddProject => Root::AddProject,
             Root::Project(h) => Root::Project(h),
             Root::Jobset { handle, .. } => Root::Jobset { handle, page: () },
             Root::Evaluation(e) => Root::Evaluation(e.into()),
@@ -89,6 +91,7 @@ impl From<Root<Empty>> for Root {
             Root::Login => Root::Login,
             Root::Dashboard { tab, page } => Root::Dashboard { tab, page },
             Root::Projects => Root::Projects,
+            Root::AddProject => Root::AddProject,
             Root::Project(h) => Root::Project(h),
             Root::Jobset { handle, .. } => Root::Jobset { handle, page: 1 },
             Root::Evaluation(e) => Root::Evaluation(e.into()),
@@ -102,6 +105,7 @@ impl From<Root<Empty>> for Option<handles::Handle> {
             Root::Login => None?,
             Root::Dashboard { .. } => None?,
             Root::Projects => None?,
+            Root::AddProject => None?,
             Root::Project(handle) => handles::Handle::Project(handle),
             Root::Jobset { handle, .. } => handles::Handle::Jobset(handle),
             Root::Evaluation(eval) => handles::Handle::Evaluation(eval.handle),
@@ -214,6 +218,7 @@ impl TryFrom<Location> for Root {
         Ok(
             match &chunks.iter().map(|s| s.as_ref()).collect::<Vec<_>>()[..] {
                 [] => Self::Projects,
+                ["add-project"] => Self::AddProject,
                 ["login"] => Self::Login,
                 ["dashboard"] => Self::Dashboard {
                     tab: DashboardTab::Builds,
@@ -286,6 +291,7 @@ impl From<Root> for String {
             Root::Login => "/login".to_string(),
             Root::Dashboard { tab, page } => format!("/dashboard/{}?page={page}", tab),
             Root::Projects => "".to_string(),
+            Root::AddProject => "/add-project".to_string(),
             Root::Project(handle) => format!("/project/{}", encode(&handle.name)),
             Root::Jobset { handle, page } => format!(
                 "/project/{}/jobset/{}?page={page}",
@@ -318,6 +324,7 @@ use crate::components::header::*;
 pub fn Router() -> impl IntoView {
     let page = Signal::derive(|| Root::try_from(use_location()));
     let root_page = create_memo(move |_| page().map(Root::<Empty>::from));
+    let user: Signal<Option<crate::prelude::data::User>> = use_context().unwrap();
     use crate::pages::*;
     let main = move || match root_page() {
         Ok(Root::Login) => view! { <Login/> },
@@ -325,6 +332,12 @@ pub fn Router() -> impl IntoView {
             view! { <Dashboard tab page/> }
         }
         Ok(Root::Projects) => view! { <Projects/> },
+        Ok(Root::AddProject) => view! {
+            <Suspense>
+                {user().is_some().then(|| view! { <AddProject/> })}
+                {user().is_none().then(|| view! { <Unauthorized/> })}
+            </Suspense>
+        },
         Ok(Root::Project(handle)) => {
             view! { <Project handle/> }
         }

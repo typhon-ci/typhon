@@ -7,6 +7,7 @@ pub fn TyphonLogo() -> impl IntoView {
         a {
             display: inline-flex;
             align-items: center;
+            justify-content: normal;
             padding: 8px;
             user-select: none;
         }
@@ -115,29 +116,46 @@ pub fn Nav(route: Signal<Option<routes::Root<routes::Empty>>>) -> impl IntoView 
 #[component]
 pub fn Header(#[prop(into)] route: Signal<Option<routes::Root<routes::Empty>>>) -> impl IntoView {
     let style = style! {
-        div {
+        .nav-wrapper {
             border-bottom: 1px solid var(--color-border-default);
             display: flex;
             align-items: center;
+            justify-content: space-between;
             background: var(--color-lllightgray);
+        }
+        .buttons {
+            justify-content: normal;
+            gap: 10px;
+            display: flex;
+            padding-right: 8px;
         }
     };
     let user: Signal<Option<typhon_types::data::User>> = use_context().unwrap();
-    view! {
-        <div class=style>
+    view! { class=style,
+        <div class="nav-wrapper">
             <TyphonLogo/>
             <Nav route/>
-            <Transition fallback=move || {
-                view! { <span>"Loading..."</span> }
-            }>
-                {move || {
-                    match user() {
-                        Some(_) => view! { <login::Logout></login::Logout> }.into_view(),
-                        None => view! { <A href="/login">"Log In"</A> }.into_view(),
-                    }
-                }}
+            <div class="buttons">
+                <Transition fallback=move || {
+                    view! { <span>"Loading..."</span> }
+                }>
+                    {move || {
+                        match user() {
+                            Some(_) => {
+                                view! {
+                                    <A href=String::from(Root::AddProject)>
+                                        <button>Add project</button>
+                                    </A>
+                                    <login::Logout></login::Logout>
+                                }
+                                    .into_view()
+                            }
+                            None => view! { <A href="/login">"Log In"</A> }.into_view(),
+                        }
+                    }}
 
-            </Transition>
+                </Transition>
+            </div>
         </div>
     }
 }

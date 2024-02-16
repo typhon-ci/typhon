@@ -10,7 +10,7 @@ pub use uuid::Uuid;
 pub use typhon_types::{
     data, handles,
     requests::{self, Request},
-    responses::{self, Response},
+    responses::{self, Response, ResponseError},
 };
 
 pub(crate) use crate::{

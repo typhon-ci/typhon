@@ -53,6 +53,9 @@ pub fn App() -> impl IntoView {
             margin: 0;
             padding: 0;
         }
+        :deep(*) {
+            box-sizing: border-box;
+        }
         :deep(:root) {
             --font-size-huge: 20px;
             --font-size-big: 16px;
@@ -75,6 +78,7 @@ pub fn App() -> impl IntoView {
             --color-red: #cf222e;
             --color-lightred: #d1242f;
             --color-green: #1a7f37;
+            --color-darkgreen: rgb(24, 119, 51);
             --color-lightgreen: #1f883d;
             --color-orange: rgb(219, 171, 10);
 
@@ -136,13 +140,30 @@ pub fn App() -> impl IntoView {
         :deep(.is-table .rows > .row:last-child) {
             border-radius: 0 0 var(--radius) var(--radius);
         }
+        :deep(input[type=text]:focus), :deep(input[type=text]:focus-visible) {
+            outline: var(--color-bg-emphasis) auto 1px;
+            outline-offset: 0px;
+        }
+        :deep(input[type=text]) {
+            border: 1px solid var(--color-border-default);
+            border-radius: 3px;
+            font-size: inherit;
+            font-family: inherit;
+            padding: 6px 10px;
+            margin-top: 4px;
+            margin-bottom: 4px;
+            font-size: inherit;
+            font-weight: inherit;
+        }
     };
     provide_context(utils::now_signal());
     view! { class=_styler_class,
         <Router>
             <Style>{include_str!("../../target/main.css")}</Style>
             <Stylesheet href="/assets/node_modules/@fontsource/jetbrains-mono/index.css"/>
-            <Stylesheet href="/assets/node_modules/@fontsource/roboto/index.css"/>
+            <Stylesheet href="/assets/node_modules/@fontsource/roboto/300.css"/>
+            <Stylesheet href="/assets/node_modules/@fontsource/roboto/400.css"/>
+            <Stylesheet href="/assets/node_modules/@fontsource/roboto/500.css"/>
             <Routes>
                 <Route path="/*any" view=routes::Router ssr=SsrMode::Async/>
             </Routes>
