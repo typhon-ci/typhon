@@ -2,6 +2,7 @@ _: lib: {
   mkProject = {
     api,
     authorizationKeyword,
+    deploy,
     description,
     flake,
     homepage,
@@ -48,12 +49,13 @@ _: lib: {
             value = status;
           }
         ];
-        end = lib.compose.steps [
-          {
-            name = "Set status";
-            value = status;
-          }
-        ];
+        end = lib.compose.steps ([
+            {
+              name = "Set status";
+              value = status;
+            }
+          ]
+          ++ deploy);
       };
       inherit secrets;
     };

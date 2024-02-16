@@ -1,5 +1,6 @@
 _: lib: {
   mkProject = {
+    deploy ? [],
     owner,
     repo,
     secrets,
@@ -11,7 +12,7 @@ _: lib: {
   } @ args:
     lib.common.mkProject (args
       // {
-        inherit description flake homepage title;
+        inherit deploy description flake homepage title;
         api = "api.github.com";
         authorizationKeyword = "Bearer";
         tokenName = "github_token";
