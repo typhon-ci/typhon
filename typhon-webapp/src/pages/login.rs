@@ -71,24 +71,26 @@ pub fn Login() -> impl IntoView {
     let value = action.value();
     let has_error = move || value.with(|val| matches!(val, Some(Err(_))));
     view! {
-        <Show when=move || user().is_none() fallback=|| view! { "You are logged in!" }>
-            <ActionForm action>
-                <h2>"Log In"</h2>
-                <div>
-                    <label for="password">"Password"</label>
-                    <input type="password" placeholder="Password" name="password"/>
-                </div>
-                <button type="submit">"Log In"</button>
-                {move || {
-                    if has_error() {
-                        view! { "Failed to log in!" }.into_view()
-                    } else {
-                        view! {}.into_view()
-                    }
-                }}
+        <Suspense>
+            <Show when=move || user().is_none() fallback=|| view! { "You are logged in!" }>
+                <ActionForm action>
+                    <h2>"Log In"</h2>
+                    <div>
+                        <label for="password">"Password"</label>
+                        <input type="password" placeholder="Password" name="password"/>
+                    </div>
+                    <button type="submit">"Log In"</button>
+                    {move || {
+                        if has_error() {
+                            view! { "Failed to log in!" }.into_view()
+                        } else {
+                            view! {}.into_view()
+                        }
+                    }}
 
-            </ActionForm>
-        </Show>
+                </ActionForm>
+            </Show>
+        </Suspense>
     }
 }
 
