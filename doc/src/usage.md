@@ -127,7 +127,7 @@ typhonProject = typhon.lib.github.mkProject {
       value = typhon.lib.cachix.mkPush {name = "$cache";};
     }
   ];
-  ..
+  ...
 };
 ```
 
