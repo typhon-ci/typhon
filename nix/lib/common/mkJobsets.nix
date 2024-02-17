@@ -1,10 +1,14 @@
 utils: lib: {
-  mkGithubJobsets = {
+  mkJobsets = {
+    api,
+    authorizationKeyword,
+    flake,
     owner,
     repo,
-    flake ? true,
+    tokenName,
+    urlPrefix,
   }:
-    lib.mkActionScript {
+    lib.builders.mkActionScript {
       mkPath = system: let
         pkgs = utils.pkgs.${system};
       in [
@@ -14,16 +18,16 @@ utils: lib: {
       mkScript = system: ''
         input=$(cat)
 
-        token=$(echo "$input" | jq '.secrets.github_token' -r)
+        token=$(echo "$input" | jq -r '.secrets.${tokenName}')
 
         curl -sf \
           --cacert ${utils.pkgs.${system}.cacert}/etc/ssl/certs/ca-bundle.crt \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer $token" \
-          https://api.github.com/repos/${owner}/${repo}/branches \
+          -H "Accept: application/json" \
+          -H "Authorization: ${authorizationKeyword} $token" \
+          https://${api}/repos/${owner}/${repo}/branches \
           | jq '.
             | map({ (.name): {
-                "url": ("github:${owner}/${repo}/" + .name),
+                "url": ("${urlPrefix}" + .name),
                 "flake": ${utils.lib.boolToString flake}
               }})
             | add'
