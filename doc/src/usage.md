@@ -29,7 +29,7 @@ string `$secret` and add a webhook to `$project` with the following settings:
 
 Let's create a flake in the `$config` repository, then add an output
 `typhonProject`. We are going to import `typhon` as a flake input and use the
-`mkGithubProject` helper function from the library:
+`github.mkProject` helper function from the library:
 
 ```nix
 {
@@ -39,11 +39,11 @@ Let's create a flake in the `$config` repository, then add an output
     self,
     typhon,
   }: {
-    typhonProject = typhon.lib.github.mkGithubProject {
+    typhonProject = typhon.lib.github.mkProject {
       owner = "$user";
       repo = "$project";
       secrets = ./secrets.age;
-      typhon_url = "$typhon_url";
+      typhonUrl = "$typhon_url";
     };
   };
 }

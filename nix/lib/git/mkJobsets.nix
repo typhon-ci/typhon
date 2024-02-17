@@ -1,9 +1,9 @@
 utils: lib: {
-  mkGitJobsets = {
+  mkJobsets = {
     url,
     flake ? true,
   }:
-    lib.mkActionScript {
+    lib.builders.mkActionScript {
       mkPath = system: let
         pkgs = utils.pkgs.${system};
       in [
