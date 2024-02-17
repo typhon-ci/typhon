@@ -2,18 +2,19 @@ utils: lib: {
   steps = actions: let
     n = builtins.length actions;
   in
-    lib.mkActionScript {
+    lib.builders.mkActionScript {
       mkScript = system: let
         aux = i: {
           name,
           value,
         }: ''
           >&2 echo "### Step ${builtins.toString i}/${builtins.toString n}: ${name}"
-          echo "$json" | ${value.${system}}/bin/action > /dev/null
+          echo "$stdin" | ${value.${system}}/bin/action > /dev/null
         '';
       in
         ''
-          json=$(cat)
+          stdin=$(cat)
+
         ''
         + utils.lib.foldr (x: y: x + y) "" (utils.lib.imap1 aux actions)
         + ''
