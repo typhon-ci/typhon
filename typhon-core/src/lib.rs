@@ -38,6 +38,7 @@ use projects::Project;
 use runs::Run;
 use task_manager::TaskManager;
 
+use argon2::PasswordHash;
 use diesel::prelude::*;
 use diesel::r2d2;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -50,7 +51,7 @@ use serde::{Deserialize, Serialize};
 /// retrieves the settings.
 #[derive(Debug)]
 pub struct Settings {
-    pub password: String,
+    pub password: PasswordHash<'static>,
 }
 
 const _: () = {
@@ -59,16 +60,17 @@ const _: () = {
         fn get() -> &'static Self {
             CELL.get().expect("Settings were not initialized")
         }
-        fn init(settings: Self) {
+        fn init(password: &String) {
+            let password = Box::leak(Box::new(password.clone()));
+            let password = PasswordHash::new(password).expect("Unable to parse the password hash");
+            let settings = Self { password };
             CELL.set(settings)
                 .expect("Settings were already initalized")
         }
         fn verify_password(&self, password: &[u8]) -> bool {
-            use argon2::{Argon2, PasswordHash, PasswordVerifier};
-            let password_hash =
-                PasswordHash::new(&self.password).expect("Unable to parse the password hash");
+            use argon2::{Argon2, PasswordVerifier};
             Argon2::default()
-                .verify_password(password, &password_hash)
+                .verify_password(password, &self.password)
                 .is_ok()
         }
     }
@@ -339,8 +341,8 @@ fn pool() -> DbPool {
     pool
 }
 
-pub fn init(settings: Settings) {
-    Settings::init(settings);
+pub fn init(password: &String) {
+    Settings::init(password);
     // Force database migrations
     let _ = once_cell::sync::Lazy::force(&POOL);
 }

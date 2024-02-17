@@ -46,9 +46,7 @@ async fn main() -> std::io::Result<()> {
 
     let args = Args::parse();
 
-    typhon_core::init(typhon_core::Settings {
-        password: args.password,
-    });
+    typhon_core::init(&args.password);
 
     // Run actix server
     let conf = get_configuration(None).await.unwrap();
