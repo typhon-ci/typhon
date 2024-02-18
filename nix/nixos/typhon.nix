@@ -31,13 +31,29 @@ in {
       default = "/var/lib/typhon";
       description = "Home directory for the Typhon instance";
     };
-    passwordFile = mkOption {
-      type = types.str;
-      description = "Path to a file containing the admin password";
+    hashedPassword = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "The Argon2id hash of the admin password";
+    };
+    hashedPasswordFile = mkOption {
+      type = types.nullOr types.str;
+      default =
+        if cfg.hashedPassword == null
+        then null
+        else builtins.toString (pkgs.writeText "typhon-password" cfg.hashedPassword);
+      description = "Path to a file containing the Argon2id hash of the admin password";
     };
   };
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.hashedPasswordFile != null || cfg.hashedPassword != null;
+        message = "`hashedPasswordFile` or `hashedPassword` must be set";
+      }
+    ];
+
     users.users.typhon = {
       home = cfg.home;
       group = "typhon";
@@ -66,7 +82,7 @@ in {
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
-          DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p ${cfg.passwordFile} -v
+          DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p "$(cat ${cfg.hashedPasswordFile})" -v
         '';
         Type = "simple";
         User = "typhon";
