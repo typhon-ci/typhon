@@ -29,7 +29,7 @@ string `$secret` and add a webhook to `$project` with the following settings:
 
 Let's create a flake in the `$config` repository, then add an output
 `typhonProject`. We are going to import `typhon` as a flake input and use the
-`mkGithubProject` helper function from the library:
+`github.mkProject` helper function from the library:
 
 ```nix
 {
@@ -39,11 +39,11 @@ Let's create a flake in the `$config` repository, then add an output
     self,
     typhon,
   }: {
-    typhonProject = typhon.lib.github.mkGithubProject {
+    typhonProject = typhon.lib.github.mkProject {
       owner = "$user";
       repo = "$project";
       secrets = ./secrets.age;
-      typhon_url = "$typhon_url";
+      typhonUrl = "$typhon_url";
     };
   };
 }
@@ -111,3 +111,28 @@ We can now update the jobsets of your project from the project interface. A list
 of jobsets should appear, one for each branch of your repository. Now, any push
 to the repository should generate an evaluation in the corresponding jobset and
 statuses should appear on your repository.
+
+## Deployment
+
+Now, let's add a deployment action to push your store paths to Cachix. We will
+assume you have a cache named `$cache` already set up and an authentication
+token that comes with it. First add the token to your secrets as an attribute
+called `cachix_token`. Then edit `$config` as follows:
+
+```nix
+typhonProject = typhon.lib.github.mkProject {
+  deploy = [
+    {
+      name = "Push to Cachix";
+      value = typhon.lib.cachix.mkPush {name = "$cache";};
+    }
+  ];
+  ...
+};
+```
+
+Refresh your project on Typhon, then your binaries should be pushed to your
+cache at the end of every job.
+
+Finally, you can use `typhon.lib.compose.match` to run your deployments only on
+certain jobsets or jobs.
