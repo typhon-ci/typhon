@@ -60,21 +60,19 @@ const _: () = {
         fn get() -> &'static Self {
             CELL.get().expect("Settings were not initialized")
         }
-        fn init(password: &String) {
-            let password = Box::leak(Box::new(password.clone()));
-            let password = PasswordHash::new(password).expect("Unable to parse the password hash");
-            let settings = Self { password };
+        fn init(settings: Self) {
             CELL.set(settings)
                 .expect("Settings were already initalized")
         }
-        fn verify_password(&self, password: &[u8]) -> bool {
-            use argon2::{Argon2, PasswordVerifier};
-            Argon2::default()
-                .verify_password(password, &self.password)
-                .is_ok()
-        }
     }
 };
+
+fn verify_password(password: &[u8]) -> bool {
+    use argon2::{Argon2, PasswordVerifier};
+    Argon2::default()
+        .verify_password(password, &Settings::get().password)
+        .is_ok()
+}
 
 pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
 pub type Conn =
@@ -122,7 +120,7 @@ impl User {
         }
     }
     pub fn from_password(password: &[u8]) -> Self {
-        if Settings::get().verify_password(password) {
+        if verify_password(password) {
             User::Admin
         } else {
             User::Anonymous
@@ -228,7 +226,7 @@ pub fn handle_request_aux(
             }
         }
         requests::Request::Login { password } => {
-            if Settings::get().verify_password(password.as_bytes()) {
+            if verify_password(password.as_bytes()) {
                 Response::Ok
             } else {
                 Err(Error::LoginError)?
@@ -342,7 +340,9 @@ fn pool() -> DbPool {
 }
 
 pub fn init(password: &String) {
-    Settings::init(password);
+    let password = Box::leak(Box::new(password.clone()));
+    let password = PasswordHash::new(password).expect("Unable to parse the password hash");
+    Settings::init(Settings { password });
     // Force database migrations
     let _ = once_cell::sync::Lazy::force(&POOL);
 }
