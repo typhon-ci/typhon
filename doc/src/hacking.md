@@ -44,7 +44,7 @@ serve
 ```
 
 The server will be available at `http://localhost:3000`, the admin password is
-empty.
+`password`.
 
 You can also run `watch` to re-compile the server automatically at each
 modification of the code.
