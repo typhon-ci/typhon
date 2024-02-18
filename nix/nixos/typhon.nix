@@ -34,7 +34,7 @@ in {
     hashedPassword = mkOption {
       type = types.nullOr types.str;
       default = null;
-      description = "The argon2id hash of the admin password";
+      description = "The Argon2id hash of the admin password";
     };
     hashedPasswordFile = mkOption {
       type = types.nullOr types.str;
@@ -42,7 +42,7 @@ in {
         if cfg.hashedPassword == null
         then null
         else builtins.toString (pkgs.writeText "typhon-password" cfg.hashedPassword);
-      description = "Path to a file containing the argon2id hash of the admin password";
+      description = "Path to a file containing the Argon2id hash of the admin password";
     };
   };
 

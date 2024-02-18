@@ -17,7 +17,7 @@ const RANDOM_KEY: &str = "random";
 #[derive(Parser)]
 #[command(name = "Typhon")]
 pub struct Args {
-    /// The hash of the admin password
+    /// The Argon2id hash of the admin password
     #[arg(long, short, env)]
     pub password: String,
 

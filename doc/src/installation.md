@@ -31,7 +31,7 @@ in {
   services.typhon = {
     enable = true;
 
-    # path to the admin password
+    # path to the argon2id hash of the admin password
     # $ SALT=$(cat /dev/urandom | head -c 16 | base64)
     # $ echo -n password | argon2 "$SALT" -id -e > /etc/secrets/password.txt
     hashedPasswordFile = "/etc/secrets/password.txt";
@@ -61,8 +61,7 @@ Mandatory:
 
 - `services.typhon.enable`: a boolean to activate the Typhon instance.
 - `services.typhon.hashedPasswordFile` or `services.typhon.hashedPassword`: the
-  hash of the admin password in the PHC string format. Use `argon2id` to compute
-  this value.
+  Argon2id hash of the admin password in the PHC string format.
 
 Optional:
 
