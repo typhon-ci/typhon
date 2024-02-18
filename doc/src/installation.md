@@ -31,9 +31,10 @@ in {
   services.typhon = {
     enable = true;
 
-    # path to the admin password
-    # $ echo -n password > /etc/secrets/password.txt
-    passwordFile = "/etc/secrets/password.txt";
+    # path to the argon2id hash of the admin password
+    # $ SALT=$(cat /dev/urandom | head -c 16 | base64)
+    # $ echo -n password | argon2 "$SALT" -id -e > /etc/secrets/password.txt
+    hashedPasswordFile = "/etc/secrets/password.txt";
   };
 
   # configure nginx
@@ -59,8 +60,8 @@ Here is a list of options exposed by the NixOS module.
 Mandatory:
 
 - `services.typhon.enable`: a boolean to activate the Typhon instance.
-- `services.typhon.passwordFile`: a string containing the path to the admin
-  password.
+- `services.typhon.hashedPasswordFile` or `services.typhon.hashedPassword`: the
+  Argon2id hash of the admin password in the PHC string format.
 
 Optional:
 

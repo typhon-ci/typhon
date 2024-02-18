@@ -9,7 +9,8 @@ where
 {
     let style = style! {
         div {
-            text-align: center;
+            display: flex;
+            justify-content: center;
         }
         div :deep(> .page) {
             display: inline-block;
