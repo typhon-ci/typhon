@@ -310,13 +310,11 @@ pub fn webhook(
 
 pub async fn shutdown() {
     eprintln!("Typhon is shutting down...");
-    tokio::join!(
-        RUNS.shutdown(),
-        TASKS.shutdown(),
-        LOGS.shutdown(),
-        EVENT_LOGGER.shutdown(),
-        build_manager::BUILDS.shutdown(),
-    );
+    build_manager::BUILDS.shutdown().await;
+    RUNS.shutdown().await;
+    TASKS.shutdown().await;
+    LOGS.shutdown().await;
+    EVENT_LOGGER.shutdown().await;
     eprintln!("Good bye!");
 }
 
