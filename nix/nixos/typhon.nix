@@ -78,7 +78,7 @@ in {
     systemd.services.typhon = {
       description = "Typhon service";
       wantedBy = ["multi-user.target"];
-      path = [pkgs.nix pkgs.git pkgs.bubblewrap];
+      path = [pkgs.nix pkgs.git pkgs.bubblewrap pkgs.openssh];
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
