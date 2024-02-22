@@ -1,5 +1,5 @@
 utils: lib: {
-  mkPush = {
+  mkPushResult = {
     owner,
     repo,
     branch,

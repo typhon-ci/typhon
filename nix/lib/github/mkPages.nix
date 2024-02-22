@@ -10,7 +10,7 @@ _: lib: {
     lib.compose.match [
       {
         inherit jobset job system;
-        action = lib.github.mkPush {
+        action = lib.github.mkPushResult {
           inherit owner repo branch;
         };
       }
