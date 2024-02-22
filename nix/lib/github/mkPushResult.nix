@@ -3,6 +3,7 @@ utils: lib: {
     owner,
     repo,
     branch,
+    patches ? [],
   }:
     lib.builders.mkActionScript {
       mkPath = system: let
@@ -25,12 +26,17 @@ utils: lib: {
         git init
         git config user.email "typhon@typhon-ci.org"
         git config user.name "Typhon"
-
-        git checkout -b ${branch}
-        git add .
         export GIT_AUTHOR_DATE="1970-01-01T00:00:00+0000"
         export GIT_COMMITTER_DATE="1970-01-01T00:00:00+0000"
+        git checkout -b ${branch}
+
+        git add .
         git commit -m "''${input[out]}"
+
+        ${utils.lib.concatMapStrings (patch: ''
+            git am < ${patch system}
+          '')
+          patches}
 
         git remote add origin "https://$token@github.com/${owner}/${repo}"
         git push -f -u origin ${branch}
