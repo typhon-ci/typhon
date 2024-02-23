@@ -309,6 +309,10 @@ pub fn webhook(
 }
 
 pub async fn shutdown() {
+    // The task manager must shut down before the log manager because the tasks'
+    // finishers assume the log manager is still up. To my knowledge there
+    // exists no other similar assumption at the moment, but I chose to shut
+    // down everything in sequence anyway to try to avoid future problems.
     eprintln!("Typhon is shutting down...");
     build_manager::BUILDS.shutdown().await;
     RUNS.shutdown().await;
