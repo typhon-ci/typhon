@@ -23,7 +23,7 @@ utils: lib: {
 
         token=$(echo "$stdin" | jq -r '.secrets.${tokenName}')
 
-        rev=$(nix eval --json --expr "builtins.parseFlakeRef \"''${input[url]}\"" | jq -r '.rev')
+        rev=$(HOME=$(pwd) nix --extra-experimental-features "nix-command flakes" eval --json --expr "builtins.parseFlakeRef \"''${input[url]}\"" | jq -r '.rev')
         system_encoded=$(echo -n "''${input[system]}" | jq '@uri' -sRr)
         job_encoded=$(echo -n "''${input[job]}" | jq '@uri' -sRr)
         target_url="${typhonUrl}/evaluation/''${input[evaluation]}/$system_encoded/$job_encoded"

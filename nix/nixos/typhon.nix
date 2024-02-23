@@ -23,7 +23,7 @@ in {
       description = "Which package to use for the Typhon instance";
       default = import ../packages/typhon.nix {
         inherit inputs;
-        inherit (config.nixpkgs) system;
+        inherit (pkgs.stdenv.hostPlatform) system;
       };
     };
     home = mkOption {
@@ -78,7 +78,7 @@ in {
     systemd.services.typhon = {
       description = "Typhon service";
       wantedBy = ["multi-user.target"];
-      path = [pkgs.nix pkgs.git pkgs.bubblewrap];
+      path = [pkgs.nix pkgs.git pkgs.bubblewrap pkgs.openssh];
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
