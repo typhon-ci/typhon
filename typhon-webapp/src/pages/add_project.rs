@@ -135,7 +135,7 @@ pub(crate) fn AddProject() -> impl IntoView {
             <ActionForm action>
                 <div class="header">"Add a project"</div>
                 <div class="header-description sep">
-                    "Add continuous integration with Typhon for an existing codebase. This project will be visible to anyone that have access to this Typhon instance."
+                    "Add a project declaration to Typhon. Note that the project will be visible to anyone that have access to this Typhon instance."
                 </div>
                 <div class="fields">
                     <div class="field">
