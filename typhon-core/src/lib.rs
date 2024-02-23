@@ -38,6 +38,7 @@ use projects::Project;
 use runs::Run;
 use task_manager::TaskManager;
 
+use argon2::PasswordHash;
 use diesel::prelude::*;
 use diesel::r2d2;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -50,7 +51,7 @@ use serde::{Deserialize, Serialize};
 /// retrieves the settings.
 #[derive(Debug)]
 pub struct Settings {
-    pub password: String,
+    pub password: PasswordHash<'static>,
 }
 
 const _: () = {
@@ -65,6 +66,13 @@ const _: () = {
         }
     }
 };
+
+fn verify_password(password: &[u8]) -> bool {
+    use argon2::{Argon2, PasswordVerifier};
+    Argon2::default()
+        .verify_password(password, &Settings::get().password)
+        .is_ok()
+}
 
 pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
 pub type Conn =
@@ -112,10 +120,7 @@ impl User {
         }
     }
     pub fn from_password(password: &[u8]) -> Self {
-        if String::from_utf8(password.to_vec())
-            .map(|x| x == Settings::get().password)
-            .unwrap_or(false)
-        {
+        if verify_password(password) {
             User::Admin
         } else {
             User::Anonymous
@@ -221,7 +226,7 @@ pub fn handle_request_aux(
             }
         }
         requests::Request::Login { password } => {
-            if *password == Settings::get().password {
+            if verify_password(password.as_bytes()) {
                 Response::Ok
             } else {
                 Err(Error::LoginError)?
@@ -304,14 +309,16 @@ pub fn webhook(
 }
 
 pub async fn shutdown() {
+    // The task manager must shut down before the log manager because the tasks'
+    // finishers assume the log manager is still up. To my knowledge there
+    // exists no other similar assumption at the moment, but I chose to shut
+    // down everything in sequence anyway to try to avoid future problems.
     eprintln!("Typhon is shutting down...");
-    tokio::join!(
-        RUNS.shutdown(),
-        TASKS.shutdown(),
-        LOGS.shutdown(),
-        EVENT_LOGGER.shutdown(),
-        build_manager::BUILDS.shutdown(),
-    );
+    build_manager::BUILDS.shutdown().await;
+    RUNS.shutdown().await;
+    TASKS.shutdown().await;
+    LOGS.shutdown().await;
+    EVENT_LOGGER.shutdown().await;
     eprintln!("Good bye!");
 }
 
@@ -334,8 +341,10 @@ fn pool() -> DbPool {
     pool
 }
 
-pub fn init(settings: Settings) {
-    Settings::init(settings);
+pub fn init(password: &String) {
+    let password = Box::leak(Box::new(password.clone()));
+    let password = PasswordHash::new(password).expect("Unable to parse the password hash");
+    Settings::init(Settings { password });
     // Force database migrations
     let _ = once_cell::sync::Lazy::force(&POOL);
 }

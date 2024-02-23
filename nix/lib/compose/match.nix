@@ -1,6 +1,9 @@
 utils: lib: {
   match = branches:
     lib.builders.mkActionScript {
+      mkPath = system: let
+        pkgs = utils.pkgs.${system};
+      in [pkgs.jq];
       mkScript = system_: let
         aux = {
           jobset ? ".*",

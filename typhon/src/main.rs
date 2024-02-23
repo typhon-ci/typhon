@@ -17,7 +17,7 @@ const RANDOM_KEY: &str = "random";
 #[derive(Parser)]
 #[command(name = "Typhon")]
 pub struct Args {
-    /// Path to a file containing the admin password
+    /// The Argon2id hash of the admin password
     #[arg(long, short, env)]
     pub password: String,
 
@@ -46,9 +46,7 @@ async fn main() -> std::io::Result<()> {
 
     let args = Args::parse();
 
-    typhon_core::init(typhon_core::Settings {
-        password: std::fs::read_to_string(args.password)?,
-    });
+    typhon_core::init(&args.password);
 
     // Run actix server
     let conf = get_configuration(None).await.unwrap();
