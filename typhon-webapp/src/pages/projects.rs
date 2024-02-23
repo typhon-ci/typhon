@@ -1,28 +1,10 @@
 use crate::prelude::*;
 
 #[component]
-pub(crate) fn Projects() -> impl IntoView {
-    let user: Signal<Option<data::User>> = use_context().unwrap();
-    let (error, projects) = search!(
-        Signal::derive(|| 0),
-        Signal::derive(|| 100),
-        Signal::derive(|| requests::search::Kind::Projects),
-        |total, responses::search::Results::Projects(projects)| (total, projects)
-    );
-    let projects = Signal::derive(move || projects().unwrap_or((0, Vec::new())));
-    let count = Signal::derive(move || projects().0);
-    let projects = Signal::derive(move || projects().1);
-    let action = request_action!(
-        CreateProject,
-        |name: String, url: String, flake: Option<String>| requests::Request::CreateProject {
-            name,
-            decl: requests::ProjectDecl {
-                url,
-                flake: flake.is_some()
-            },
-        }
-    );
-    // TODO split this view in two views, one for the table, one the the form
+fn ProjectList(
+    count: Signal<u32>,
+    projects: Signal<Vec<(handles::Project, responses::ProjectMetadata)>>,
+) -> impl IntoView {
     let style = style! {
         .rows :deep(> .row), .header-columns {
             display: grid;
@@ -44,88 +26,92 @@ pub(crate) fn Projects() -> impl IntoView {
         .summary {
 
         }
-        .row :deep(.empty-field) {
+        .rows :deep(.placeholder) {
             font-style: italic;
             opacity: 0.5;
+        }
+        .rows :deep(.row.no-project-yet .placeholder) {
+            text-align: center;
+        }
+        .rows :deep(.row.no-project-yet) {
+            display: block;
         }
     };
     fn with_placeholder(text: &str) -> impl IntoView {
         if text.is_empty() {
-            view! { <span style="opacity: 0.3;">"<empty>"</span> }
+            view! { <span class="placeholder">"<empty>"</span> }
         } else {
             view! { <span>{text.to_string()}</span> }
         }
     }
     view! { class=style,
-        <Trans error>
-            <div class="is-table">
-                <div class="header">
-                    <div class="summary">{count} projects</div>
-                    <div class="header-columns">
-                        <div class="column id">"Identifier"</div>
-                        <div class="column name">"Name"</div>
-                        <div class="column description">"Description"</div>
-                    </div>
+        <div class="is-table">
+            <div class="header">
+                <div class="summary">{count} projects</div>
+                <div class="header-columns">
+                    <div class="column id">"Identifier"</div>
+                    <div class="column name">"Name"</div>
+                    <div class="column description">"Description"</div>
                 </div>
-                <div class="rows">
-                    <For
-                        each=projects
-                        key=|(handle, _)| handle.clone()
-                        children=move |(handle, metadata)| {
+            </div>
+            <div class="rows">
+                {move || {
+                    projects()
+                        .is_empty()
+                        .then(|| {
                             view! {
-                                <div class="row">
-                                    <div class="column id">
-                                        <A href=routes::Root::Project(
-                                            handle.clone(),
-                                        )>{handle.name}</A>
-                                    </div>
-                                    <div class="column name">
-                                        {with_placeholder(&metadata.title)}
-                                    </div>
-                                    <div class="column description">
-                                        {with_placeholder(&metadata.description)}
-                                    </div>
+                                <div class="row no-project-yet">
+                                    <div class="placeholder">No any project yet!</div>
                                 </div>
                             }
+                        })
+                }}
+                <For
+                    each=projects
+                    key=|(handle, _)| handle.clone()
+                    children=move |(handle, metadata)| {
+                        view! {
+                            <div class="row">
+                                <div class="column id">
+                                    <A href=routes::Root::Project(handle.clone())>{handle.name}</A>
+                                </div>
+                                <div class="column name">{with_placeholder(&metadata.title)}</div>
+                                <div class="column description">
+                                    {with_placeholder(&metadata.description)}
+                                </div>
+                            </div>
                         }
-                    />
-
-                </div>
-                <Pagination
-                    max=10
-                    count
-                    current=Signal::derive(|| 1)
-                    link=|_: u32| "todo".to_string()
+                    }
                 />
 
             </div>
-            <Show when=move || user().is_some()>
-                <ActionForm action>
-                    <h2>"Add a project"</h2>
-                    <div>
-                        <label class="label" for="name">
-                            "Identifier"
-                        </label>
-                        <input name="name" class="input" id="name"/>
-                    </div>
-                    <div>
-                        <label class="label" for="url">
-                            "URL"
-                        </label>
-                        <input name="url" class="input" id="url"/>
-                    </div>
-                    <div>
-                        <label class="label" for="flake">
-                            "Flake"
-                        </label>
-                        <input name="flake" class="input" id="flake" type="checkbox" checked=true/>
-                    </div>
-                    <button type="submit">
-                        <Icon icon=icondata::BiPlusCircleSolid/>
-                        "Add"
-                    </button>
-                </ActionForm>
-            </Show>
+            <Pagination max=10 count current=Signal::derive(|| 1) link=|_: u32| "todo".to_string()/>
+        </div>
+    }
+}
+
+#[component]
+pub(crate) fn Projects() -> impl IntoView {
+    let user: Signal<Option<data::User>> = use_context().unwrap();
+
+    let (error, count, projects) = {
+        let (error, data) = search!(
+            Signal::derive(|| 0),
+            Signal::derive(|| 100),
+            Signal::derive(|| requests::search::Kind::Projects),
+            |total, responses::search::Results::Projects(projects)| (total, projects)
+        );
+        let data = Signal::derive(move || data().unwrap_or((0, Vec::new())));
+        (
+            error,
+            Signal::derive(move || data().0),
+            Signal::derive(move || data().1),
+        )
+    };
+
+    view! {
+        <Trans error>
+            <ProjectList count projects/>
         </Trans>
     }
 }
