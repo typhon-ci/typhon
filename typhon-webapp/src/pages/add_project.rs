@@ -159,7 +159,7 @@ pub(crate) fn AddProject() -> impl IntoView {
                                 "Flake"
                             </label>
                             <label class="details">
-                                The project has a <code>flake.nix</code> <span>.</span>
+                                The project has a Typhon compatible <code>flake.nix</code><span>.</span>
                                 The project is a
                                 <a href="https://nixos.wiki/wiki/Flakes">Nix Flake</a>
                                 <span>.</span>
@@ -174,7 +174,7 @@ pub(crate) fn AddProject() -> impl IntoView {
                             </label>
                             <label class="details" for="legacy">
                                 The project has a
-                                <code>default.nix</code>
+                                <code>nix/typhon.nix</code> file
                                 <span>.</span>
                             </label>
                         </div>
