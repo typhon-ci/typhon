@@ -5,11 +5,15 @@ utils: lib: {
     branch,
     patches ? [],
   }:
-    lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [pkgs.jq pkgs.git];
-      mkScript = system: ''
+    lib.builders.mkActionScript ({
+      pkgs,
+      system,
+    }: {
+      path = [
+        pkgs.jq
+        pkgs.git
+      ];
+      script = ''
         stdin=$(cat)
 
         input=$(echo "$stdin" | jq -r '.input | ${utils.jqJsonToBashArray}')
@@ -38,5 +42,5 @@ utils: lib: {
         git remote add origin "https://$token@github.com/${owner}/${repo}"
         git push -f -u origin ${branch}
       '';
-    };
+    });
 }

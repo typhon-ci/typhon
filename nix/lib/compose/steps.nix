@@ -2,8 +2,11 @@ utils: lib: {
   steps = actions: let
     n = builtins.length actions;
   in
-    lib.builders.mkActionScript {
-      mkScript = system: let
+    lib.builders.mkActionScript ({
+      pkgs,
+      system,
+    }: {
+      script = let
         aux = i: {
           name,
           value,
@@ -20,5 +23,5 @@ utils: lib: {
         + ''
           echo "null"
         '';
-    };
+    });
 }

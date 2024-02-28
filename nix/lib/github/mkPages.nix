@@ -35,9 +35,12 @@ utils: lib: {
         };
       }
       {
-        action = lib.builders.mkActionScript {
-          mkScript = system: ''echo "Nothing to do" >&2'';
-        };
+        action = lib.builders.mkActionScript ({
+          pkgs,
+          system,
+        }: {
+          script = ''echo "Nothing to do" >&2'';
+        });
       }
     ];
 }
