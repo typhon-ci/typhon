@@ -7,15 +7,16 @@ utils: lib: {
     tokenName,
     typhonUrl,
   }:
-    lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [
+    lib.builders.mkActionScript ({
+      pkgs,
+      system,
+    }: {
+      path = [
         pkgs.curl
         pkgs.jq
         pkgs.nix
       ];
-      mkScript = system: ''
+      script = ''
         stdin=$(cat)
 
         input=$(echo "$stdin" | jq -r '.input | ${utils.jqJsonToBashArray}')
@@ -43,12 +44,12 @@ utils: lib: {
         )
 
         curl -sf \
-          --cacert ${utils.pkgs.${system}.cacert}/etc/ssl/certs/ca-bundle.crt \
+          --cacert ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt \
           --json "$payload" \
           -H "Accept: application/json" \
           -H "Authorization: ${authorizationKeyword} $token" \
           "https://${api}/repos/${owner}/${repo}/statuses/$rev" \
           >&2
       '';
-    };
+    });
 }

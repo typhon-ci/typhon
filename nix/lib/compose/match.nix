@@ -1,10 +1,13 @@
 utils: lib: {
   match = branches:
-    lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [pkgs.jq];
-      mkScript = system_: let
+    lib.builders.mkActionScript ({
+      pkgs,
+      system,
+    }: let
+      system_ = system;
+    in {
+      path = [pkgs.jq];
+      script = let
         aux = {
           jobset ? ".*",
           system ? ".*",
@@ -29,5 +32,5 @@ utils: lib: {
         + ''
           exit 1
         '';
-    };
+    });
 }

@@ -1,13 +1,14 @@
 utils: lib: {
   mkWebhook = {webhookSecretName}:
-    lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [
+    lib.builders.mkActionScript ({
+      pkgs,
+      system,
+    }: {
+      path = [
         pkgs.jq
         pkgs.openssl
       ];
-      mkScript = system: ''
+      script = ''
         stdin=$(cat)
 
         headers=$(echo "$stdin" | jq '.input.headers')
@@ -36,5 +37,5 @@ utils: lib: {
           echo "$name" | jq '[{"command":"EvaluateJobset","name":.}]'
         fi
       '';
-    };
+    });
 }
