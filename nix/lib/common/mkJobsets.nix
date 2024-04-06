@@ -1,20 +1,24 @@
 utils: lib: {
-  mkJobsets = {
-    api,
-    authorizationKeyword,
-    flake,
-    owner,
-    repo,
-    tokenName,
-    urlPrefix,
-  }:
+  mkJobsets =
+    {
+      api,
+      authorizationKeyword,
+      flake,
+      owner,
+      repo,
+      tokenName,
+      urlPrefix,
+    }:
     lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [
-        pkgs.curl
-        pkgs.jq
-      ];
+      mkPath =
+        system:
+        let
+          pkgs = utils.pkgs.${system};
+        in
+        [
+          pkgs.curl
+          pkgs.jq
+        ];
       mkScript = system: ''
         input=$(cat)
 

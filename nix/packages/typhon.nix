@@ -1,9 +1,10 @@
 {
   inputs ? import ../inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ../nixpkgs.nix {inherit inputs system;},
-  rust ? import ../rust.nix {inherit inputs system;},
-}: let
+  pkgs ? import ../nixpkgs.nix { inherit inputs system; },
+  rust ? import ../rust.nix { inherit inputs system; },
+}:
+let
   inherit (rust) craneLib;
 
   cargoToml = builtins.fromTOML (builtins.readFile ../../Cargo.toml);
@@ -20,25 +21,27 @@
 
   cargoArtifacts = craneLib.buildDepsOnly args;
 
-  nodeDependencies = (pkgs.callPackage ../npm-nix {nodejs = pkgs.nodejs;}).nodeDependencies;
+  nodeDependencies = (pkgs.callPackage ../npm-nix { nodejs = pkgs.nodejs; }).nodeDependencies;
 in
-  craneLib.buildPackage (args
-    // {
-      inherit cargoArtifacts;
-      nativeBuildInputs = [
-        pkgs.cargo-leptos
-        pkgs.sqlite.dev
-        pkgs.binaryen
-        pkgs.makeWrapper
-      ];
-      buildPhaseCargoCommand = "cargo leptos build --release -vvv";
-      installPhaseCommand = ''
-        mkdir -p $out/bin
-        cp target/release/typhon $out/bin/
-        cp -r target/site $out/bin/
-        wrapProgram $out/bin/typhon --set LEPTOS_SITE_ROOT $out/bin/site
-      '';
-      TYPHON_FLAKE = ../../typhon-flake;
-      doNotLinkInheritedArtifacts = true;
-      preFixup = "cp -r ${nodeDependencies}/lib/node_modules $out/bin/site";
-    })
+craneLib.buildPackage (
+  args
+  // {
+    inherit cargoArtifacts;
+    nativeBuildInputs = [
+      pkgs.cargo-leptos
+      pkgs.sqlite.dev
+      pkgs.binaryen
+      pkgs.makeWrapper
+    ];
+    buildPhaseCargoCommand = "cargo leptos build --release -vvv";
+    installPhaseCommand = ''
+      mkdir -p $out/bin
+      cp target/release/typhon $out/bin/
+      cp -r target/site $out/bin/
+      wrapProgram $out/bin/typhon --set LEPTOS_SITE_ROOT $out/bin/site
+    '';
+    TYPHON_FLAKE = ../../typhon-flake;
+    doNotLinkInheritedArtifacts = true;
+    preFixup = "cp -r ${nodeDependencies}/lib/node_modules $out/bin/site";
+  }
+)

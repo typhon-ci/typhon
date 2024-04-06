@@ -1,1 +1,1 @@
-(import ./nix/devshells.nix {}).default
+(import ./nix/devshells.nix { }).default

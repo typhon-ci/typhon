@@ -1,17 +1,21 @@
 utils: lib: {
-  steps = actions: let
-    n = builtins.length actions;
-  in
+  steps =
+    actions:
+    let
+      n = builtins.length actions;
+    in
     lib.builders.mkActionScript {
-      mkScript = system: let
-        aux = i: {
-          name,
-          value,
-        }: ''
-          >&2 echo "### Step ${builtins.toString i}/${builtins.toString n}: ${name}"
-          echo "$stdin" | ${value.${system}}/bin/action > /dev/null
-        '';
-      in
+      mkScript =
+        system:
+        let
+          aux =
+            i:
+            { name, value }:
+            ''
+              >&2 echo "### Step ${builtins.toString i}/${builtins.toString n}: ${name}"
+              echo "$stdin" | ${value.${system}}/bin/action > /dev/null
+            '';
+        in
         ''
           stdin=$(cat)
 

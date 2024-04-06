@@ -7,20 +7,22 @@ utils: lib: {
     allowIFD = false;
     inventory = output: {
       children =
-        builtins.mapAttrs (system: jobs: {
-          forSystems = [system];
-          children =
-            builtins.mapAttrs (name: derivation: {
-              inherit derivation;
-              evalChecks = {};
-              forSystems = [system];
-              isFlakeCheck = false;
-              shortDescription = "";
-              what = "Typhon job declaration";
-            })
-            jobs;
-        })
-        output;
+        builtins.mapAttrs
+          (system: jobs: {
+            forSystems = [ system ];
+            children =
+              builtins.mapAttrs
+                (name: derivation: {
+                  inherit derivation;
+                  evalChecks = { };
+                  forSystems = [ system ];
+                  isFlakeCheck = false;
+                  shortDescription = "";
+                  what = "Typhon job declaration";
+                })
+                jobs;
+          })
+          output;
     };
   };
 
@@ -31,7 +33,7 @@ utils: lib: {
     '';
     allowIFD = false;
     inventory = output: {
-      evalChecks = {};
+      evalChecks = { };
       shortDescription = "";
       what = "Typhon project declaration";
     };

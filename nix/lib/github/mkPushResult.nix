@@ -1,14 +1,21 @@
 utils: lib: {
-  mkPushResult = {
-    owner,
-    repo,
-    branch,
-    patches ? [],
-  }:
+  mkPushResult =
+    {
+      owner,
+      repo,
+      branch,
+      patches ? [ ],
+    }:
     lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [pkgs.jq pkgs.git];
+      mkPath =
+        system:
+        let
+          pkgs = utils.pkgs.${system};
+        in
+        [
+          pkgs.jq
+          pkgs.git
+        ];
       mkScript = system: ''
         stdin=$(cat)
 
@@ -30,7 +37,8 @@ utils: lib: {
         git add .
         git commit -m "''${input[out]}"
 
-        ${utils.lib.concatMapStrings (patch: ''
+        ${utils.lib.concatMapStrings
+          (patch: ''
             git am < ${patch system}
           '')
           patches}

@@ -1,11 +1,14 @@
-{inputs ? import ../inputs.nix}: {
+{
+  inputs ? import ../inputs.nix,
+}:
+{
   config,
   lib,
   pkgs,
   ...
-}: let
-  inherit
-    (lib)
+}:
+let
+  inherit (lib)
     mkEnableOption
     mkIf
     mkOption
@@ -15,7 +18,8 @@
   cfg = config.services.typhon;
 
   gcrootsDir = "/nix/var/nix/gcroots/typhon";
-in {
+in
+{
   options.services.typhon = {
     enable = mkEnableOption "typhon";
     package = mkOption {
@@ -39,9 +43,10 @@ in {
     hashedPasswordFile = mkOption {
       type = types.nullOr types.str;
       default =
-        if cfg.hashedPassword == null
-        then null
-        else builtins.toString (pkgs.writeText "typhon-password" cfg.hashedPassword);
+        if cfg.hashedPassword == null then
+          null
+        else
+          builtins.toString (pkgs.writeText "typhon-password" cfg.hashedPassword);
       description = "Path to a file containing the Argon2id hash of the admin password";
     };
   };
@@ -60,11 +65,11 @@ in {
       createHome = true;
       isSystemUser = true;
     };
-    users.groups.typhon = {};
+    users.groups.typhon = { };
 
     systemd.services.typhon-init = {
       description = "Typhon init";
-      wantedBy = ["multi-user.target"];
+      wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-init" ''
           [ -e ${gcrootsDir} ] || mkdir ${gcrootsDir}
@@ -77,8 +82,13 @@ in {
 
     systemd.services.typhon = {
       description = "Typhon service";
-      wantedBy = ["multi-user.target"];
-      path = [pkgs.nix pkgs.git pkgs.bubblewrap pkgs.openssh];
+      wantedBy = [ "multi-user.target" ];
+      path = [
+        pkgs.nix
+        pkgs.git
+        pkgs.bubblewrap
+        pkgs.openssh
+      ];
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
@@ -88,8 +98,8 @@ in {
         User = "typhon";
         Group = "typhon";
       };
-      requires = ["typhon-init.service"];
-      after = ["typhon-init.service"];
+      requires = [ "typhon-init.service" ];
+      after = [ "typhon-init.service" ];
     };
   };
 }
