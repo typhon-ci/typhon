@@ -8,12 +8,12 @@ pkgs.stdenv.mkDerivation {
   name = "formatted";
   src = ../..;
   nativeBuildInputs = [
-    pkgs.alejandra
+    pkgs.nixfmt-rfc-style
     rust.rustToolchain
     pkgs.leptosfmt
   ];
   buildPhase = ''
-    alejandra -c .
+    nixfmt -c .
     leptosfmt --check .
     cargo fmt --check
   '';
