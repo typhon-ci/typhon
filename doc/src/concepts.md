@@ -74,8 +74,8 @@ actions a project can define:
   can also be used for deployment.
 
 - The `webhook` action is triggered by calls to a specific endpoint of the API.
-  It outputs commands for Typhon to update or evaluate jobsets. It is meant to
-  trigger jobs automatically.
+  It outputs commands for Typhon to create, delete or evaluate jobsets. It is
+  meant to trigger jobs automatically.
 
 Actions can also expose a `secrets` file. This is an age encrypted JSON file
 that typically contains tokens for the actions. It must be encrypted with the

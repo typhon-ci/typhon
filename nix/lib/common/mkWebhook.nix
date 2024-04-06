@@ -28,12 +28,12 @@ utils: lib: {
 
         if [ "$before" == "$null" ]
         then
-          echo "$name" | jq '[{"command":"UpdateJobsets"}, {"command":"EvaluateJobset","name":.}]'
+          echo "$name" | jq --argjson flake "$flake" --arg url "$url" '[{"command":"NewJobset", "name":., "decl":{"flake":$flake,"url":$url}}, {"command":"EvaluateJobset", "name":$name}]'
         elif [ "$after" == "$null" ]
         then
-          echo 'null' | jq '[{"command":"UpdateJobsets"}]'
+          echo "$name" | jq '[{"command":"DeleteJobset", "name":.}]'
         else
-          echo "$name" | jq '[{"command":"EvaluateJobset","name":.}]'
+          echo "$name" | jq '[{"command":"EvaluateJobset", "name":.}]'
         fi
       '';
     };

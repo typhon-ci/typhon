@@ -13,8 +13,8 @@ use crate::{handles, responses};
 use crate::{log_event, Event};
 
 use typhon_types::data::TaskStatusKind;
+use typhon_types::requests::JobsetDecl;
 use typhon_types::responses::ProjectMetadata;
-use typhon_types::*;
 
 use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
@@ -66,6 +66,18 @@ impl Project {
     //pub fn delete(&self, _conn: &mut Conn) -> Result<(), Error> {
     //    todo!()
     //}
+
+    pub fn delete_jobset(&self, conn: &mut Conn, name: &String) -> Result<(), Error> {
+        let jobset = jobsets::Jobset::get(
+            conn,
+            &handles::Jobset {
+                project: self.handle(),
+                name: name.clone(),
+            },
+        )?;
+        diesel::delete(schema::jobsets::table.find(&jobset.jobset.id)).execute(conn)?;
+        Ok(())
+    }
 
     pub fn get(conn: &mut Conn, handle: &handles::Project) -> Result<Self, Error> {
         let (project, task): (models::Project, Option<models::Task>) = schema::projects::table
@@ -147,6 +159,24 @@ impl Project {
                 task,
             })
         })
+    }
+
+    pub fn new_jobset(
+        &self,
+        conn: &mut Conn,
+        name: &String,
+        decl: &JobsetDecl,
+    ) -> Result<(), Error> {
+        let new_jobset = models::NewJobset {
+            flake: decl.flake,
+            name,
+            project_id: self.project.id,
+            url: &decl.url,
+        };
+        diesel::insert_into(schema::jobsets::table)
+            .values(&new_jobset)
+            .execute(conn)?;
+        Ok(())
     }
 
     pub fn refresh(&self, conn: &mut Conn) -> Result<(), Error> {
@@ -246,7 +276,7 @@ impl Project {
             move |output: Option<String>| {
                 let status = match output {
                     Some(output) => {
-                        let decls: Result<HashMap<String, jobsets::JobsetDecl>, Error> =
+                        let decls: Result<HashMap<String, JobsetDecl>, Error> =
                             serde_json::from_str(&output).map_err(|_| Error::BadJobsetDecl(output));
                         match decls {
                             Ok(decls) => {
@@ -271,11 +301,10 @@ impl Project {
         Ok(())
     }
 
-    pub fn webhook(
-        &self,
-        conn: &mut Conn,
-        input: actions::webhooks::Input,
-    ) -> Result<Option<Vec<requests::Request>>, Error> {
+    pub fn webhook(&self, conn: &mut Conn, input: actions::webhooks::Input) -> Result<(), Error> {
+        use crate::handle_request_aux;
+        use crate::User;
+
         let (sender, receiver) = oneshot::channel();
 
         let input = serde_json::to_value(input).unwrap();
@@ -291,33 +320,34 @@ impl Project {
             &input,
         )?;
 
-        let finish = {
-            let handle = self.handle();
-            move |output: Option<String>| match output {
-                Some(output) => match serde_json::from_str::<actions::webhooks::Output>(&output) {
-                    Ok(cmds) => {
-                        let cmds = cmds
-                            .into_iter()
-                            .map(|cmd| cmd.lift(handle.clone()))
-                            .collect();
-                        let _ = sender.send(Some(cmds));
-                        TaskStatusKind::Success
-                    }
-                    Err(_) => {
-                        let _ = sender.send(None);
-                        TaskStatusKind::Failure
-                    }
-                },
-                None => {
-                    let _ = sender.send(None);
+        let finish = move |output: Option<String>| match output {
+            Some(output) => match serde_json::from_str::<actions::webhooks::Output>(&output) {
+                Ok(cmds) => {
+                    let _ = sender.send(Ok(cmds));
+                    TaskStatusKind::Success
+                }
+                Err(_) => {
+                    let _ = sender.send(Err(Some(output)));
                     TaskStatusKind::Failure
                 }
+            },
+            None => {
+                let _ = sender.send(Err(None));
+                TaskStatusKind::Failure
             }
         };
 
         action.spawn(conn, finish)?;
 
-        Ok(receiver.blocking_recv().map_err(|_| Error::Todo)?)
+        let cmds = receiver.blocking_recv().map_err(|_| Error::Todo)?;
+        let cmds = cmds.map_err(|output| Error::BadWebhook(output))?;
+        for cmd in cmds {
+            let req = cmd.lift(self.handle().clone());
+            tracing::trace!("handling request {} from webhook", req);
+            let _ = handle_request_aux(conn, &User::Admin, &req)?;
+        }
+
+        Ok(())
     }
 
     fn finish_refresh(
@@ -340,7 +370,7 @@ impl Project {
 
     fn finish_update_jobsets(
         &self,
-        decls: HashMap<String, jobsets::JobsetDecl>,
+        decls: HashMap<String, typhon_types::requests::JobsetDecl>,
     ) -> Result<TaskStatusKind, Error> {
         let mut conn = POOL.get().unwrap();
         let mut current_jobsets: Vec<jobsets::Jobset> = schema::jobsets::table
