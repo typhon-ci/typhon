@@ -1,7 +1,7 @@
 # Typhon
 
-[Website](https://typhon-ci.org/) · 
-[Documentation](https://doc.typhon-ci.org/) · 
+[Website](https://typhon-ci.org/) ·
+[Documentation](https://doc.typhon-ci.org/) ·
 [Zulip](https://typhon.zulipchat.com/) ·
 [*Etna* instance](https://etna.typhon-ci.org/)
 
