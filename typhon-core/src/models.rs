@@ -78,7 +78,7 @@ pub struct NewProject<'a> {
     pub url: &'a str,
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = jobsets)]
 #[diesel(belongs_to(Project))]
 pub struct Jobset {
@@ -98,7 +98,7 @@ pub struct NewJobset<'a> {
     pub url: &'a str,
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = evaluations)]
 #[diesel(belongs_to(Project))]
 #[diesel(belongs_to(Task))]
@@ -127,7 +127,7 @@ pub struct NewEvaluation<'a> {
     pub uuid: &'a str,
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = jobs)]
 #[diesel(belongs_to(Evaluation))]
 pub struct Job {
@@ -153,7 +153,7 @@ pub struct NewJob<'a> {
     pub tries: i32,
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = logs)]
 pub struct Log {
     pub id: i32,
@@ -166,7 +166,7 @@ pub struct NewLog<'a> {
     pub stderr: Option<&'a str>, // FIXME
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = tasks)]
 #[diesel(belongs_to(Log))]
 pub struct Task {
@@ -184,7 +184,7 @@ pub struct NewTask {
     pub status: i32,
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = builds)]
 #[diesel(belongs_to(Task))]
 pub struct Build {
@@ -204,7 +204,7 @@ pub struct NewBuild<'a> {
     pub uuid: &'a str,
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = actions)]
 #[diesel(belongs_to(Project))]
 #[diesel(belongs_to(Task))]
@@ -231,7 +231,7 @@ pub struct NewAction<'a> {
     pub uuid: &'a str,
 }
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = runs)]
 #[diesel(belongs_to(Job))]
 #[diesel(belongs_to(Task))]
