@@ -27,7 +27,6 @@ use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct Project {
-    pub refresh_task: Option<tasks::Task>,
     pub project: models::Project,
 }
 
@@ -68,16 +67,14 @@ impl Project {
     //}
 
     pub fn get(conn: &mut Conn, handle: &handles::Project) -> Result<Self, Error> {
-        let (project, task): (models::Project, Option<models::Task>) = schema::projects::table
-            .left_join(schema::tasks::table)
+        let project = schema::projects::table
+            .left_join(models::refresh_tasks)
             .filter(schema::projects::name.eq(&handle.name))
+            .select(models::Project::as_select())
             .first(conn)
             .optional()?
             .ok_or(Error::ProjectNotFound(handle.clone()))?;
-        Ok(Self {
-            refresh_task: task.map(|task| tasks::Task { task }),
-            project,
-        })
+        Ok(Self { project })
     }
 
     pub fn handle(&self) -> handles::Project {
@@ -100,11 +97,11 @@ impl Project {
             actions_path: self.project.actions_path.clone(),
             flake: self.project.flake,
             jobsets: jobsets_names,
-            last_refresh: self.refresh_task.clone().map(|task| task.status()),
+            last_refresh: self.project.last_refresh.clone().map(|task| task.status()),
             metadata: ProjectMetadata {
-                title: self.project.title.clone(),
-                description: self.project.description.clone(),
-                homepage: self.project.homepage.clone(),
+                title: self.project.meta.title.clone(),
+                description: self.project.meta.description.clone(),
+                homepage: self.project.meta.homepage.clone(),
             },
             public_key,
             url: self.project.url.clone(),

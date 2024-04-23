@@ -108,9 +108,14 @@ impl Evaluation {
 
     pub fn get(conn: &mut Conn, handle: &handles::Evaluation) -> Result<Self, Error> {
         let (evaluation, project, task) = schema::evaluations::table
-            .inner_join(schema::projects::table)
+            .inner_join(schema::projects::table.left_join(models::refresh_tasks))
             .inner_join(schema::tasks::table)
             .filter(schema::evaluations::uuid.eq(handle.uuid.as_hyphenated().to_string()))
+            .select((
+                models::Evaluation::as_select(),
+                models::Project::as_select(),
+                models::Task::as_select(),
+            ))
             .first(conn)
             .optional()?
             .ok_or(Error::EvaluationNotFound(handle.clone()))?;
