@@ -240,17 +240,19 @@ impl Project {
     }
 
     pub fn set_decl(
-        &self,
         conn: &mut Conn,
+        handle: handles::Project,
         decl: &typhon_types::requests::ProjectDecl,
     ) -> Result<(), Error> {
-        diesel::update(&self.project)
+        diesel::update(schema::projects::table)
+            .filter(schema::projects::name.eq(&handle.name))
             .set((
                 schema::projects::flake.eq(decl.flake),
                 schema::projects::url.eq(&decl.url),
             ))
-            .execute(conn)?;
-        log_event(Event::ProjectUpdated(self.handle()));
+            .execute(conn)
+            .or(Err(Error::ProjectNotFound(handle.clone())))?;
+        log_event(Event::ProjectUpdated(handle));
         Ok(())
     }
 

@@ -173,7 +173,9 @@ pub fn handle_request_aux(
                     )?))
                 }
                 requests::Project::Refresh => Project::refresh(conn, project_handle.clone())?,
-                requests::Project::SetDecl(decl) => project.set_decl(conn, decl)?,
+                requests::Project::SetDecl(decl) => {
+                    Project::set_decl(conn, project_handle.clone(), decl)?
+                }
                 requests::Project::UpdateJobsets => project.update_jobsets(conn)?,
             };
             Response::Ok
