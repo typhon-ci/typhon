@@ -63,10 +63,9 @@ impl Jobset {
 
     pub fn get(conn: &mut Conn, handle: &handles::Jobset) -> Result<Self, Error> {
         let (jobset, project) = schema::jobsets::table
-            .inner_join(schema::projects::table.left_join(models::refresh_tasks))
+            .inner_join(schema::projects::table)
             .filter(schema::projects::name.eq(&handle.project.name))
             .filter(schema::jobsets::name.eq(&handle.name))
-            .select((models::Jobset::as_select(), models::Project::as_select()))
             .first(conn)
             .optional()?
             .ok_or(Error::JobsetNotFound(handle.clone()))?;

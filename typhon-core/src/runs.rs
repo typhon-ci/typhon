@@ -36,16 +36,17 @@ impl Run {
     //}
 
     pub fn get(conn: &mut Conn, handle: &handles::Run) -> Result<Self, Error> {
-        let (begin_action, end_action) = diesel::alias!(
+        let (begin_action, end_action, begin_task, build_task, end_task) = diesel::alias!(
             schema::actions as begin_action,
             schema::actions as end_action,
+            schema::tasks as begin_task,
+            schema::tasks as build_task,
+            schema::tasks as end_task,
         );
         let (job, evaluation, project, run, begin, build, end) = schema::runs::table
             .inner_join(
-                schema::jobs::table.inner_join(
-                    schema::evaluations::table
-                        .inner_join(schema::projects::table.left_join(models::refresh_tasks)),
-                ),
+                schema::jobs::table
+                    .inner_join(schema::evaluations::table.inner_join(schema::projects::table)),
             )
             .left_join(
                 begin_action
@@ -53,12 +54,12 @@ impl Run {
                         .field(schema::actions::id)
                         .nullable()
                         .eq(schema::runs::begin_id))
-                    .inner_join(models::begin_tasks),
+                    .inner_join(begin_task),
             )
             .left_join(
                 schema::builds::table
                     .on(schema::builds::id.nullable().eq(schema::runs::build_id))
-                    .inner_join(models::build_tasks),
+                    .inner_join(build_task),
             )
             .left_join(
                 end_action
@@ -66,7 +67,7 @@ impl Run {
                         .field(schema::actions::id)
                         .nullable()
                         .eq(schema::runs::end_id))
-                    .inner_join(models::end_tasks),
+                    .inner_join(end_task),
             )
             .filter(
                 schema::evaluations::uuid.eq(handle
@@ -80,23 +81,23 @@ impl Run {
             .filter(schema::jobs::name.eq(&handle.job.name))
             .filter(schema::runs::num.eq(handle.num as i32))
             .select((
-                models::Job::as_select(),
-                models::Evaluation::as_select(),
-                models::Project::as_select(),
-                models::Run::as_select(),
+                schema::jobs::all_columns,
+                schema::evaluations::all_columns,
+                schema::projects::all_columns,
+                schema::runs::all_columns,
                 (
                     begin_action.fields(schema::actions::all_columns),
-                    models::begin_tasks.fields(schema::tasks::all_columns),
+                    begin_task.fields(schema::tasks::all_columns),
                 )
                     .nullable(),
                 (
                     schema::builds::all_columns,
-                    models::build_tasks.fields(schema::tasks::all_columns),
+                    build_task.fields(schema::tasks::all_columns),
                 )
                     .nullable(),
                 (
                     end_action.fields(schema::actions::all_columns),
-                    models::end_tasks.fields(schema::tasks::all_columns),
+                    end_task.fields(schema::tasks::all_columns),
                 )
                     .nullable(),
             ))
@@ -241,6 +242,7 @@ impl Run {
         use crate::projects;
 
         let project = projects::Project {
+            refresh_task: None, // FIXME?
             project: self.project.clone(),
         };
 

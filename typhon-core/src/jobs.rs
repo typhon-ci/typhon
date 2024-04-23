@@ -21,19 +21,11 @@ pub struct Job {
 
 impl Job {
     pub fn get(conn: &mut Conn, handle: &handles::Job) -> Result<Self, Error> {
-        let (job, evaluation, project) = schema::jobs::table
-            .inner_join(
-                schema::evaluations::table
-                    .inner_join(schema::projects::table.left_join(models::refresh_tasks)),
-            )
+        let (job, (evaluation, project)) = schema::jobs::table
+            .inner_join(schema::evaluations::table.inner_join(schema::projects::table))
             .filter(schema::evaluations::uuid.eq(handle.evaluation.uuid.to_string()))
             .filter(schema::jobs::system.eq(&handle.system))
             .filter(schema::jobs::name.eq(&handle.name))
-            .select((
-                models::Job::as_select(),
-                models::Evaluation::as_select(),
-                models::Project::as_select(),
-            ))
             .first(conn)
             .optional()?
             .ok_or(Error::JobNotFound(handle.clone()))?;

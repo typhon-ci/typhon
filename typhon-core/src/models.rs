@@ -8,65 +8,22 @@ use crate::schema::projects;
 use crate::schema::runs;
 use crate::schema::tasks;
 
-use diesel::backend::Backend;
-use diesel::dsl::AliasedFields;
-use diesel::dsl::Nullable;
 use diesel::prelude::*;
 
-diesel::alias!(
-    tasks as begin_tasks: BeginTask,
-    tasks as build_tasks: BuildTask,
-    tasks as end_tasks: EndTask,
-    tasks as refresh_tasks: RefreshTask,
-);
-
-#[derive(Clone, Debug, Queryable)]
-pub struct ProjectMetadata {
-    pub description: String,
-    pub homepage: String,
-    pub title: String,
-}
-
-#[derive(Clone, Debug, Queryable, Identifiable)]
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = projects)]
 pub struct Project {
     pub actions_path: Option<String>,
+    pub description: String,
     pub flake: bool,
+    pub homepage: String,
     pub id: i32,
     pub key: String,
-    pub last_refresh: Option<Task>,
-    pub meta: ProjectMetadata,
+    pub last_refresh_task_id: Option<i32>,
     pub name: String,
+    pub title: String,
     pub url: String,
     pub url_locked: String,
-}
-
-impl<DB: Backend> Selectable<DB> for Project {
-    type SelectExpression = (
-        projects::actions_path,
-        projects::flake,
-        projects::id,
-        projects::key,
-        Nullable<AliasedFields<RefreshTask, <tasks::table as Table>::AllColumns>>,
-        (projects::description, projects::homepage, projects::title),
-        projects::name,
-        projects::url,
-        projects::url_locked,
-    );
-
-    fn construct_selection() -> Self::SelectExpression {
-        (
-            projects::actions_path,
-            projects::flake,
-            projects::id,
-            projects::key,
-            refresh_tasks.fields(tasks::all_columns).nullable(),
-            (projects::description, projects::homepage, projects::title),
-            projects::name,
-            projects::url,
-            projects::url_locked,
-        )
-    }
 }
 
 #[derive(Debug, Insertable)]

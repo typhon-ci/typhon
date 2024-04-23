@@ -143,15 +143,10 @@ pub struct Action {
 impl Action {
     pub fn get(conn: &mut Conn, handle: &handles::Action) -> Result<Self, error::Error> {
         let (action, project, task) = schema::actions::table
-            .inner_join(schema::projects::table.left_join(models::refresh_tasks))
+            .inner_join(schema::projects::table)
             .inner_join(schema::tasks::table)
             .filter(schema::actions::uuid.eq(handle.uuid.to_string()))
-            .select((
-                models::Action::as_select(),
-                models::Project::as_select(),
-                models::Task::as_select(),
-            ))
-            .first::<(models::Action, models::Project, models::Task)>(conn)
+            .first(conn)
             .optional()?
             .ok_or(error::Error::ActionNotFound(handle.clone()))?;
         Ok(Self {
@@ -189,6 +184,7 @@ impl Action {
             move |sender| async move {
                 action(
                     &projects::Project {
+                        refresh_task: None, // FIXME?
                         project: self_.project.clone(),
                     },
                     &self_.action.path,
