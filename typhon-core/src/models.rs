@@ -37,7 +37,6 @@ pub struct NewProject<'a> {
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = jobsets)]
-#[diesel(belongs_to(Project))]
 pub struct Jobset {
     pub flake: bool,
     pub id: i32,
@@ -57,8 +56,6 @@ pub struct NewJobset<'a> {
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = evaluations)]
-#[diesel(belongs_to(Project))]
-#[diesel(belongs_to(Task))]
 pub struct Evaluation {
     pub actions_path: Option<String>,
     pub flake: bool,
@@ -86,7 +83,6 @@ pub struct NewEvaluation<'a> {
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = jobs)]
-#[diesel(belongs_to(Evaluation))]
 pub struct Job {
     pub dist: bool,
     pub drv: String,
@@ -125,7 +121,6 @@ pub struct NewLog<'a> {
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = tasks)]
-#[diesel(belongs_to(Log))]
 pub struct Task {
     pub id: i32,
     pub log_id: i32,
@@ -143,7 +138,6 @@ pub struct NewTask {
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = builds)]
-#[diesel(belongs_to(Task))]
 pub struct Build {
     pub drv: String,
     pub id: i32,
@@ -163,8 +157,6 @@ pub struct NewBuild<'a> {
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = actions)]
-#[diesel(belongs_to(Project))]
-#[diesel(belongs_to(Task))]
 pub struct Action {
     pub id: i32,
     pub input: String,
@@ -190,8 +182,6 @@ pub struct NewAction<'a> {
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = runs)]
-#[diesel(belongs_to(Job))]
-#[diesel(belongs_to(Task))]
 pub struct Run {
     pub begin_id: Option<i32>,
     pub build_id: Option<i32>,
