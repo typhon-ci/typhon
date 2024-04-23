@@ -84,31 +84,52 @@ impl Project {
         handles::project(self.project.name.clone())
     }
 
-    pub fn info(&self, conn: &mut Conn) -> Result<responses::ProjectInfo, Error> {
-        let jobsets_names = schema::jobsets::table
-            .filter(schema::jobsets::project_id.eq(&self.project.id))
+    pub fn info(
+        conn: &mut Conn,
+        handle: handles::Project,
+    ) -> Result<responses::ProjectInfo, Error> {
+        let (project, refresh_task): (models::Project, Option<models::Task>) =
+            schema::projects::table
+                .left_join(schema::tasks::table)
+                .filter(schema::projects::name.eq(&handle.name))
+                .first(conn)
+                .optional()?
+                .ok_or(Error::ProjectNotFound(handle.clone()))?;
+        let jobsets = schema::jobsets::table
+            .filter(schema::jobsets::project_id.eq(&project.id))
             .load::<models::Jobset>(conn)?
             .iter()
             .map(|jobset| jobset.name.clone())
             .collect();
-        let public_key = age::x25519::Identity::from_str(&self.project.key)
+        let public_key = age::x25519::Identity::from_str(&project.key)
             .map_err(|_| Error::Todo)?
             .to_public()
             .to_string();
+        let models::Project {
+            actions_path,
+            description,
+            flake,
+            homepage,
+            title,
+            url,
+            url_locked,
+            ..
+        } = project;
+        let last_refresh = refresh_task.map(|task| task.status());
         Ok(responses::ProjectInfo {
-            handle: self.handle(),
-            actions_path: self.project.actions_path.clone(),
-            flake: self.project.flake,
-            jobsets: jobsets_names,
-            last_refresh: self.refresh_task.clone().map(|task| task.status()),
+            actions_path,
+            flake,
+            handle,
+            jobsets,
+            last_refresh,
             metadata: ProjectMetadata {
-                title: self.project.title.clone(),
-                description: self.project.description.clone(),
-                homepage: self.project.homepage.clone(),
+                title,
+                description,
+                homepage,
             },
             public_key,
-            url: self.project.url.clone(),
-            url_locked: self.project.url_locked.clone(),
+            url,
+            url_locked,
         })
     }
 
