@@ -10,7 +10,7 @@ use crate::schema::tasks;
 
 use diesel::prelude::*;
 
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = projects)]
 pub struct Project {
     pub actions_path: Option<String>,
