@@ -148,13 +148,18 @@ impl<DB: Backend> Selectable<DB> for TaskStatus {
     }
 }
 
-impl Queryable<tasks::SqlType, diesel::sqlite::Sqlite> for TaskStatus {
-    type Row = (i32, i32, i32, Option<i64>, Option<i64>);
+impl
+    Queryable<
+        <<TaskStatus as Selectable<diesel::sqlite::Sqlite>>::SelectExpression as Expression>::SqlType,
+        diesel::sqlite::Sqlite,
+    > for TaskStatus
+{
+    type Row = (i32, Option<i64>, Option<i64>);
     fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
         let from_timestamp = |t| time::OffsetDateTime::from_unix_timestamp(t).unwrap();
         Ok(Self(
-            typhon_types::responses::TaskStatusKind::try_from(row.2)?
-                .into_task_status(row.3.map(from_timestamp), row.4.map(from_timestamp)),
+            typhon_types::responses::TaskStatusKind::try_from(row.0)?
+                .into_task_status(row.1.map(from_timestamp), row.2.map(from_timestamp)),
         ))
     }
 }
