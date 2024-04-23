@@ -170,7 +170,7 @@ impl Project {
         })
     }
 
-    pub fn refresh(&self, conn: &mut Conn) -> Result<(), Error> {
+    pub fn refresh(conn: &mut Conn, handle: handles::Project) -> Result<(), Error> {
         #[derive(Deserialize)]
         struct TyphonProject {
             actions: Option<HashMap<String, String>>,
@@ -178,56 +178,61 @@ impl Project {
             meta: ProjectMetadata,
         }
 
-        let run = {
-            let url = self.project.url.clone();
-            let flake = self.project.flake;
-            move |sender| async move {
-                let url_locked = nix::lock(&url)?;
+        let project: models::Project = schema::projects::table
+            .filter(schema::projects::name.eq(&handle.name))
+            .first(conn)
+            .optional()?
+            .ok_or(Error::ProjectNotFound(handle.clone()))?;
 
-                let TyphonProject { actions, meta } =
-                    serde_json::from_value(nix::eval(&url_locked, &"typhonProject", flake).await?)
-                        .map_err(|_| Error::BadProjectDecl)?;
+        let models::Project { flake, id, url, .. } = project;
 
-                let actions: Option<&String> =
-                    actions.as_ref().map(|m| m.get(&*CURRENT_SYSTEM)).flatten();
+        let run = move |sender| async move {
+            let url_locked = nix::lock(&url)?;
 
-                let actions_path = if let Some(x) = actions {
-                    let drv = nix::derivation(nix::Expr::Path(x.clone())).await?;
-                    // FIXME: this should spawn a build
-                    Some(nix::build(&drv.path, sender).await?["out"].clone())
-                    // TODO: check public key used to encrypt secrets
-                } else {
-                    None
-                };
+            let TyphonProject { actions, meta } =
+                serde_json::from_value(nix::eval(&url_locked, &"typhonProject", flake).await?)
+                    .map_err(|_| Error::BadProjectDecl)?;
 
-                Ok((url_locked, meta, actions_path))
-            }
+            let actions: Option<&String> =
+                actions.as_ref().map(|m| m.get(&*CURRENT_SYSTEM)).flatten();
+
+            let actions_path = if let Some(x) = actions {
+                let drv = nix::derivation(nix::Expr::Path(x.clone())).await?;
+                // FIXME: this should spawn a build
+                Some(nix::build(&drv.path, sender).await?["out"].clone())
+                // TODO: check public key used to encrypt secrets
+            } else {
+                None
+            };
+
+            Ok((url_locked, meta, actions_path))
         };
 
         let finish = {
-            let self_ = self.clone();
+            let handle = handle.clone();
             move |res: Option<Result<(String, ProjectMetadata, Option<String>), Error>>| {
                 let status = match res {
-                    Some(Ok(x)) => self_.finish_refresh(x),
+                    Some(Ok(x)) => Project::finish_refresh(id, x),
                     Some(Err(e)) => {
-                        tracing::warn!("refresh error for project {}: {}", self_.handle(), e);
+                        tracing::warn!("refresh error for project {}: {}", handle, e);
                         Ok(TaskStatusKind::Failure)
                     }
                     None => Ok(TaskStatusKind::Canceled),
                 };
                 (
                     status.unwrap_or(TaskStatusKind::Failure),
-                    Event::ProjectUpdated(self_.handle()),
+                    Event::ProjectUpdated(handle),
                 )
             }
         };
 
         let task = tasks::Task::new(conn)?;
-        diesel::update(&self.project)
+        diesel::update(schema::projects::table)
+            .filter(schema::projects::id.eq(id))
             .set(schema::projects::last_refresh_task_id.eq(task.task.id))
             .execute(conn)?;
 
-        log_event(Event::ProjectUpdated(self.handle()));
+        log_event(Event::ProjectUpdated(handle));
 
         task.run(conn, run, finish)?;
 
@@ -342,11 +347,12 @@ impl Project {
     }
 
     fn finish_refresh(
-        &self,
+        id: i32,
         (url_locked, meta, actions_path): (String, ProjectMetadata, Option<String>),
     ) -> Result<TaskStatusKind, Error> {
         let mut conn = POOL.get().unwrap();
-        diesel::update(&self.project)
+        diesel::update(schema::projects::table)
+            .filter(schema::projects::id.eq(id))
             .set((
                 schema::projects::actions_path.eq(actions_path),
                 schema::projects::description.eq(meta.description),

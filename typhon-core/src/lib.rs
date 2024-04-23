@@ -167,9 +167,12 @@ pub fn handle_request_aux(
             let project = Project::get(conn, &project_handle)?;
             match req {
                 requests::Project::Info => {
-                    return Ok(Response::ProjectInfo(Project::info(conn, project_handle.clone())?))
+                    return Ok(Response::ProjectInfo(Project::info(
+                        conn,
+                        project_handle.clone(),
+                    )?))
                 }
-                requests::Project::Refresh => project.refresh(conn)?,
+                requests::Project::Refresh => Project::refresh(conn, project_handle.clone())?,
                 requests::Project::SetDecl(decl) => project.set_decl(conn, decl)?,
                 requests::Project::UpdateJobsets => project.update_jobsets(conn)?,
             };
