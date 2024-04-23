@@ -126,10 +126,10 @@ impl TaskStatus {
 }
 
 impl TryFrom<i32> for TaskStatusKind {
-    type Error = ();
-    fn try_from(n: i32) -> Result<TaskStatusKind, ()> {
+    type Error = String;
+    fn try_from(n: i32) -> Result<TaskStatusKind, String> {
         let arr = [Self::Pending, Self::Success, Self::Failure, Self::Canceled];
-        arr.get(n as usize).ok_or(()).copied()
+        arr.get(n as usize).ok_or("TODO".into()).copied()
     }
 }
 impl From<TaskStatusKind> for i32 {

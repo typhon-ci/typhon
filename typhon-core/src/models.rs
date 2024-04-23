@@ -8,6 +8,7 @@ use crate::schema::projects;
 use crate::schema::runs;
 use crate::schema::tasks;
 
+use diesel::backend::Backend;
 use diesel::prelude::*;
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
@@ -33,6 +34,14 @@ pub struct NewProject<'a> {
     pub key: &'a str,
     pub name: &'a str,
     pub url: &'a str,
+}
+
+#[derive(Clone, Debug, Queryable, Selectable)]
+pub struct ProjectWithRefreshTask {
+    #[diesel(embed)]
+    pub project: Project,
+    #[diesel(embed)]
+    pub last_refresh: Option<Task>,
 }
 
 #[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
@@ -127,6 +136,27 @@ pub struct Task {
     pub status: i32,
     pub time_finished: Option<i64>,
     pub time_started: Option<i64>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TaskStatus(typhon_types::responses::TaskStatus);
+
+impl<DB: Backend> Selectable<DB> for TaskStatus {
+    type SelectExpression = (tasks::status, tasks::time_finished, tasks::time_started);
+    fn construct_selection() -> Self::SelectExpression {
+        (tasks::status, tasks::time_finished, tasks::time_started)
+    }
+}
+
+impl Queryable<tasks::SqlType, diesel::sqlite::Sqlite> for TaskStatus {
+    type Row = (i32, i32, i32, Option<i64>, Option<i64>);
+    fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
+        let from_timestamp = |t| time::OffsetDateTime::from_unix_timestamp(t).unwrap();
+        Ok(Self(
+            typhon_types::responses::TaskStatusKind::try_from(row.2)?
+                .into_task_status(row.3.map(from_timestamp), row.4.map(from_timestamp)),
+        ))
+    }
 }
 
 #[derive(Debug, Insertable)]
