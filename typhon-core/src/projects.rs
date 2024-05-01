@@ -139,10 +139,10 @@ impl Project {
         path: &String,
         name: &String,
         input: &serde_json::Value,
-    ) -> Result<actions::Action, Error> {
+    ) -> Result<models::ActionPlus, Error> {
         use uuid::{timestamp, Uuid};
 
-        conn.transaction::<actions::Action, Error, _>(|conn| {
+        conn.transaction::<models::ActionPlus, Error, _>(|conn| {
             let task = tasks::Task::new(conn)?;
             let time_created = OffsetDateTime::now_utc().unix_timestamp();
             let uuid = Uuid::new_v7(timestamp::Timestamp::from_unix(
@@ -162,10 +162,10 @@ impl Project {
             let action = diesel::insert_into(schema::actions::table)
                 .values(&new_action)
                 .get_result::<models::Action>(conn)?;
-            Ok(actions::Action {
-                project: self.project.clone(),
+            Ok(models::ActionPlus {
                 action,
-                task,
+                key: self.project.key.clone(),
+                project_name: self.project.name.clone(),
             })
         })
     }

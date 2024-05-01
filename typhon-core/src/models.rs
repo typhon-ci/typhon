@@ -1,3 +1,4 @@
+use crate::schema;
 use crate::schema::actions;
 use crate::schema::builds;
 use crate::schema::evaluations;
@@ -201,6 +202,28 @@ pub struct Action {
     pub task_id: i32,
     pub time_created: i64,
     pub uuid: String,
+}
+
+#[derive(Clone, Debug, Queryable)]
+pub struct ActionPlus {
+    pub action: Action,
+    pub key: String,
+    pub project_name: String,
+}
+
+impl<DB: Backend> Selectable<DB> for ActionPlus {
+    type SelectExpression = (
+        <Action as Selectable<DB>>::SelectExpression,
+        schema::projects::key,
+        schema::projects::name,
+    );
+    fn construct_selection() -> Self::SelectExpression {
+        (
+            <Action as Selectable<DB>>::construct_selection(),
+            schema::projects::key,
+            schema::projects::name,
+        )
+    }
 }
 
 #[derive(Debug, Insertable)]

@@ -184,7 +184,7 @@ impl Run {
 
         // a waiter task
         let run_run = async move {
-            TASKS.wait(&action_begin.task.task.id).await;
+            TASKS.wait(&action_begin.action.task_id).await;
             let res = build_handle.wait().await;
             match res {
                 Some(Some(())) => TaskStatusKind::Success,
@@ -238,7 +238,7 @@ impl Run {
         conn: &mut Conn,
         name: &str,
         status: TaskStatusKind,
-    ) -> Result<actions::Action, Error> {
+    ) -> Result<models::ActionPlus, Error> {
         use crate::projects;
 
         let project = projects::Project {

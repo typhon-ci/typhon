@@ -60,77 +60,76 @@ mod sandboxed_command {
     }
 }
 
-async fn action(
-    project: &projects::Project,
-    path: &String,
-    name: &String,
-    input: &Value,
-    sender: mpsc::UnboundedSender<String>,
-) -> Result<String, Error> {
-    use tokio::io::AsyncBufReadExt;
-    use tokio::io::AsyncReadExt;
-    use tokio::io::AsyncWriteExt;
-    use tokio::io::BufReader;
+impl models::ActionPlus {
+    async fn action(
+        &self,
+        input: &Value,
+        sender: mpsc::UnboundedSender<String>,
+    ) -> Result<String, Error> {
+        use tokio::io::AsyncBufReadExt;
+        use tokio::io::AsyncReadExt;
+        use tokio::io::AsyncWriteExt;
+        use tokio::io::BufReader;
 
-    let key =
-        age::x25519::Identity::from_str(&project.project.key).map_err(|_| Error::InvalidKey)?;
+        let key = age::x25519::Identity::from_str(&self.key).map_err(|_| Error::InvalidKey)?;
 
-    let decrypted = File::open(&format!("{}/secrets", path))
-        .map(|encrypted| {
-            let decryptor =
-                match age::Decryptor::new(&encrypted).map_err(|_| Error::InvalidSecrets)? {
-                    age::Decryptor::Recipients(d) => d,
-                    _ => unreachable!(),
-                };
+        let decrypted = File::open(&format!("{}/secrets", self.path))
+            .map(|encrypted| {
+                let decryptor =
+                    match age::Decryptor::new(&encrypted).map_err(|_| Error::InvalidSecrets)? {
+                        age::Decryptor::Recipients(d) => d,
+                        _ => unreachable!(),
+                    };
 
-            let mut decrypted = String::new();
-            let mut reader = decryptor
-                .decrypt(iter::once(&key as &dyn age::Identity))
-                .map_err(|e| match e {
-                    age::DecryptError::NoMatchingKeys => Error::WrongRecipient,
-                    _ => Error::InvalidSecrets,
-                })?;
-            let _ = reader.read_to_string(&mut decrypted);
+                let mut decrypted = String::new();
+                let mut reader = decryptor
+                    .decrypt(iter::once(&key as &dyn age::Identity))
+                    .map_err(|e| match e {
+                        age::DecryptError::NoMatchingKeys => Error::WrongRecipient,
+                        _ => Error::InvalidSecrets,
+                    })?;
+                let _ = reader.read_to_string(&mut decrypted);
 
-            Ok(decrypted)
-        })
-        .unwrap_or(Ok::<String, Error>("{}".to_string()))?;
-    let secrets: Value = serde_json::from_str(&decrypted).map_err(|_| Error::InvalidSecrets)?;
+                Ok(decrypted)
+            })
+            .unwrap_or(Ok::<String, Error>("{}".to_string()))?;
+        let secrets: Value = serde_json::from_str(&decrypted).map_err(|_| Error::InvalidSecrets)?;
 
-    let action_input = json!({
-        "input": input,
-        "secrets": secrets,
-    });
+        let action_input = json!({
+            "input": input,
+            "secrets": secrets,
+        });
 
-    let mut child = sandboxed_command::new()
-        .arg(&format!("{}/{}", path, name))
-        .stdin(Stdio::piped())
-        .stderr(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("command bwrap failed to start");
-    let mut stdin = child.stdin.take().ok_or(Error::Unexpected)?;
-    let mut stdout = child.stdout.take().ok_or(Error::Unexpected)?;
-    let stderr = child.stderr.take().ok_or(Error::Unexpected)?;
-    stdin
-        .write(action_input.to_string().as_bytes())
-        .await
-        .map_err(|_| Error::Unexpected)?;
-    drop(stdin); // send EOF
+        let mut child = sandboxed_command::new()
+            .arg(&format!("{}/{}", path, name))
+            .stdin(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("command bwrap failed to start");
+        let mut stdin = child.stdin.take().ok_or(Error::Unexpected)?;
+        let mut stdout = child.stdout.take().ok_or(Error::Unexpected)?;
+        let stderr = child.stderr.take().ok_or(Error::Unexpected)?;
+        stdin
+            .write(action_input.to_string().as_bytes())
+            .await
+            .map_err(|_| Error::Unexpected)?;
+        drop(stdin); // send EOF
 
-    let buffer = BufReader::new(stderr);
-    let mut lines = buffer.lines();
-    while let Some(line) = lines.next_line().await.unwrap() {
-        let _ = sender.send(line);
+        let buffer = BufReader::new(stderr);
+        let mut lines = buffer.lines();
+        while let Some(line) = lines.next_line().await.unwrap() {
+            let _ = sender.send(line);
+        }
+
+        let mut res = String::new();
+        stdout
+            .read_to_string(&mut res)
+            .await
+            .map_err(|_| Error::NonUtf8)?;
+
+        Ok(res)
     }
-
-    let mut res = String::new();
-    stdout
-        .read_to_string(&mut res)
-        .await
-        .map_err(|_| Error::NonUtf8)?;
-
-    Ok(res)
 }
 
 #[derive(Clone)]
@@ -171,7 +170,9 @@ impl Action {
             status: self.task.status(),
         }
     }
+}
 
+impl models::ActionPlus {
     pub fn spawn<F: (FnOnce(Option<String>) -> TaskStatusKind) + Send + Sync + 'static>(
         &self,
         conn: &mut Conn,
@@ -181,20 +182,7 @@ impl Action {
 
         let run = {
             let self_ = self.clone();
-            move |sender| async move {
-                action(
-                    &projects::Project {
-                        refresh_task: None, // FIXME?
-                        project: self_.project.clone(),
-                    },
-                    &self_.action.path,
-                    &self_.action.name,
-                    &Value::from_str(&self_.action.input).unwrap(),
-                    sender,
-                )
-                .await
-                .map_err(|e| e.into())
-            }
+            move |sender| async move { self_.action(sender).await.map_err(|e| e.into()) }
         };
 
         let finish = {
