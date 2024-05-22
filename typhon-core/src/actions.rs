@@ -179,45 +179,41 @@ impl Action {
     ) -> Result<(), error::Error> {
         use crate::log_event;
 
-        let run = {
-            let self_ = self.clone();
-            move |sender| async move {
-                action(
-                    &projects::Project {
-                        refresh_task: None, // FIXME?
-                        project: self_.project.clone(),
-                    },
-                    &self_.action.path,
-                    &self_.action.name,
-                    &Value::from_str(&self_.action.input).unwrap(),
-                    sender,
-                )
-                .await
-                .map_err(|e| e.into())
-            }
-        };
-
-        let finish = {
-            let handle = self.handle();
-            move |res: Option<Result<String, error::Error>>| {
-                let status = match res {
-                    Some(Err(_)) => {
-                        let _ = finish(None);
-                        TaskStatusKind::Failure
-                    }
-                    Some(Ok(stdout)) => finish(Some(stdout)),
-                    None => {
-                        let _ = finish(None);
-                        TaskStatusKind::Canceled
-                    }
-                };
-                (status, Event::ActionFinished(handle))
-            }
-        };
-
         log_event(Event::ActionNew(self.handle()));
 
-        self.task.run(conn, run, finish)?;
+        let action_handle = self.handle();
+        let self_ = self.clone();
+        self.task.run(conn, |handle, sender| async move {
+            let res = handle
+                .spawn(async move {
+                    action(
+                        &projects::Project {
+                            refresh_task: None, // FIXME?
+                            project: self_.project.clone(),
+                        },
+                        &self_.action.path,
+                        &self_.action.name,
+                        &Value::from_str(&self_.action.input).unwrap(),
+                        sender,
+                    )
+                    .await
+                    .map_err(Into::<error::Error>::into)
+                })
+                .await;
+            let status_kind = tokio::task::spawn_blocking(|| match res {
+                Some(Err(_)) => {
+                    let _ = finish(None);
+                    TaskStatusKind::Failure
+                }
+                Some(Ok(stdout)) => finish(Some(stdout)),
+                None => {
+                    let _ = finish(None);
+                    TaskStatusKind::Canceled
+                }
+            })
+            .await?;
+            Ok((status_kind, Some(Event::ActionFinished(action_handle))))
+        })?;
 
         Ok(())
     }

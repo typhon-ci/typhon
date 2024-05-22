@@ -24,7 +24,7 @@ enum Msg<Id> {
     Wait(Id, oneshot::Sender<()>),
 }
 
-struct TaskHandle {
+struct TaskCtx {
     canceler: Option<oneshot::Sender<()>>,
     waiters: Vec<oneshot::Sender<()>>,
 }
@@ -34,45 +34,25 @@ pub struct TaskManager<Id> {
     watch: watch::Receiver<()>,
 }
 
-pub trait Task {
-    type T: Send + 'static;
-    fn get(
-        self,
-    ) -> (
-        impl Future<Output = Self::T> + Send + 'static,
-        impl FnOnce(Option<Self::T>) -> Option<impl Task + Send + 'static> + Send + 'static,
-    );
+pub struct TaskHandle {
+    cancel: mpsc::UnboundedSender<oneshot::Sender<()>>,
 }
 
-#[allow(refining_impl_trait)]
-impl Task for () {
-    type T = ();
-    fn get(
-        self,
-    ) -> (
-        impl Future<Output = Self::T> + Send + 'static,
-        impl FnOnce(Option<Self::T>) -> Option<()> + Send + 'static,
-    ) {
-        (async move {}, move |_| None)
-    }
-}
-
-#[allow(refining_impl_trait)]
-impl<
-        T: Send + 'static,
-        C: Task + Send + 'static,
-        F: Future<Output = T> + Send + 'static,
-        Fn: FnOnce(Option<T>) -> Option<C> + Send + 'static,
-    > Task for (F, Fn)
-{
-    type T = T;
-    fn get(
-        self,
-    ) -> (
-        impl Future<Output = Self::T> + Send + 'static,
-        impl FnOnce(Option<Self::T>) -> Option<C> + Send + 'static,
-    ) {
-        self
+impl TaskHandle {
+    pub async fn spawn<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
+        &self,
+        f: F,
+    ) -> Option<T> {
+        let (cancel_send, cancel_recv) = oneshot::channel();
+        let res = tokio::spawn(async move {
+            tokio::select! {
+                _ = cancel_recv => None,
+                r = f => Some(r),
+            }
+        })
+        .await;
+        let _ = self.cancel.send(cancel_send);
+        res.unwrap()
     }
 }
 
@@ -83,7 +63,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
         let (msg_send, mut msg_recv) = mpsc::unbounded_channel();
         let (watch_send, watch) = watch::channel(());
         tokio::spawn(async move {
-            let mut tasks: HashMap<Id, TaskHandle> = HashMap::new();
+            let mut tasks: HashMap<Id, TaskCtx> = HashMap::new();
             let mut shutdown = false;
             while let Some(msg) = msg_recv.recv().await {
                 match (shutdown, msg) {
@@ -103,7 +83,7 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
                         }
                     }
                     (false, Msg::Run(id, cancel_send)) => {
-                        let task = TaskHandle {
+                        let task = TaskCtx {
                             canceler: Some(cancel_send),
                             waiters: Vec::new(),
                         };
@@ -143,10 +123,14 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
         let _ = receiver.await;
     }
 
-    // TODO: `finish` should be able to output an error
-    pub fn run<T: Task + Send + 'static>(&self, id: Id, task: T) {
-        use tokio::task::spawn_blocking;
-
+    pub fn run<
+        O: Future<Output = ()> + Send + 'static,
+        T: FnOnce(TaskHandle) -> O + Send + 'static,
+    >(
+        &self,
+        id: Id,
+        task: T,
+    ) {
         let (cancel_send, cancel_recv) = oneshot::channel::<()>();
         let sender_self = self.msg_send.clone();
         let id_bis = id.clone();
@@ -160,25 +144,11 @@ impl<Id: std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'sta
             }
         });
 
+        let handle = TaskHandle {
+            cancel: cancel_thread_send,
+        };
         tokio::spawn(async move {
-            #[async_recursion::async_recursion]
-            async fn aux(
-                cancel_thread_send: mpsc::UnboundedSender<oneshot::Sender<()>>,
-                task: impl Task + Send + 'static,
-            ) {
-                let (run, finish) = task.get();
-                let (cancel_step_send, cancel_step_recv) = oneshot::channel();
-                let _ = cancel_thread_send.send(cancel_step_send);
-                let r = tokio::select! {
-                    _ = cancel_step_recv => None,
-                    r = run => Some(r),
-                };
-                let maybe_task = spawn_blocking(move || finish(r)).await.unwrap_or(None);
-                if let Some(task) = maybe_task {
-                    aux(cancel_thread_send, task).await;
-                }
-            }
-            aux(cancel_thread_send, task).await;
+            task(handle).await;
             cancel_thread.abort();
             let _ = cancel_thread.await;
             let _ = sender_self.send(Msg::Finish(id_bis));

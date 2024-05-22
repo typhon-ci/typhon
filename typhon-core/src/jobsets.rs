@@ -125,23 +125,17 @@ impl Jobset {
             })
         })?;
 
-        let run = {
-            let evaluation = evaluation.clone();
-            move |sender| evaluation.run(sender)
-        };
-
-        let finish = {
-            let evaluation = evaluation.clone();
-            move |r| {
-                let handle = evaluation.handle();
-                let status = evaluation.finish(r);
-                (status, Event::EvaluationFinished(handle))
-            }
-        };
-
         log_event(Event::EvaluationNew(evaluation.handle()));
 
-        evaluation.task.run(conn, run, finish)?;
+        let evaluation_ = evaluation.clone();
+        let evaluation_handle = evaluation.handle();
+        evaluation.task.run(conn, |handle, sender| async move {
+            let status_kind = evaluation_.run(handle, sender).await?;
+            Ok((
+                status_kind,
+                Some(Event::EvaluationFinished(evaluation_handle)),
+            ))
+        })?;
 
         gcroots::update(conn);
 

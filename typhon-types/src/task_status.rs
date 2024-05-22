@@ -19,6 +19,8 @@ pub enum TaskStatus {
      * is a `Some(TimeRange {start,end})`) or before running. */
     // TODO: we should have either a TimeRange or a {end}, right?
     Canceled(Option<TimeRange>),
+    /** The task failed because of an internal error */
+    Error(TimeRange),
 }
 
 impl Default for TaskStatus {
@@ -40,6 +42,7 @@ pub enum TaskStatusKind {
     Success = 1,
     Failure = 2,
     Canceled = 3,
+    Error = 4,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -63,6 +66,7 @@ impl From<&TaskStatus> for TaskStatusKind {
             TaskStatus::Success(..) => Self::Success,
             TaskStatus::Failure(..) => Self::Failure,
             TaskStatus::Canceled(..) => Self::Canceled,
+            TaskStatus::Error(..) => Self::Error,
         }
     }
 }
@@ -77,6 +81,7 @@ const SUCCESS_TIME_INVARIANT: &str =
     "a `TaskStatus::Success` requires a start time and an end time";
 const FAILURE_TIME_INVARIANT: &str =
     "a `TaskStatus::Failure` requires a start time and an end time";
+const ERROR_TIME_INVARIANT: &str = "a `TaskStatus::Error` requires a start time and an end time";
 impl TaskStatusKind {
     /** Promotes a `TaskStatusKind` to a `TaskStatus`, given a start
      * time and a finish time. Note those are optional: a success task
@@ -93,6 +98,7 @@ impl TaskStatusKind {
             Self::Success => TaskStatus::Success(range.expect(SUCCESS_TIME_INVARIANT)),
             Self::Failure => TaskStatus::Failure(range.expect(FAILURE_TIME_INVARIANT)),
             Self::Canceled => TaskStatus::Canceled(range),
+            Self::Error => TaskStatus::Error(range.expect(ERROR_TIME_INVARIANT)),
         }
     }
 }
@@ -102,9 +108,10 @@ impl TaskStatus {
     pub fn times(self) -> (Option<OffsetDateTime>, Option<OffsetDateTime>) {
         match self {
             Self::Pending { start } => (start, None),
-            Self::Success(range) | Self::Failure(range) | Self::Canceled(Some(range)) => {
-                (Some(range.start), Some(range.end))
-            }
+            Self::Success(range)
+            | Self::Failure(range)
+            | Self::Error(range)
+            | Self::Canceled(Some(range)) => (Some(range.start), Some(range.end)),
             Self::Canceled(None) => (None, None),
         }
     }
@@ -121,6 +128,7 @@ impl TaskStatus {
             TaskStatusKind::Pending => Self::Pending { start },
             TaskStatusKind::Canceled => Self::Canceled(range),
             TaskStatusKind::Success => Self::Success(range.expect(SUCCESS_TIME_INVARIANT)),
+            TaskStatusKind::Error => Self::Error(range.expect(ERROR_TIME_INVARIANT)),
         }
     }
 }
@@ -145,6 +153,7 @@ impl std::fmt::Display for TaskStatusKind {
             Self::Success => write!(f, "success"),
             Self::Failure => write!(f, "failure"),
             Self::Canceled => write!(f, "canceled"),
+            Self::Error => write!(f, "error"),
         }
     }
 }
@@ -161,6 +170,8 @@ impl core::cmp::Ord for TaskStatusKind {
             return Ordering::Equal;
         }
         match (self, rhs) {
+            (TaskStatusKind::Error, _) => Ordering::Greater,
+            (_, TaskStatusKind::Error) => Ordering::Less,
             (TaskStatusKind::Failure, _) => Ordering::Greater,
             (_, TaskStatusKind::Failure) => Ordering::Less,
             (TaskStatusKind::Pending, _) => Ordering::Greater,

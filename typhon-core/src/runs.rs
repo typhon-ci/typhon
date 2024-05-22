@@ -182,38 +182,32 @@ impl Run {
             .execute(conn)?;
         log_event(Event::RunUpdated(self.handle()));
 
-        // a waiter task
-        let run_run = async move {
+        let self_ = self.clone();
+        RUNS.run(self.run.id, move |_| async move {
+            // wait for the `begin` action
             TASKS.wait(&action_begin.task.task.id).await;
+
+            // wait for the build
             let res = build_handle.wait().await;
-            match res {
+            let status_kind = match res {
                 Some(Some(())) => TaskStatusKind::Success,
                 Some(None) => TaskStatusKind::Failure,
                 None => TaskStatusKind::Canceled,
-            }
-        };
-
-        // run the 'end' action
-        let finish_run = {
-            let self_ = self.clone();
-            let finish_err = move |status| {
-                if let Some(status) = status {
-                    let mut conn = POOL.get().unwrap();
-                    let action_end = self_.spawn_action(&mut conn, "end", status)?;
-                    diesel::update(&self_.run)
-                        .set((schema::runs::end_id.eq(action_end.action.id),))
-                        .execute(&mut conn)?;
-                    log_event(Event::RunUpdated(self_.handle()));
-                }
-                Ok::<_, Error>(())
             };
-            move |status| {
-                finish_err(status).unwrap(); // FIXME
-                None::<()>
-            }
-        };
 
-        RUNS.run(self.run.id, (run_run, finish_run));
+            // run the `end` action
+            let _ = tokio::task::spawn_blocking(move || {
+                let mut conn = POOL.get().unwrap();
+                let action_end = self_.spawn_action(&mut conn, "end", status_kind)?;
+                diesel::update(&self_.run)
+                    .set((schema::runs::end_id.eq(action_end.action.id),))
+                    .execute(&mut conn)?;
+                log_event(Event::RunUpdated(self_.handle()));
+                Ok::<(), Error>(())
+            })
+            .await
+            .unwrap();
+        });
 
         Ok(())
     }

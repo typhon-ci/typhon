@@ -3972,7 +3972,6 @@ version = "0.0.1"
 dependencies = [
  "age",
  "argon2",
- "async-recursion",
  "async-stream",
  "async-trait",
  "diesel",

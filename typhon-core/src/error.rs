@@ -27,6 +27,7 @@ pub enum Error {
     LoginError,
     TaskError(task_manager::Error),
     BadWebhookOutput,
+    TokioError,
 }
 
 impl Error {
@@ -83,6 +84,7 @@ impl std::fmt::Display for Error {
             UnexpectedTimeError(e) => write!(f, "Time error: {}", e),
             TaskError(e) => write!(f, "Task error: {}", e),
             BadWebhookOutput => write!(f, "Bad webhook output"),
+            TokioError => write!(f, "Tokio error"),
         }
     }
 }
@@ -117,6 +119,12 @@ impl From<task_manager::Error> for Error {
     }
 }
 
+impl From<tokio::task::JoinError> for Error {
+    fn from(_: tokio::task::JoinError) -> Error {
+        Error::TokioError
+    }
+}
+
 impl Into<typhon_types::responses::ResponseError> for Error {
     fn into(self) -> typhon_types::responses::ResponseError {
         use {typhon_types::responses::ResponseError::*, Error::*};
@@ -125,6 +133,7 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | UnexpectedDatabaseError(_)
             | UnexpectedTimeError(_)
             | TaskError(_)
+            | TokioError
             | Todo => InternalError,
             EvaluationNotFound(_)
             | JobNotFound(_)
