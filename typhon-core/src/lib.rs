@@ -346,6 +346,18 @@ pub fn init(password: &String) {
     let password = Box::leak(Box::new(password.clone()));
     let password = PasswordHash::new(password).expect("Unable to parse the password hash");
     Settings::init(Settings { password });
+
     // Force database migrations
-    let _ = std::sync::LazyLock::force(&POOL);
+    let _ = LazyLock::force(&POOL);
+
+    // Init current system
+    let _ = LazyLock::force(&CURRENT_SYSTEM);
+
+    // Init runtime
+    let _ = LazyLock::force(&RUNTIME);
+    let _ = LazyLock::force(&RUNS);
+    let _ = LazyLock::force(&TASKS);
+    let _ = LazyLock::force(&LOGS);
+    let _ = LazyLock::force(&EVENT_LOGGER);
+    let _ = LazyLock::force(&build_manager::BUILDS);
 }
