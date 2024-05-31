@@ -5,6 +5,7 @@ use crate::models;
 use crate::responses;
 use crate::runs;
 use crate::schema;
+use crate::tasks;
 use crate::Conn;
 
 use typhon_types::*;
@@ -67,7 +68,8 @@ impl Job {
 
     /** Create a new run in the database, without running it. */
     pub fn new_run(&self, conn: &mut Conn) -> Result<runs::Run, Error> {
-        let run = conn.transaction::<models::Run, Error, _>(|conn| {
+        let run = conn.transaction::<runs::Run, Error, _>(|conn| {
+            let task = tasks::Task::new(conn)?;
             let num = self.job.tries + 1;
             diesel::update(&self.job)
                 .set(schema::jobs::tries.eq(num))
@@ -75,21 +77,23 @@ impl Job {
             let new_run = models::NewRun {
                 job_id: self.job.id,
                 num,
+                task_id: task.task.id,
                 time_created: OffsetDateTime::now_utc().unix_timestamp(),
             };
-            Ok(diesel::insert_into(schema::runs::table)
+            let run = diesel::insert_into(schema::runs::table)
                 .values(&new_run)
-                .get_result::<models::Run>(conn)?)
+                .get_result::<models::Run>(conn)?;
+            Ok(runs::Run {
+                begin: None,
+                end: None,
+                build: None,
+                project: self.project.clone(),
+                evaluation: self.evaluation.clone(),
+                job: self.job.clone(),
+                run,
+                task,
+            })
         })?;
-        let run = runs::Run {
-            begin: None,
-            end: None,
-            build: None,
-            project: self.project.clone(),
-            evaluation: self.evaluation.clone(),
-            job: self.job.clone(),
-            run,
-        };
         log_event(Event::RunNew(run.handle()));
         Ok(run)
     }

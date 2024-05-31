@@ -35,6 +35,7 @@ impl responses::RunInfo {
         begin: Option<(models::Action, models::Task)>,
         build: Option<(models::Build, models::Task)>,
         end: Option<(models::Action, models::Task)>,
+        task: models::Task,
     ) -> Self {
         let to_action_info =
             |(action, task): (models::Action, models::Task)| responses::ActionInfo {
@@ -57,6 +58,7 @@ impl responses::RunInfo {
                 status: task.status(),
             }),
             end: end.map(to_action_info),
+            status: task.status(),
         }
     }
 }
@@ -72,6 +74,7 @@ impl responses::JobInfo {
         begin: Option<(models::Action, models::Task)>,
         build: Option<(models::Build, models::Task)>,
         end: Option<(models::Action, models::Task)>,
+        task: models::Task,
     ) -> Self {
         let job_handle = handles::Job {
             evaluation: eval_handle.clone(),
@@ -84,7 +87,15 @@ impl responses::JobInfo {
             drv: job.drv,
             out: job.out,
             system: job.system,
-            last_run: responses::RunInfo::new(project_handle, &job_handle, run, begin, build, end),
+            last_run: responses::RunInfo::new(
+                project_handle,
+                &job_handle,
+                run,
+                begin,
+                build,
+                end,
+                task,
+            ),
             run_count: job.tries as u32,
         }
     }
@@ -123,12 +134,13 @@ impl Evaluation {
         filter_name: Option<String>,
         conn: &mut Conn,
     ) -> Result<HashMap<responses::JobSystemName, responses::JobInfo>, Error> {
-        let (begin_action, end_action, begin_task, build_task, end_task, subruns) = diesel::alias!(
+        let (begin_action, end_action, begin_task, build_task, end_task, run_task, subruns) = diesel::alias!(
             schema::actions as begin_action,
             schema::actions as end_action,
             schema::tasks as begin_task,
             schema::tasks as build_task,
             schema::tasks as end_task,
+            schema::tasks as run_task,
             schema::runs as subruns,
         );
         let mut query = schema::jobs::table
@@ -161,6 +173,7 @@ impl Evaluation {
                     .select(diesel::dsl::max(subruns.field(schema::runs::id)))
                     .single_value()),
             )
+            .inner_join(run_task.on(run_task.field(schema::tasks::id).eq(schema::runs::task_id)))
             .filter(schema::jobs::evaluation_id.eq(eval_id))
             .into_boxed();
         if let Some(system) = filter_system {
@@ -188,11 +201,12 @@ impl Evaluation {
                     end_task.fields(schema::tasks::all_columns),
                 )
                     .nullable(),
+                run_task.fields(schema::tasks::all_columns),
             ))
             .load(conn)?
             .into_iter()
             .map(
-                |(job, run, begin, build, end): (models::Job, models::Run, _, _, _)| {
+                |(job, run, begin, build, end, task): (models::Job, models::Run, _, _, _, _)| {
                     let (system, name) = (job.system.clone(), job.name.clone());
                     (
                         responses::JobSystemName { system, name },
@@ -204,6 +218,7 @@ impl Evaluation {
                             begin,
                             build,
                             end,
+                            task,
                         ),
                     )
                 },

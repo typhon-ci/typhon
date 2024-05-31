@@ -9,7 +9,7 @@ use crate::schema;
 use crate::tasks;
 use crate::Conn;
 use crate::POOL;
-use crate::RUNS;
+use crate::TASKS;
 
 use typhon_types::data::TaskStatusKind;
 use typhon_types::*;
@@ -28,22 +28,24 @@ pub struct Run {
     pub job: models::Job,
     pub evaluation: models::Evaluation,
     pub project: models::Project,
+    pub task: tasks::Task,
 }
 
 impl Run {
-    //pub fn cancel(&self) {
-    //    RUNS.cancel(self.run.id);
-    //}
+    pub fn cancel(&self) {
+        TASKS.cancel(self.task.task.id);
+    }
 
     pub fn get(conn: &mut Conn, handle: &handles::Run) -> Result<Self, Error> {
-        let (begin_action, end_action, begin_task, build_task, end_task) = diesel::alias!(
+        let (begin_action, end_action, begin_task, build_task, end_task, run_task) = diesel::alias!(
             schema::actions as begin_action,
             schema::actions as end_action,
             schema::tasks as begin_task,
             schema::tasks as build_task,
             schema::tasks as end_task,
+            schema::tasks as run_task,
         );
-        let (job, evaluation, project, run, begin, build, end) = schema::runs::table
+        let (job, evaluation, project, run, begin, build, end, task) = schema::runs::table
             .inner_join(
                 schema::jobs::table
                     .inner_join(schema::evaluations::table.inner_join(schema::projects::table)),
@@ -69,6 +71,7 @@ impl Run {
                         .eq(schema::runs::end_id))
                     .inner_join(end_task),
             )
+            .inner_join(run_task.on(run_task.field(schema::tasks::id).eq(schema::runs::task_id)))
             .filter(
                 schema::evaluations::uuid.eq(handle
                     .job
@@ -100,6 +103,7 @@ impl Run {
                     end_task.fields(schema::tasks::all_columns),
                 )
                     .nullable(),
+                run_task.fields(schema::tasks::all_columns),
             ))
             .first::<(
                 models::Job,
@@ -109,6 +113,7 @@ impl Run {
                 Option<(models::Action, models::Task)>,
                 Option<(models::Build, models::Task)>,
                 Option<(models::Action, models::Task)>,
+                models::Task,
             )>(conn)
             .optional()?
             .ok_or(Error::RunNotFound(handle.clone()))?;
@@ -131,6 +136,7 @@ impl Run {
             job,
             evaluation,
             project,
+            task: tasks::Task { task },
         })
     }
 
@@ -150,6 +156,7 @@ impl Run {
             begin,
             build,
             end,
+            task,
             ..
         } = self.clone();
         responses::RunInfo::new(
@@ -159,13 +166,13 @@ impl Run {
             begin.map(|actions::Action { action, task, .. }| (action, task.task)),
             build.map(|builds::Build { build, task }| (build, task.task)),
             end.map(|actions::Action { action, task, .. }| (action, task.task)),
+            task.task,
         )
     }
 
     pub fn run(&self, conn: &mut Conn) -> Result<(), Error> {
         use crate::build_manager::BUILDS;
         use crate::nix;
-        use crate::TASKS;
 
         // run the build
         let drv = nix::DrvPath::new(&self.job.drv);
@@ -183,7 +190,9 @@ impl Run {
         log_event(Event::RunUpdated(self.handle()));
 
         let self_ = self.clone();
-        RUNS.run(self.run.id, move |_| async move {
+        self.task.run(conn, move |_, _| async move {
+            let run_handle = self_.handle();
+
             // wait for the `begin` action
             TASKS.wait(&action_begin.task.task.id).await;
 
@@ -196,7 +205,7 @@ impl Run {
             };
 
             // run the `end` action
-            let _ = tokio::task::spawn_blocking(move || {
+            tokio::task::spawn_blocking(move || {
                 let mut conn = POOL.get().unwrap();
                 let action_end = self_.spawn_action(&mut conn, "end", status_kind)?;
                 diesel::update(&self_.run)
@@ -205,9 +214,10 @@ impl Run {
                 log_event(Event::RunUpdated(self_.handle()));
                 Ok::<(), Error>(())
             })
-            .await
-            .unwrap();
-        });
+            .await??;
+
+            Ok((TaskStatusKind::Success, Some(Event::RunUpdated(run_handle))))
+        })?;
 
         Ok(())
     }

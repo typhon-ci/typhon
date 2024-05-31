@@ -91,6 +91,7 @@ diesel::table! {
         id -> Integer,
         job_id -> Integer,
         num -> Integer,
+        task_id -> Integer,
         time_created -> BigInt,
     }
 }
@@ -115,6 +116,7 @@ diesel::joinable!(jobsets -> projects (project_id));
 diesel::joinable!(projects -> tasks (last_refresh_task_id));
 diesel::joinable!(runs -> builds (build_id));
 diesel::joinable!(runs -> jobs (job_id));
+diesel::joinable!(runs -> tasks (task_id));
 diesel::joinable!(tasks -> logs (log_id));
 
 diesel::allow_tables_to_appear_in_same_query!(

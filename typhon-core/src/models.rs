@@ -199,6 +199,7 @@ pub struct Run {
     pub id: i32,
     pub job_id: i32,
     pub num: i32,
+    pub task_id: i32,
     pub time_created: i64,
 }
 
@@ -207,5 +208,6 @@ pub struct Run {
 pub struct NewRun {
     pub job_id: i32,
     pub num: i32,
+    pub task_id: i32,
     pub time_created: i64,
 }

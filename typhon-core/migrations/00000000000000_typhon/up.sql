@@ -54,6 +54,7 @@ CREATE TABLE runs (
     id INTEGER NOT NULL PRIMARY KEY,
     job_id INTEGER NOT NULL REFERENCES jobs (id),
     num INTEGER NOT NULL,
+    task_id INTEGER NOT NULL REFERENCES tasks (id),
     time_created BIGINT NOT NULL,
     UNIQUE (job_id, num)
 );

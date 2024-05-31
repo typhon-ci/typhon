@@ -100,7 +100,6 @@ impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::E
 pub static RUNTIME: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
 pub static POOL: LazyLock<DbPool> = LazyLock::new(pool);
-pub static RUNS: LazyLock<TaskManager<i32>> = LazyLock::new(|| TaskManager::new());
 pub static TASKS: LazyLock<TaskManager<i32>> = LazyLock::new(|| TaskManager::new());
 pub static LOGS: LazyLock<logs::live::Cache<i32>> = LazyLock::new(logs::live::Cache::new);
 pub static EVENT_LOGGER: LazyLock<events::EventLogger> = LazyLock::new(events::EventLogger::new);
@@ -218,10 +217,10 @@ pub fn handle_request_aux(
         requests::Request::Run(run_handle, req) => {
             let run = Run::get(conn, &run_handle)?;
             match req {
-                //requests::Run::Cancel => {
-                //    run.cancel();
-                //    Response::Ok
-                //}
+                requests::Run::Cancel => {
+                    run.cancel();
+                    Response::Ok
+                }
                 requests::Run::Info => Response::RunInfo(run.info()),
             }
         }
@@ -315,7 +314,6 @@ pub async fn shutdown() {
     // down everything in sequence anyway to try to avoid future problems.
     eprintln!("Typhon is shutting down...");
     build_manager::BUILDS.shutdown().await;
-    RUNS.shutdown().await;
     TASKS.shutdown().await;
     LOGS.shutdown().await;
     EVENT_LOGGER.shutdown().await;
@@ -354,7 +352,6 @@ pub fn init(password: &String) {
 
     // Init runtime
     let _ = LazyLock::force(&RUNTIME);
-    let _ = LazyLock::force(&RUNS);
     let _ = LazyLock::force(&TASKS);
     let _ = LazyLock::force(&LOGS);
     let _ = LazyLock::force(&EVENT_LOGGER);
