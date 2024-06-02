@@ -20,7 +20,7 @@
 
   cargoArtifacts = craneLib.buildDepsOnly args;
 
-  nodeDependencies = (pkgs.callPackage ../npm-nix {nodejs = pkgs.nodejs;}).nodeDependencies;
+  nodeDependencies = (import ../npm-nix {inherit system pkgs;}).nodeDependencies;
 in
   craneLib.buildPackage (args
     // {

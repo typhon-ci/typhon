@@ -14,5 +14,5 @@ npm install --prefix "$NODE_DIR"
 
 # update Nix dependencies
 nix flake update
-node2nix -i "$NODE_DIR/package.json" -o "$NODE2NIX_DIR/node-packages.nix" -c "$NODE2NIX_DIR/default.nix" -e "$NODE2NIX_DIR/node-env.nix"
+node2nix -18 -i "$NODE_DIR/package.json" -o "$NODE2NIX_DIR/node-packages.nix" -c "$NODE2NIX_DIR/default.nix" -e "$NODE2NIX_DIR/node-env.nix"
 alejandra "$NODE2NIX_DIR"
