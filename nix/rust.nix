@@ -6,5 +6,5 @@
   rustToolchain = pkgs.rust-bin.nightly.latest.default.override {
     targets = ["wasm32-unknown-unknown"];
   };
-  craneLib = inputs.crane.lib.${system}.overrideToolchain rustToolchain;
+  craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
 }
