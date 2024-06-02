@@ -8,19 +8,42 @@
   lib,
   globalBuildInputs ? [],
 }: let
-  sources = {};
+  sources = {
+    "@fontsource/jetbrains-mono-5.0.20" = {
+      name = "_at_fontsource_slash_jetbrains-mono";
+      packageName = "@fontsource/jetbrains-mono";
+      version = "5.0.20";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/@fontsource/jetbrains-mono/-/jetbrains-mono-5.0.20.tgz";
+        sha512 = "QkrihYWqftzs+04TinulIhnFqNwO6990HR07iCUae/6daOZAMy7urUPzytrRT9M8KLTTHBeHOY0CKqOs1+o2OQ==";
+      };
+    };
+    "@fontsource/roboto-5.0.13" = {
+      name = "_at_fontsource_slash_roboto";
+      packageName = "@fontsource/roboto";
+      version = "5.0.13";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/@fontsource/roboto/-/roboto-5.0.13.tgz";
+        sha512 = "j61DHjsdUCKMXSdNLTOxcG701FWnF0jcqNNQi2iPCDxU8seN/sMxeh62dC++UiagCWq9ghTypX+Pcy7kX+QOeQ==";
+      };
+    };
+  };
   args = {
     name = "typhon-webapp";
     packageName = "typhon-webapp";
     version = "0.0.1";
     src = ../../typhon-webapp/assets;
+    dependencies = [
+      sources."@fontsource/jetbrains-mono-5.0.20"
+      sources."@fontsource/roboto-5.0.13"
+    ];
     buildInputs = globalBuildInputs;
     meta = {
       license = "AGPL-3.0";
     };
     production = true;
     bypassCache = true;
-    reconstructLock = false;
+    reconstructLock = true;
   };
 in {
   args = args;
