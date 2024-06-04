@@ -34,11 +34,9 @@ utils: lib: {
           git add .
           git commit -m "''${input[out]}"
 
-          ${utils.lib.concatMapStrings
-            (patch: ''
-              git am < ${patch system}
-            '')
-            patches}
+          ${utils.lib.concatMapStrings (patch: ''
+            git am < ${patch system}
+          '') patches}
 
           git remote add origin "https://$token@github.com/${owner}/${repo}"
           git push -f -u origin ${branch}

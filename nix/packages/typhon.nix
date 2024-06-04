@@ -21,7 +21,7 @@ let
 
   cargoArtifacts = craneLib.buildDepsOnly args;
 
-  nodeDependencies = (import ../npm-nix {inherit system pkgs;}).nodeDependencies;
+  nodeDependencies = (import ../npm-nix { inherit system pkgs; }).nodeDependencies;
 in
 craneLib.buildPackage (
   args
