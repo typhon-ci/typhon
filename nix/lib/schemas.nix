@@ -6,23 +6,17 @@ utils: lib: {
     '';
     allowIFD = false;
     inventory = output: {
-      children =
-        builtins.mapAttrs
-          (system: jobs: {
-            forSystems = [ system ];
-            children =
-              builtins.mapAttrs
-                (name: derivation: {
-                  inherit derivation;
-                  evalChecks = { };
-                  forSystems = [ system ];
-                  isFlakeCheck = false;
-                  shortDescription = "";
-                  what = "Typhon job declaration";
-                })
-                jobs;
-          })
-          output;
+      children = builtins.mapAttrs (system: jobs: {
+        forSystems = [ system ];
+        children = builtins.mapAttrs (name: derivation: {
+          inherit derivation;
+          evalChecks = { };
+          forSystems = [ system ];
+          isFlakeCheck = false;
+          shortDescription = "";
+          what = "Typhon job declaration";
+        }) jobs;
+      }) output;
     };
   };
 

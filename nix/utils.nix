@@ -22,13 +22,10 @@ let
     importList =
       scope: list:
       mkScope scope (
-        lib.foldr
-          (
-            path: fn: lib:
-            unionOfDisjoint (import path self lib) (fn lib)
-          )
-          (_: { })
-          list
+        lib.foldr (
+          path: fn: lib:
+          unionOfDisjoint (import path self lib) (fn lib)
+        ) (_: { }) list
       );
 
     importPath =
