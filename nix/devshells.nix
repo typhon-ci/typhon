@@ -1,9 +1,10 @@
 {
   inputs ? import ./inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ./nixpkgs.nix {inherit inputs system;},
-  rust ? import ./rust.nix {inherit inputs system;},
-}: let
+  pkgs ? import ./nixpkgs.nix { inherit inputs system; },
+  rust ? import ./rust.nix { inherit inputs system; },
+}:
+let
   env = ''
     export PASSWORD=$(echo -n "password" | argon2 "Guérande" -id -e)
     export COOKIE_SECRET=$(seq 100 | xxd -cu -l 64 -p)
@@ -14,13 +15,13 @@
   serve = pkgs.writeShellScriptBin "serve" "${env}cargo leptos serve";
   watch = pkgs.writeShellScriptBin "watch" "${env}cargo leptos watch";
   format = pkgs.writeShellScriptBin "format" "nixfmt . ; cargo fmt ; leptosfmt typhon*/";
-in {
+in
+{
   default = pkgs.mkShell {
     name = "typhon-devshell";
     packages = builtins.attrValues {
       inherit (rust) rustToolchain;
-      inherit
-        (pkgs)
+      inherit (pkgs)
         bubblewrap
         cargo-leptos
         diesel-cli
@@ -34,7 +35,12 @@ in {
         rustfmt
         sqlite
         ;
-      inherit build serve watch format;
+      inherit
+        build
+        serve
+        watch
+        format
+        ;
     };
     DATABASE_URL = "typhon.sqlite";
     TYPHON_FLAKE = ../typhon-flake;
@@ -42,6 +48,6 @@ in {
 
   doc = pkgs.mkShell {
     name = "typhon-doc-devshell";
-    packages = [pkgs.mdbook];
+    packages = [ pkgs.mdbook ];
   };
 }

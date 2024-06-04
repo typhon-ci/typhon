@@ -1,1 +1,1 @@
-(import ../nix/devshells.nix {}).doc
+(import ../nix/devshells.nix { }).doc
