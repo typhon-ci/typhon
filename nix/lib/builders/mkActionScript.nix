@@ -1,13 +1,17 @@
 utils: lib: {
-  mkActionScript = {
-    mkPath ? system: [],
-    mkScript,
-  }:
-    lib.eachSystem (system:
-      utils.pkgs.${system}.writeShellApplication {
+  mkActionScript =
+    f:
+    lib.eachSystem (
+      system:
+      let
+        pkgs = utils.pkgs.${system};
+        values = f { inherit pkgs system; };
+      in
+      pkgs.writeShellApplication {
         name = "action";
-        runtimeInputs = [utils.pkgs.${system}.coreutils] ++ mkPath system;
-        text = mkScript system;
-        excludeShellChecks = ["SC2015"];
-      });
+        runtimeInputs = [ pkgs.coreutils ] ++ values.path or [ ];
+        text = values.script;
+        excludeShellChecks = [ "SC2015" ];
+      }
+    );
 }
