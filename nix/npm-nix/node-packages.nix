@@ -6,8 +6,9 @@
   nix-gitignore,
   stdenv,
   lib,
-  globalBuildInputs ? [],
-}: let
+  globalBuildInputs ? [ ],
+}:
+let
   sources = {
     "@fontsource/jetbrains-mono-5.0.20" = {
       name = "_at_fontsource_slash_jetbrains-mono";
@@ -45,24 +46,28 @@
     bypassCache = true;
     reconstructLock = true;
   };
-in {
+in
+{
   args = args;
   sources = sources;
   tarball = nodeEnv.buildNodeSourceDist args;
   package = nodeEnv.buildNodePackage args;
   shell = nodeEnv.buildNodeShell args;
-  nodeDependencies = nodeEnv.buildNodeDependencies (lib.overrideExisting args {
-    src = stdenv.mkDerivation {
-      name = args.name + "-package-json";
-      src =
-        nix-gitignore.gitignoreSourcePure [
-          "*"
-          "!package.json"
-          "!package-lock.json"
-        ]
-        args.src;
-      dontBuild = true;
-      installPhase = "mkdir -p $out; cp -r ./* $out;";
-    };
-  });
+  nodeDependencies = nodeEnv.buildNodeDependencies (
+    lib.overrideExisting args {
+      src = stdenv.mkDerivation {
+        name = args.name + "-package-json";
+        src =
+          nix-gitignore.gitignoreSourcePure
+            [
+              "*"
+              "!package.json"
+              "!package-lock.json"
+            ]
+            args.src;
+        dontBuild = true;
+        installPhase = "mkdir -p $out; cp -r ./* $out;";
+      };
+    }
+  );
 }

@@ -22,5 +22,5 @@
     };
   };
 
-  outputs = inputs: import ./nix/outputs.nix {inherit inputs;};
+  outputs = inputs: import ./nix/outputs.nix { inherit inputs; };
 }

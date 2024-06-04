@@ -4,7 +4,5 @@
 }:
 import inputs.nixpkgs {
   inherit system;
-  overlays = [
-    (import inputs.rust-overlay)
-  ];
+  overlays = [ (import inputs.rust-overlay) ];
 }
