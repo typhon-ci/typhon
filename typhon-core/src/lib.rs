@@ -1,5 +1,4 @@
 #![feature(impl_trait_in_fn_trait_return)]
-#![feature(lazy_cell)]
 
 mod actions;
 mod builds;
