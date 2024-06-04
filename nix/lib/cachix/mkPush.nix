@@ -1,9 +1,16 @@
 utils: lib: {
-  mkPush = {name}:
+  mkPush =
+    { name }:
     lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [pkgs.jq pkgs.cachix];
+      mkPath =
+        system:
+        let
+          pkgs = utils.pkgs.${system};
+        in
+        [
+          pkgs.jq
+          pkgs.cachix
+        ];
       mkScript = system: ''
         stdin=$(cat)
         path=$(echo "$stdin" | jq -r '.input.out')

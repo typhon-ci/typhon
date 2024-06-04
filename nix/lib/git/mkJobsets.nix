@@ -1,16 +1,20 @@
 utils: lib: {
-  mkJobsets = {
-    url,
-    flake ? true,
-  }:
+  mkJobsets =
+    {
+      url,
+      flake ? true,
+    }:
     lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [
-        pkgs.git
-        pkgs.gnused
-        pkgs.jq
-      ];
+      mkPath =
+        system:
+        let
+          pkgs = utils.pkgs.${system};
+        in
+        [
+          pkgs.git
+          pkgs.gnused
+          pkgs.jq
+        ];
       mkScript = system: ''
         heads=$(git ls-remote --heads ${url} | sed 's/.*refs\/heads\/\(.*\)/\1/')
         echo null | jq --arg heads "$heads" '$heads

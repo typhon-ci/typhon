@@ -1,12 +1,16 @@
 utils: lib: {
-  mkWebhook = {webhookSecretName}:
+  mkWebhook =
+    { webhookSecretName }:
     lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [
-        pkgs.jq
-        pkgs.openssl
-      ];
+      mkPath =
+        system:
+        let
+          pkgs = utils.pkgs.${system};
+        in
+        [
+          pkgs.jq
+          pkgs.openssl
+        ];
       mkScript = system: ''
         stdin=$(cat)
 

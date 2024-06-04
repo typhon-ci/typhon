@@ -1,20 +1,24 @@
 utils: lib: {
-  mkStatus = {
-    api,
-    authorizationKeyword,
-    owner,
-    repo,
-    tokenName,
-    typhonUrl,
-  }:
+  mkStatus =
+    {
+      api,
+      authorizationKeyword,
+      owner,
+      repo,
+      tokenName,
+      typhonUrl,
+    }:
     lib.builders.mkActionScript {
-      mkPath = system: let
-        pkgs = utils.pkgs.${system};
-      in [
-        pkgs.curl
-        pkgs.jq
-        pkgs.nix
-      ];
+      mkPath =
+        system:
+        let
+          pkgs = utils.pkgs.${system};
+        in
+        [
+          pkgs.curl
+          pkgs.jq
+          pkgs.nix
+        ];
       mkScript = system: ''
         stdin=$(cat)
 
