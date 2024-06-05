@@ -43,8 +43,8 @@ use diesel::prelude::*;
 use diesel::r2d2;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use futures_core::stream::Stream;
-use once_cell::sync::{Lazy, OnceCell};
 use serde::{Deserialize, Serialize};
+use std::sync::{LazyLock, OnceLock};
 
 /// Global settings for Typhon. `Settings::init` is expected to be
 /// called exactly once for initialization, then `Settings::get`
@@ -55,7 +55,7 @@ pub struct Settings {
 }
 
 const _: () = {
-    static CELL: OnceCell<Settings> = OnceCell::new();
+    static CELL: OnceLock<Settings> = OnceLock::new();
     impl Settings {
         fn get() -> &'static Self {
             CELL.get().expect("Settings were not initialized")
@@ -97,14 +97,14 @@ impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::E
 }
 
 // Typhon's state
-pub static RUNTIME: Lazy<tokio::runtime::Runtime> =
-    Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
-pub static POOL: Lazy<DbPool> = Lazy::new(pool);
-pub static RUNS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
-pub static TASKS: Lazy<TaskManager<i32>> = Lazy::new(|| TaskManager::new());
-pub static LOGS: Lazy<logs::live::Cache<i32>> = Lazy::new(logs::live::Cache::new);
-pub static EVENT_LOGGER: Lazy<events::EventLogger> = Lazy::new(events::EventLogger::new);
-pub static CURRENT_SYSTEM: Lazy<String> = Lazy::new(nix::current_system);
+pub static RUNTIME: LazyLock<tokio::runtime::Runtime> =
+    LazyLock::new(|| tokio::runtime::Runtime::new().unwrap());
+pub static POOL: LazyLock<DbPool> = LazyLock::new(pool);
+pub static RUNS: LazyLock<TaskManager<i32>> = LazyLock::new(|| TaskManager::new());
+pub static TASKS: LazyLock<TaskManager<i32>> = LazyLock::new(|| TaskManager::new());
+pub static LOGS: LazyLock<logs::live::Cache<i32>> = LazyLock::new(logs::live::Cache::new);
+pub static EVENT_LOGGER: LazyLock<events::EventLogger> = LazyLock::new(events::EventLogger::new);
+pub static CURRENT_SYSTEM: LazyLock<String> = LazyLock::new(nix::current_system);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum User {
@@ -352,6 +352,18 @@ pub fn init(password: &String) {
     let password = Box::leak(Box::new(password.clone()));
     let password = PasswordHash::new(password).expect("Unable to parse the password hash");
     Settings::init(Settings { password });
+
     // Force database migrations
-    let _ = once_cell::sync::Lazy::force(&POOL);
+    let _ = LazyLock::force(&POOL);
+
+    // Init current system
+    let _ = LazyLock::force(&CURRENT_SYSTEM);
+
+    // Init runtime
+    let _ = LazyLock::force(&RUNTIME);
+    let _ = LazyLock::force(&RUNS);
+    let _ = LazyLock::force(&TASKS);
+    let _ = LazyLock::force(&LOGS);
+    let _ = LazyLock::force(&EVENT_LOGGER);
+    let _ = LazyLock::force(&build_manager::BUILDS);
 }

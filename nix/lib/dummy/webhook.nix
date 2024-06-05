@@ -1,3 +1,1 @@
-_: lib: {
-  webhook = lib.builders.mkDummyAction {output = "[]";};
-}
+_: lib: { webhook = lib.builders.mkDummyAction { output = "[]"; }; }
