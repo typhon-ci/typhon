@@ -8,20 +8,15 @@ use crate::Conn;
 use crate::{handles, responses};
 use crate::{log_event, Event};
 
+use typhon_types::requests::JobsetDecl;
+
 use diesel::prelude::*;
-use serde::Deserialize;
 use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Jobset {
     pub jobset: models::Jobset,
     pub project: models::Project,
-}
-
-#[derive(Deserialize, PartialEq)]
-pub struct JobsetDecl {
-    pub flake: bool,
-    pub url: String,
 }
 
 impl Jobset {
