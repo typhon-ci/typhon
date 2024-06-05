@@ -1,16 +1,13 @@
 {
   inputs ? import ./inputs.nix,
   systems ? import ./systems.nix,
-  lib ? import ./lib {inherit inputs systems;},
+  lib ? import ./lib { inherit inputs systems; },
   flake-schemas ? inputs.flake-schemas,
-}: {
-  inherit
-    (lib.schemas)
-    typhonJobs
-    ;
+}:
+{
+  inherit (lib.schemas) typhonJobs;
 
-  inherit
-    (flake-schemas.schemas)
+  inherit (flake-schemas.schemas)
     checks
     devShells
     nixosModules
@@ -25,7 +22,7 @@
     '';
     allowIFD = false;
     inventory = output: {
-      evalChecks = {};
+      evalChecks = { };
       forSystems = lib.systems;
       what = "Typhon's library";
     };

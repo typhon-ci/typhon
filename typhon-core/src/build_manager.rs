@@ -13,8 +13,8 @@ use crate::RUNTIME;
 use typhon_types::{data::TaskStatusKind, *};
 
 use diesel::prelude::*;
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use time::OffsetDateTime;
 use tokio::{
     sync::{mpsc, oneshot, watch},
@@ -280,4 +280,4 @@ impl Builder {
     }
 }
 
-pub static BUILDS: Lazy<Builder> = Lazy::new(Builder::new);
+pub static BUILDS: LazyLock<Builder> = LazyLock::new(Builder::new);

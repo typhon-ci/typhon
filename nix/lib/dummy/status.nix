@@ -1,3 +1,1 @@
-_: lib: {
-  status = lib.builders.mkDummyAction {};
-}
+_: lib: { status = lib.builders.mkDummyAction { }; }
