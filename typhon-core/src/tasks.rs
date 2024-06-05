@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::log_event;
 use crate::models;
 use crate::schema;
+use crate::task_manager::TaskHandle;
 use crate::Conn;
 use crate::POOL;
 use crate::{LOGS, TASKS};
@@ -73,15 +74,12 @@ impl Task {
     }
 
     pub fn run<
-        T: Send + 'static,
-        O: Future<Output = T> + Send + 'static,
-        F: (FnOnce(mpsc::UnboundedSender<String>) -> O) + Send + 'static,
-        G: (FnOnce(Option<T>) -> (TaskStatusKind, Event)) + Send + Sync + 'static,
+        O: Future<Output = Result<(TaskStatusKind, Option<Event>), Error>> + Send + 'static,
+        F: (FnOnce(TaskHandle, mpsc::UnboundedSender<String>) -> O) + Send + 'static,
     >(
         &self,
         conn: &mut Conn,
-        run: F,
-        finish: G,
+        task: F,
     ) -> Result<(), Error> {
         let start = Some(OffsetDateTime::now_utc());
         let id = self.task.id;
@@ -89,34 +87,40 @@ impl Task {
         self.set_status(conn, TaskStatus::Pending { start })?;
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
-        let run = async move {
+
+        let self_ = self.clone();
+        TASKS.run(id, move |handle| async move {
             LOGS.init(&id);
-            let (res, ()) = tokio::join!(run(sender), async move {
+            let (res, ()) = tokio::join!(task(handle, sender), async move {
                 while let Some(line) = receiver.recv().await {
                     LOGS.send_line(&id, line);
                 }
             },);
-            res
-        };
-        let finish = {
-            let task = self.clone();
-            move |res: Option<T>| {
+            if let Err(e) = &res {
+                tracing::error!("error when running task: {}", e);
+            }
+            let (status_kind, event) = res.unwrap_or((TaskStatusKind::Error, None));
+            let res = tokio::task::spawn_blocking(move || {
                 let mut conn = POOL.get().unwrap();
-                let (status_kind, event) = finish(res);
                 let time_finished = OffsetDateTime::now_utc();
                 let stderr = LOGS.remove(&id).unwrap_or(String::new()); // FIXME
                 let status = status_kind.into_task_status(start, Some(time_finished));
-                task.set_status(&mut conn, status).unwrap();
-                diesel::update(schema::logs::table.filter(schema::logs::id.eq(task.task.log_id)))
+                self_.set_status(&mut conn, status).unwrap();
+                diesel::update(schema::logs::table.filter(schema::logs::id.eq(self_.task.log_id)))
                     .set(schema::logs::stderr.eq(stderr))
-                    .execute(&mut conn)
-                    .unwrap(); // TODO: handle error properly
-                log_event(event);
-                None::<()>
+                    .execute(&mut conn)?;
+                if let Some(event) = event {
+                    log_event(event);
+                }
+                Ok::<_, Error>(())
+            })
+            .await;
+            match res {
+                Ok(Err(e)) => tracing::error!("error when finishing task: {}", e),
+                Err(e) => tracing::error!("error when finishing task: {}", e),
+                _ => (),
             }
-        };
-
-        TASKS.run(id, (run, finish));
+        });
 
         Ok(())
     }

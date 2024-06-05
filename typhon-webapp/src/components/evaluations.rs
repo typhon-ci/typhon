@@ -95,7 +95,9 @@ impl EvalStatus {
             TaskStatusKind::Success => HybridStatusKind::EvalSucceeded {
                 build: self.jobs.unwrap_or_default().into(),
             },
-            TaskStatusKind::Failure | TaskStatusKind::Canceled => HybridStatusKind::EvalStopped,
+            TaskStatusKind::Failure | TaskStatusKind::Canceled | TaskStatusKind::Error => {
+                HybridStatusKind::EvalStopped
+            }
         }
     }
     pub fn summary(&self) -> TaskStatus {

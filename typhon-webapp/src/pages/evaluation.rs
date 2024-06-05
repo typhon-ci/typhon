@@ -226,6 +226,7 @@ pub fn JobSubpage(
                             TaskStatus::Failure(..) => make("failed"),
                             TaskStatus::Canceled(Some(..)) => make("canceled"),
                             TaskStatus::Canceled(None) => view! { <>canceled</> },
+                            TaskStatus::Error(..) => view! { <>error</> },
                         }
                     }
 
