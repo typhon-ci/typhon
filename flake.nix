@@ -9,7 +9,7 @@
 
     flake-schemas.url = "github:determinatesystems/flake-schemas";
 
-    nixpkgs.url = "nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
     crane = {
       url = "github:ipetkov/crane";
@@ -22,5 +22,5 @@
     };
   };
 
-  outputs = inputs: import ./nix/outputs.nix {inherit inputs;};
+  outputs = inputs: import ./nix/outputs.nix { inherit inputs; };
 }

@@ -6,25 +6,26 @@
   nix-gitignore,
   stdenv,
   lib,
-  globalBuildInputs ? [],
-}: let
+  globalBuildInputs ? [ ],
+}:
+let
   sources = {
-    "@fontsource/jetbrains-mono-4.5.12" = {
+    "@fontsource/jetbrains-mono-5.0.20" = {
       name = "_at_fontsource_slash_jetbrains-mono";
       packageName = "@fontsource/jetbrains-mono";
-      version = "4.5.12";
+      version = "5.0.20";
       src = fetchurl {
-        url = "https://registry.npmjs.org/@fontsource/jetbrains-mono/-/jetbrains-mono-4.5.12.tgz";
-        sha512 = "LJF1ala1/u+wXZmESFqIk08FA9yGX4/uAAleCHmXUMgEjvNAYFHUQQ7eK5hQQoBOwh99cU5suTrqYqEkgzwzPA==";
+        url = "https://registry.npmjs.org/@fontsource/jetbrains-mono/-/jetbrains-mono-5.0.20.tgz";
+        sha512 = "QkrihYWqftzs+04TinulIhnFqNwO6990HR07iCUae/6daOZAMy7urUPzytrRT9M8KLTTHBeHOY0CKqOs1+o2OQ==";
       };
     };
-    "@fontsource/roboto-4.5.8" = {
+    "@fontsource/roboto-5.0.13" = {
       name = "_at_fontsource_slash_roboto";
       packageName = "@fontsource/roboto";
-      version = "4.5.8";
+      version = "5.0.13";
       src = fetchurl {
-        url = "https://registry.npmjs.org/@fontsource/roboto/-/roboto-4.5.8.tgz";
-        sha512 = "CnD7zLItIzt86q4Sj3kZUiLcBk1dSk81qcqgMGaZe7SQ1P8hFNxhMl5AZthK1zrDM5m74VVhaOpuMGIL4gagaA==";
+        url = "https://registry.npmjs.org/@fontsource/roboto/-/roboto-5.0.13.tgz";
+        sha512 = "j61DHjsdUCKMXSdNLTOxcG701FWnF0jcqNNQi2iPCDxU8seN/sMxeh62dC++UiagCWq9ghTypX+Pcy7kX+QOeQ==";
       };
     };
   };
@@ -34,8 +35,8 @@
     version = "0.0.1";
     src = ../../typhon-webapp/assets;
     dependencies = [
-      sources."@fontsource/jetbrains-mono-4.5.12"
-      sources."@fontsource/roboto-4.5.8"
+      sources."@fontsource/jetbrains-mono-5.0.20"
+      sources."@fontsource/roboto-5.0.13"
     ];
     buildInputs = globalBuildInputs;
     meta = {
@@ -45,24 +46,25 @@
     bypassCache = true;
     reconstructLock = true;
   };
-in {
+in
+{
   args = args;
   sources = sources;
   tarball = nodeEnv.buildNodeSourceDist args;
   package = nodeEnv.buildNodePackage args;
   shell = nodeEnv.buildNodeShell args;
-  nodeDependencies = nodeEnv.buildNodeDependencies (lib.overrideExisting args {
-    src = stdenv.mkDerivation {
-      name = args.name + "-package-json";
-      src =
-        nix-gitignore.gitignoreSourcePure [
+  nodeDependencies = nodeEnv.buildNodeDependencies (
+    lib.overrideExisting args {
+      src = stdenv.mkDerivation {
+        name = args.name + "-package-json";
+        src = nix-gitignore.gitignoreSourcePure [
           "*"
           "!package.json"
           "!package-lock.json"
-        ]
-        args.src;
-      dontBuild = true;
-      installPhase = "mkdir -p $out; cp -r ./* $out;";
-    };
-  });
+        ] args.src;
+        dontBuild = true;
+        installPhase = "mkdir -p $out; cp -r ./* $out;";
+      };
+    }
+  );
 }
