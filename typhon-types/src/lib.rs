@@ -415,7 +415,6 @@ pub mod responses {
         pub title: String,
     }
 
-    #[cfg_attr(feature = "diesel", derive(diesel::prelude::Queryable))]
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectInfo {
         pub handle: handles::Project,
