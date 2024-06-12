@@ -1,4 +1,4 @@
-_: lib: rec {
+_: lib: {
   mkDummyAction =
     {
       output ? "null",
