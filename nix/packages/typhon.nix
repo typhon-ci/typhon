@@ -15,6 +15,7 @@ let
       "Cargo.lock"
       "typhon.*"
     ];
+    RUSTC_BOOTSTRAP = 1;
   };
 
   cargoArtifacts = craneLib.buildDepsOnly args;

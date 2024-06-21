@@ -42,6 +42,7 @@ in
         ;
     };
     DATABASE_URL = "typhon.sqlite";
+    RUSTC_BOOTSTRAP = 1;
     TYPHON_FLAKE = ../typhon-flake;
   };
 
