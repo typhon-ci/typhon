@@ -1,8 +1,7 @@
 {
   inputs ? import ./inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ./nixpkgs.nix { inherit inputs system; },
-  rust ? import ./rust.nix { inherit inputs system; },
+  pkgs ? import inputs.nixpkgs { inherit system; },
 }:
 let
   env = ''
@@ -20,9 +19,9 @@ in
   default = pkgs.mkShell {
     name = "typhon-devshell";
     packages = builtins.attrValues {
-      inherit (rust) rustToolchain;
       inherit (pkgs)
         bubblewrap
+        cargo
         cargo-leptos
         diesel-cli
         leptosfmt

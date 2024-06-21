@@ -1,7 +1,7 @@
 {
   inputs ? import ../inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ../nixpkgs.nix { inherit inputs system; },
+  pkgs ? import iputs.nixpkgs { inherit system; },
   typhon ? import ../nixos/typhon.nix { inherit inputs; },
 }:
 pkgs.testers.nixosTest (
