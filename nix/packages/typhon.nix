@@ -64,10 +64,11 @@ craneLib.buildPackage (
       mkdir -p $out/bin
       cp target/release/typhon $out/bin/
       cp -r target/site $out/bin/
+      cp -r ${nodeDependencies}/lib/node_modules $out/bin/site
+      chmod +w -R $out/bin/site/node_modules
       wrapProgram $out/bin/typhon --set LEPTOS_SITE_ROOT $out/bin/site
     '';
     TYPHON_FLAKE = ../../typhon-flake;
     doNotLinkInheritedArtifacts = true;
-    preFixup = "cp -r ${nodeDependencies}/lib/node_modules $out/bin/site";
   }
 )
