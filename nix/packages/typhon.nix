@@ -43,6 +43,7 @@ let
       nativeBuildInputs = [
         pkgs.binaryen
         pkgs.cargo-leptos
+        pkgs.lld
       ];
     }
   );

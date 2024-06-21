@@ -26,6 +26,7 @@ in
         diesel-cli
         leptosfmt
         libargon2
+        lld
         nix
         nixfmt-rfc-style
         nodejs # npm
