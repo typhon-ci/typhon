@@ -18,7 +18,11 @@ utils: lib: {
                 action,
               }:
               ''
-                [[ "$jobset" =~ ${jobset} && "$system" =~ ${system} && "$job" =~ ${job} ]] && { echo "$stdin" | ${action.${system_}}/bin/action; exit $?; } || true
+                if [[ "$jobset" =~ ${jobset} && "$system" =~ ${system} && "$job" =~ ${job} ]]
+                then
+                  echo "$stdin" | ${action.${system_}}/bin/action
+                  exit $?
+                fi
               '';
           in
           ''

@@ -11,7 +11,6 @@ utils: lib: {
         name = "action";
         runtimeInputs = [ pkgs.coreutils ] ++ values.path or [ ];
         text = values.script;
-        excludeShellChecks = [ "SC2015" ];
       }
     );
 }
