@@ -34,7 +34,7 @@ utils: lib: {
           git add .
           git commit -m "''${input[out]}"
 
-          ${utils.lib.concatMapStrings (patch: ''
+          ${utils.nixpkgsLib.concatMapStrings (patch: ''
             git am < ${patch system}
           '') patches}
 

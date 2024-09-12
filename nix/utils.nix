@@ -6,9 +6,9 @@ let
   self = rec {
     inherit systems;
 
-    lib = inputs.nixpkgs.lib;
+    nixpkgsLib = inputs.nixpkgs.lib;
 
-    pkgs = lib.genAttrs systems (system: import inputs.nixpkgs { inherit system; });
+    pkgs = nixpkgsLib.genAttrs systems (system: import inputs.nixpkgs { inherit system; });
 
     unionOfDisjoint =
       x: y:
@@ -22,7 +22,7 @@ let
     importList =
       scope: list:
       mkScope scope (
-        lib.foldr (
+        nixpkgsLib.foldr (
           path: fn: lib:
           unionOfDisjoint (import path self lib) (fn lib)
         ) (_: { }) list
@@ -31,7 +31,7 @@ let
     importPath =
       scope: path:
       importList scope (
-        lib.mapAttrsToList (x: _: "${path}/${x}") (
+        nixpkgsLib.mapAttrsToList (x: _: "${path}/${x}") (
           builtins.removeAttrs (builtins.readDir path) [ "default.nix" ]
         )
       );

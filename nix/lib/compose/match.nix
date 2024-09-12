@@ -32,7 +32,7 @@ utils: lib: {
             job=''${input[job]}
 
           ''
-          + utils.lib.foldr (x: y: x + y) "" (builtins.map aux branches)
+          + utils.nixpkgsLib.foldr (x: y: x + y) "" (builtins.map aux branches)
           + ''
             exit 1
           '';

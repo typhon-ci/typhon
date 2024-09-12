@@ -29,7 +29,7 @@ utils: lib: {
             | jq '.
               | map({ (.name): {
                   "url": ("${urlPrefix}" + .name),
-                  "flake": ${utils.lib.boolToString flake}
+                  "flake": ${utils.nixpkgsLib.boolToString flake}
                 }})
               | add'
         '';
