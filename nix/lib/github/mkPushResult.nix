@@ -38,7 +38,8 @@ utils: lib: {
             git am < ${patch system}
           '') patches}
 
-          git remote add origin "https://$token@github.com/${owner}/${repo}"
+          export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+          git remote add origin "https://x-access-token:$token@github.com/${owner}/${repo}"
           git push -f -u origin ${branch}
         '';
       }
