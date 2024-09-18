@@ -21,7 +21,7 @@ utils: lib: {
             stdin=$(cat)
 
           ''
-          + utils.lib.foldr (x: y: x + y) "" (utils.lib.imap1 aux actions)
+          + utils.nixpkgsLib.foldr (x: y: x + y) "" (utils.nixpkgsLib.imap1 aux actions)
           + ''
             echo "null"
           '';
