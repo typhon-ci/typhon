@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+nixfmt .
+cargo fmt
+leptosfmt typhon-webapp/
