@@ -34,11 +34,12 @@ utils: lib: {
           git add .
           git commit -m "''${input[out]}"
 
-          ${utils.lib.concatMapStrings (patch: ''
+          ${utils.nixpkgsLib.concatMapStrings (patch: ''
             git am < ${patch system}
           '') patches}
 
-          git remote add origin "https://$token@github.com/${owner}/${repo}"
+          export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+          git remote add origin "https://x-access-token:$token@github.com/${owner}/${repo}"
           git push -f -u origin ${branch}
         '';
       }
