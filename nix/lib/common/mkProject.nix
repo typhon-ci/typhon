@@ -39,7 +39,13 @@ _: lib: {
           typhonUrl
           ;
       };
-      webhook = common.mkWebhook { inherit webhookSecretName; };
+      webhook = common.mkWebhook {
+        inherit
+          flake
+          urlPrefix
+          webhookSecretName
+          ;
+      };
     in
     lib.builders.mkProject {
       meta = {
