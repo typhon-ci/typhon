@@ -92,7 +92,7 @@ in
       serviceConfig = {
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
-          DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p "$(cat ${cfg.hashedPasswordFile})" -v
+          DATABASE_URL="TODO-POSTGRES" ${cfg.package}/bin/typhon -p "$(cat ${cfg.hashedPasswordFile})" -v
         '';
         Type = "simple";
         User = "typhon";

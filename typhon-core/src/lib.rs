@@ -74,17 +74,17 @@ fn verify_password(password: &[u8]) -> bool {
         .is_ok()
 }
 
-pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::SqliteConnection>>;
+pub type DbPool = r2d2::Pool<r2d2::ConnectionManager<diesel::PgConnection>>;
 pub type Conn =
-    diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::SqliteConnection>>;
+    diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::PgConnection>>;
 
 #[derive(Debug)]
 pub struct ConnectionCustomizer {}
 
-impl diesel::r2d2::CustomizeConnection<diesel::SqliteConnection, diesel::r2d2::Error>
+impl diesel::r2d2::CustomizeConnection<diesel::PgConnection, diesel::r2d2::Error>
     for ConnectionCustomizer
 {
-    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
+    fn on_acquire(&self, conn: &mut PgConnection) -> Result<(), diesel::r2d2::Error> {
         use diesel::connection::SimpleConnection;
         (|| {
             conn.batch_execute("PRAGMA foreign_keys = ON;")?;
@@ -334,11 +334,11 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 fn pool() -> DbPool {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let manager = diesel::r2d2::ConnectionManager::<SqliteConnection>::new(database_url);
+    let manager = diesel::r2d2::ConnectionManager::<PgConnection>::new(database_url);
     let pool = diesel::r2d2::Pool::builder()
         .connection_customizer(Box::new(ConnectionCustomizer {}))
         .build(manager)
-        .expect("database URL should be valid path to SQLite DB file");
+        .expect("invalid database URL");
 
     // Run migrations
     let mut conn = pool.get().unwrap();

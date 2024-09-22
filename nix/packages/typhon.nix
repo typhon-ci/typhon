@@ -53,7 +53,6 @@ craneLib.buildPackage (
   // {
     inherit cargoArtifacts;
     nativeBuildInputs = nativeBuildInputs ++ [
-      pkgs.sqlite.dev
       pkgs.makeWrapper
     ];
     buildPhaseCargoCommand = "cargo leptos build --release -vvv";

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ -d $PGDATA ]] || initdb -D "$PGDATA"
+
+pg_ctl start -D "$PGDATA" -l "$PGDATA/log" -o --unix-socket-directories="$PGDATA"
+
+createdb -h "$PGDATA" typhon

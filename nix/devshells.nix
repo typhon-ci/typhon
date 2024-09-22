@@ -20,8 +20,8 @@
         nixfmt-rfc-style
         nodejs # npm
         pkg-config
+        postgresql
         rust-analyzer
-        sqlite
         ;
     };
     CURRENT_SYSTEM = system;
@@ -29,8 +29,9 @@
     shellHook = ''
       export TYPHON_ROOT="$(pwd)"
       export PATH="$TYPHON_ROOT/scripts:$PATH"
-      export DATABASE_URL="$TYPHON_ROOT/typhon.sqlite"
       export TYPHON_FLAKE="path:$TYPHON_ROOT/typhon-flake"
+      export PGDATA="$TYPHON_ROOT/.postgres"
+      export DATABASE_URL="postgres://localhost:5432/typhon"
     '';
   };
 
