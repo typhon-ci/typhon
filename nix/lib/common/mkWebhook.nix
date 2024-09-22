@@ -26,7 +26,7 @@ utils: lib: {
           event=$(echo "$headers" | jq -r '."x-github-event"')
           [ "$event" == "push" ] || { echo '[]'; exit 0; }
 
-          ref=$(echo "$body" | jq '.ref|split("/")|.[2:]|join("/")')
+          ref=$(echo "$body" | jq -r '.ref|split("/")|.[2:]|join("/")')
           before=$(echo "$body" | jq -r '.before')
           after=$(echo "$body" | jq -r '.after')
           null="0000000000000000000000000000000000000000"
