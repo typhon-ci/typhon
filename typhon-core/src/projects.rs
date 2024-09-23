@@ -340,7 +340,7 @@ impl Project {
         action.spawn(conn, finish)?;
 
         let cmds = receiver.blocking_recv().map_err(|_| Error::Todo)?;
-        let cmds = cmds.map_err(|output| Error::BadWebhook(output))?;
+        let cmds = cmds.map_err(|output| Error::WebhookFailure(output))?;
         for cmd in cmds {
             let req = cmd.lift(self.handle().clone());
             tracing::trace!("handling request {} from webhook", req);
