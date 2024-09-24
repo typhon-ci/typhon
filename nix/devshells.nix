@@ -42,6 +42,7 @@ in
         format
         ;
     };
+    CURRENT_SYSTEM = system;
     DATABASE_URL = "typhon.sqlite";
     TYPHON_FLAKE = ../typhon-flake;
   };
