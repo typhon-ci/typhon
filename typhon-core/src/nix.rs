@@ -366,23 +366,6 @@ pub async fn eval_jobs(url: &str, flake: bool) -> Result<NewJobs, Error> {
     Ok(jobs)
 }
 
-pub fn current_system() -> String {
-    String::from_utf8(
-        std::process::Command::new("nix")
-            .args([
-                "eval",
-                "--impure",
-                "--raw",
-                "--expr",
-                "builtins.currentSystem",
-            ])
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap()
-}
-
 pub fn lock(url: &String) -> Result<String, Error> {
     use std::process::Command;
 

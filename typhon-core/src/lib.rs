@@ -104,7 +104,8 @@ pub static RUNS: LazyLock<TaskManager<i32>> = LazyLock::new(|| TaskManager::new(
 pub static TASKS: LazyLock<TaskManager<i32>> = LazyLock::new(|| TaskManager::new());
 pub static LOGS: LazyLock<logs::live::Cache<i32>> = LazyLock::new(logs::live::Cache::new);
 pub static EVENT_LOGGER: LazyLock<events::EventLogger> = LazyLock::new(events::EventLogger::new);
-pub static CURRENT_SYSTEM: LazyLock<String> = LazyLock::new(nix::current_system);
+
+pub const CURRENT_SYSTEM: &str = env!("CURRENT_SYSTEM");
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum User {
@@ -348,9 +349,6 @@ pub fn init(password: &String) {
 
     // Force database migrations
     let _ = LazyLock::force(&POOL);
-
-    // Init current system
-    let _ = LazyLock::force(&CURRENT_SYSTEM);
 
     // Init runtime
     let _ = LazyLock::force(&RUNTIME);
