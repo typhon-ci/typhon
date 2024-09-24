@@ -41,10 +41,7 @@ impl Task {
 
     pub fn log(&self, conn: &mut Conn) -> Result<Option<impl Stream<Item = String>>, Error> {
         let stream = LOGS.listen(&self.task.id);
-        let stderr = schema::logs::dsl::logs
-            .find(self.task.log_id)
-            .select(schema::logs::stderr)
-            .first::<Option<String>>(conn)?;
+        let stderr: Option<String> = todo!();
         Ok(Some(async_stream::stream! {
             if let Some(stream) = stream {
                 for await line in stream {
@@ -59,11 +56,7 @@ impl Task {
     }
 
     pub fn new(conn: &mut Conn) -> Result<Self, Error> {
-        let log = diesel::insert_into(schema::logs::dsl::logs)
-            .values(models::NewLog { stderr: None })
-            .get_result::<models::Log>(conn)?;
         let new_task = models::NewTask {
-            log_id: log.id,
             status: TaskStatusKind::Pending.into(),
         };
         let task = diesel::insert_into(schema::tasks::dsl::tasks)
@@ -107,10 +100,7 @@ impl Task {
                 let stderr = LOGS.remove(&id).unwrap_or(String::new()); // FIXME
                 let status = status_kind.into_task_status(start, Some(time_finished));
                 task.set_status(&mut conn, status).unwrap();
-                diesel::update(schema::logs::table.filter(schema::logs::id.eq(task.task.log_id)))
-                    .set(schema::logs::stderr.eq(stderr))
-                    .execute(&mut conn)
-                    .unwrap(); // TODO: handle error properly
+                todo!(); // save stderr
                 log_event(event);
                 None::<()>
             }

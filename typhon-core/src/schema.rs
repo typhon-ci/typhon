@@ -61,13 +61,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    logs (id) {
-        id -> Integer,
-        stderr -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
     projects (id) {
         actions_path -> Nullable<Text>,
         description -> Text,
@@ -98,8 +91,8 @@ diesel::table! {
 diesel::table! {
     tasks (id) {
         id -> Integer,
-        log_id -> Integer,
         status -> Integer,
+        stderr -> Nullable<Text>,
         time_finished -> Nullable<BigInt>,
         time_started -> Nullable<BigInt>,
     }
@@ -115,7 +108,6 @@ diesel::joinable!(jobsets -> projects (project_id));
 diesel::joinable!(projects -> tasks (last_refresh_task_id));
 diesel::joinable!(runs -> builds (build_id));
 diesel::joinable!(runs -> jobs (job_id));
-diesel::joinable!(tasks -> logs (log_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     actions,
@@ -123,7 +115,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     evaluations,
     jobs,
     jobsets,
-    logs,
     projects,
     runs,
     tasks,

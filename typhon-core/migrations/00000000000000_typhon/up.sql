@@ -81,13 +81,8 @@ CREATE TABLE actions (
 
 CREATE TABLE tasks (
     id INTEGER NOT NULL PRIMARY KEY,
-    log_id INTEGER NOT NULL REFERENCES logs (id),
     status INTEGER NOT NULL,
+    stderr TEXT,
     time_finished BIGINT,
     time_started BIGINT
-);
-
-CREATE TABLE logs (
-    id INTEGER NOT NULL PRIMARY KEY,
-    stderr TEXT
 );

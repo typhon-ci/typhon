@@ -3,7 +3,6 @@ use crate::schema::builds;
 use crate::schema::evaluations;
 use crate::schema::jobs;
 use crate::schema::jobsets;
-use crate::schema::logs;
 use crate::schema::projects;
 use crate::schema::runs;
 use crate::schema::tasks;
@@ -111,25 +110,11 @@ pub struct NewJob<'a> {
 }
 
 #[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
-#[diesel(table_name = logs)]
-pub struct Log {
-    pub id: i32,
-    pub stderr: Option<String>,
-}
-
-#[derive(Debug, Insertable)]
-#[diesel(table_name = logs)]
-pub struct NewLog<'a> {
-    pub stderr: Option<&'a str>, // FIXME
-}
-
-#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
 #[diesel(table_name = tasks)]
-#[diesel(belongs_to(Log))]
 pub struct Task {
     pub id: i32,
-    pub log_id: i32,
     pub status: i32,
+    pub stderr: Option<String>, // TODO: don't load logs
     pub time_finished: Option<i64>,
     pub time_started: Option<i64>,
 }
@@ -137,7 +122,6 @@ pub struct Task {
 #[derive(Debug, Insertable)]
 #[diesel(table_name = tasks)]
 pub struct NewTask {
-    pub log_id: i32,
     pub status: i32,
 }
 
