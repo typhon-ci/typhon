@@ -19,12 +19,8 @@ use tokio::sync::mpsc;
 
 #[derive(Debug)]
 pub enum Error {
-    InvalidKey,
-    InvalidSecrets,
     NonUtf8,
     ScriptNotFound,
-    SecretsNotFound,
-    WrongRecipient,
     Unexpected,
 }
 
@@ -32,12 +28,8 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use Error::*;
         match self {
-            InvalidKey => write!(f, "Invalid key"),
-            InvalidSecrets => write!(f, "Wrong secrets format"),
             NonUtf8 => write!(f, "Action outputted non-UTF8 characters"),
             ScriptNotFound => write!(f, "Action script not found"),
-            SecretsNotFound => write!(f, "Secrets file not found"),
-            WrongRecipient => write!(f, "Secrets file uncrypted with wrong key"),
             Unexpected => write!(f, "Unexpected error"),
         }
     }
@@ -65,37 +57,13 @@ async fn action(
     path: &String,
     name: &String,
     input: &Value,
+    secrets: &Value,
     sender: mpsc::UnboundedSender<String>,
 ) -> Result<String, Error> {
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncReadExt;
     use tokio::io::AsyncWriteExt;
     use tokio::io::BufReader;
-
-    let key =
-        age::x25519::Identity::from_str(&project.project.key).map_err(|_| Error::InvalidKey)?;
-
-    let decrypted = File::open(&format!("{}/secrets", path))
-        .map(|encrypted| {
-            let decryptor =
-                match age::Decryptor::new(&encrypted).map_err(|_| Error::InvalidSecrets)? {
-                    age::Decryptor::Recipients(d) => d,
-                    _ => unreachable!(),
-                };
-
-            let mut decrypted = String::new();
-            let mut reader = decryptor
-                .decrypt(iter::once(&key as &dyn age::Identity))
-                .map_err(|e| match e {
-                    age::DecryptError::NoMatchingKeys => Error::WrongRecipient,
-                    _ => Error::InvalidSecrets,
-                })?;
-            let _ = reader.read_to_string(&mut decrypted);
-
-            Ok(decrypted)
-        })
-        .unwrap_or(Ok::<String, Error>("{}".to_string()))?;
-    let secrets: Value = serde_json::from_str(&decrypted).map_err(|_| Error::InvalidSecrets)?;
 
     let action_input = json!({
         "input": input,
@@ -190,6 +158,7 @@ impl Action {
                     &self_.action.path,
                     &self_.action.name,
                     &Value::from_str(&self_.action.input).unwrap(),
+                    todo!(),
                     sender,
                 )
                 .await

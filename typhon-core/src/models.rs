@@ -6,6 +6,7 @@ use crate::schema::jobsets;
 use crate::schema::logs;
 use crate::schema::projects;
 use crate::schema::runs;
+use crate::schema::secrets;
 use crate::schema::tasks;
 
 use diesel::prelude::*;
@@ -18,7 +19,6 @@ pub struct Project {
     pub flake: bool,
     pub homepage: String,
     pub id: i32,
-    pub key: String,
     pub last_refresh_task_id: Option<i32>,
     pub name: String,
     pub title: String,
@@ -30,9 +30,25 @@ pub struct Project {
 #[diesel(table_name = projects)]
 pub struct NewProject<'a> {
     pub flake: bool,
-    pub key: &'a str,
     pub name: &'a str,
     pub url: &'a str,
+}
+
+#[derive(Debug, Queryable, Clone, Identifiable, Selectable)]
+#[diesel(table_name = secrets)]
+pub struct Secret {
+    pub id: i32,
+    pub key: String,
+    pub project_id: i32,
+    pub value: String,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = secrets)]
+pub struct NewSecret<'a> {
+    pub key: &'a str,
+    pub project_id: i32,
+    pub value: &'a str,
 }
 
 #[derive(Debug, Queryable, Clone, Identifiable, Selectable)]

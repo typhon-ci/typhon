@@ -312,8 +312,10 @@ pub mod requests {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub enum Project {
         //Delete,
+        AddSecret { key: String, value: String },
         Info,
         Refresh,
+        RemoveSecret { key: String },
         SetDecl(ProjectDecl),
         UpdateJobsets,
     }
@@ -423,7 +425,7 @@ pub mod responses {
         pub jobsets: Vec<String>,
         pub last_refresh: Option<TaskStatus>,
         pub metadata: ProjectMetadata,
-        pub public_key: String,
+        pub secrets: Vec<String>,
         pub url: String,
         pub url_locked: String,
     }

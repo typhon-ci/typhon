@@ -67,6 +67,7 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
         Signal::derive(move || handle_name.clone())
     };
     let item_name = handle.name.clone();
+    // TODO: add fields to edit secrets
     view! {
         <Trans error>
             <PageHeader item_kind="Project" item_name=item_name.clone()>
@@ -86,10 +87,6 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
                                     <tr>
                                         <td>"Flake"</td>
                                         <td>{info.flake}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>"Public key"</td>
-                                        <td>{info.public_key}</td>
                                     </tr>
                                 </table>
                             }

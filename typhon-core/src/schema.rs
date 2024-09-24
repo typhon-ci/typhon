@@ -74,7 +74,6 @@ diesel::table! {
         flake -> Bool,
         homepage -> Text,
         id -> Integer,
-        key -> Text,
         last_refresh_task_id -> Nullable<Integer>,
         name -> Text,
         title -> Text,
@@ -92,6 +91,15 @@ diesel::table! {
         job_id -> Integer,
         num -> Integer,
         time_created -> BigInt,
+    }
+}
+
+diesel::table! {
+    secrets (id) {
+        id -> Integer,
+        key -> Text,
+        project_id -> Integer,
+        value -> Text,
     }
 }
 
@@ -115,6 +123,7 @@ diesel::joinable!(jobsets -> projects (project_id));
 diesel::joinable!(projects -> tasks (last_refresh_task_id));
 diesel::joinable!(runs -> builds (build_id));
 diesel::joinable!(runs -> jobs (job_id));
+diesel::joinable!(secrets -> projects (project_id));
 diesel::joinable!(tasks -> logs (log_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
@@ -126,5 +135,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     logs,
     projects,
     runs,
+    secrets,
     tasks,
 );

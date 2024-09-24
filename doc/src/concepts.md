@@ -29,12 +29,12 @@ project is defined by a flake URL. The referenced flake must expose an output
 `typhonProject` contains two attributes: `meta` and `actions`. `meta` is an
 attribute set which defines metadata about the project: a title, a description
 and a homepage. `actions` is an attribute set of derivations that build actions
-for the project and holds encrypted secrets for use by the actions.
+for the project.
 
 A project typically configures CI for a repository, but the declaration can
 exist in a separate repository. In fact, the declaration of a project is quite
-sensitive since it defines the way the project's unencrypted secrets are
-handled. Malicious edits to the declaration can potentially leak these secrets.
+sensitive since it defines the way the project's secrets are handled. Malicious
+edits to the declaration can potentially leak these secrets.
 
 ## Jobsets
 
@@ -76,11 +76,6 @@ actions a project can define:
 - The `webhook` action is triggered by calls to a specific endpoint of the API.
   It outputs commands for Typhon to update or evaluate jobsets. It is meant to
   trigger jobs automatically.
-
-Actions can also expose a `secrets` file. This is an age encrypted JSON file
-that typically contains tokens for the actions. It must be encrypted with the
-project's public key and is decrypted at runtime and passed as input to the
-actions.
 
 Thanks to the use of actions, Typhon is forge-agnostic: it has no code specific
 to any forge. Instead, it is the actions' job to plug Typhon to the user's

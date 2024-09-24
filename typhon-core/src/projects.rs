@@ -16,7 +16,6 @@ use typhon_types::data::TaskStatusKind;
 use typhon_types::responses::ProjectMetadata;
 use typhon_types::*;
 
-use age::secrecy::ExposeSecret;
 use diesel::prelude::*;
 use serde::Deserialize;
 use time::OffsetDateTime;
@@ -44,14 +43,9 @@ impl Project {
         match Self::get(conn, &handle) {
             Ok(_) => Err(Error::ProjectAlreadyExists(handle.clone())),
             Err(_) => {
-                let key = age::x25519::Identity::generate()
-                    .to_string()
-                    .expose_secret()
-                    .clone();
                 let new_project = models::NewProject {
                     flake: decl.flake,
                     url: &decl.url,
-                    key: &key,
                     name: &handle.name,
                 };
                 diesel::insert_into(schema::projects::table)
@@ -91,10 +85,6 @@ impl Project {
             .iter()
             .map(|jobset| jobset.name.clone())
             .collect();
-        let public_key = age::x25519::Identity::from_str(&self.project.key)
-            .map_err(|_| Error::Todo)?
-            .to_public()
-            .to_string();
         Ok(responses::ProjectInfo {
             handle: self.handle(),
             actions_path: self.project.actions_path.clone(),
@@ -106,7 +96,7 @@ impl Project {
                 description: self.project.description.clone(),
                 homepage: self.project.homepage.clone(),
             },
-            public_key,
+            secrets: todo!(),
             url: self.project.url.clone(),
             url_locked: self.project.url_locked.clone(),
         })
@@ -174,7 +164,6 @@ impl Project {
                     let drv = nix::derivation(nix::Expr::Path(x.clone())).await?;
                     // FIXME: this should spawn a build
                     Some(nix::build(&drv.path, sender).await?["out"].clone())
-                    // TODO: check public key used to encrypt secrets
                 } else {
                     None
                 };

@@ -1,4 +1,5 @@
 DROP TABLE projects;
+DROP TABLE secrets;
 DROP TABLE jobsets;
 DROP TABLE evaluations;
 DROP TABLE jobs;

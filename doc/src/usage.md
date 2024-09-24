@@ -42,28 +42,13 @@ Let's create a flake in the `$config` repository, then add an output
     typhonProject = typhon.lib.github.mkProject {
       owner = "$user";
       repo = "$project";
-      secrets = ./secrets.age;
       typhonUrl = "$typhon_url";
     };
   };
 }
 ```
 
-We need to generate the `secrets.age` file. First let's write a `secrets.json`
-file containing the secrets you generated (don't commit it!):
-
-```json
-{
-  "github_token": "$token",
-  "github_webhook_secret": "$secret"
-}
-```
-
-Then, we encrypt the JSON file with `age`, using the public key of the project:
-
-```shell
-nix run nixpkgs#age -- --encrypt -r "$pk" -o secrets.age secrets.json
-```
+TODO: add secrets to the project
 
 We also need to generate the lock file:
 
@@ -71,7 +56,7 @@ We also need to generate the lock file:
 nix flake lock
 ```
 
-Finally, we commit `secrets.age`, `flake.nix` and `flake.lock`.
+Finally, we commit `flake.nix` and `flake.lock`.
 
 ## The project flake
 

@@ -9,7 +9,6 @@ _: lib: {
       homepage,
       owner,
       repo,
-      secrets,
       title,
       tokenName,
       typhonUrl,
@@ -63,6 +62,5 @@ _: lib: {
           ++ deploy
         );
       };
-      inherit secrets;
     };
 }

@@ -5,7 +5,6 @@ _: lib: {
       instance,
       owner,
       repo,
-      secrets,
       typhonUrl,
       title ? repo,
       description ? "",

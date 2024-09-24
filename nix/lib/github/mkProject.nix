@@ -4,7 +4,6 @@ _: lib: {
       deploy ? [ ],
       owner,
       repo,
-      secrets,
       typhonUrl,
       title ? repo,
       description ? "",

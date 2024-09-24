@@ -28,7 +28,6 @@ typhon-webapp = { path = "./typhon-webapp" }
 actix-files = "0.6"
 actix-session = { version = "0.9", features = ["cookie-session"] }
 actix-web = "4.6"
-age = { version = "0.10", features = ["armor"] }
 argon2 = "0.5"
 async-recursion = "1.1"
 async-stream = "0.3"

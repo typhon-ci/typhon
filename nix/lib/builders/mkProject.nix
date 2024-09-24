@@ -3,7 +3,6 @@ utils: lib: {
     args@{
       actions ? { },
       meta ? { },
-      secrets ? null,
     }:
     {
       inherit meta;
@@ -17,7 +16,6 @@ utils: lib: {
               "ln -s ${actions.${name}.${system}}/bin/action ${name}"
             else
               "";
-          linkSecrets = if secrets != null then "ln -s ${secrets} secrets" else "";
         in
         pkgs.runCommand "actions" { } ''
           mkdir $out
@@ -26,7 +24,6 @@ utils: lib: {
           ${linkAction "begin"}
           ${linkAction "end"}
           ${linkAction "webhook"}
-          ${linkSecrets}
         ''
       );
     };

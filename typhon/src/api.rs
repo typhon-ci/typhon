@@ -127,6 +127,15 @@ r!(
     //        Project::Delete,
     //    );
 
+    project_add_secret(path: web::Path<(String, String)>, body: web::Json<String>) => {
+        let (name, key) = path.into_inner();
+        let value = body.into_inner();
+        Request::Project(
+            handles::project(name),
+            Project::AddSecret { key, value },
+        )
+    };
+
     project_info(path: web::Path<String>) =>
         Request::Project(
             handles::project(path.into_inner()),
@@ -138,6 +147,14 @@ r!(
             handles::project(path.into_inner()),
             Project::Refresh,
         );
+
+    project_remove_secret(path: web::Path<(String, String)>) => {
+        let (name, key) = path.into_inner();
+        Request::Project(
+            handles::project(name),
+            Project::RemoveSecret { key },
+        )
+    };
 
     project_set_decl(path: web::Path<String>, body: web::Json<ProjectDecl>) =>
         Request::Project(
@@ -346,6 +363,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     //.route("/delete", web::post().to(project_delete))
                     .route("/refresh", web::post().to(project_refresh))
                     .route("/update_jobsets", web::post().to(project_update_jobsets))
+                    .route("/secrets/{secret}/add", web::post().to(project_add_secret))
+                    .route(
+                        "/secrets/{secret}/remove",
+                        web::post().to(project_remove_secret),
+                    )
                     .route("/set_decl", web::post().to(project_set_decl))
                     .route("/webhook", web::post().to(webhook))
                     .service(

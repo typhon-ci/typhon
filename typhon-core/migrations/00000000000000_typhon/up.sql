@@ -4,13 +4,20 @@ CREATE TABLE projects (
     flake BOOL NOT NULL,
     homepage TEXT DEFAULT '' NOT NULL,
     id INTEGER NOT NULL PRIMARY KEY,
-    key TEXT NOT NULL,
     last_refresh_task_id INTEGER REFERENCES tasks (id),
     name TEXT NOT NULL,
     title TEXT DEFAULT '' NOT NULL,
     url TEXT DEFAULT '' NOT NULL,
     url_locked TEXT DEFAULT '' NOT NULL,
     UNIQUE (name)
+);
+
+CREATE TABLE secrets (
+    id INTEGER NOT NULL PRIMARY KEY,
+    key TEXT NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES projects (id),
+    value TEXT NOT NULL,
+    UNIQUE (project_id, key)
 );
 
 CREATE TABLE jobsets (
