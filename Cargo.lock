@@ -31,7 +31,7 @@ dependencies = [
  "actix-web",
  "bitflags",
  "bytes",
- "derive_more",
+ "derive_more 0.99.17",
  "futures-core",
  "http-range",
  "log",
@@ -58,7 +58,7 @@ dependencies = [
  "brotli",
  "bytes",
  "bytestring",
- "derive_more",
+ "derive_more 0.99.17",
  "encoding_rs",
  "flate2",
  "futures-core",
@@ -154,7 +154,7 @@ dependencies = [
  "actix-utils",
  "actix-web",
  "anyhow",
- "derive_more",
+ "derive_more 0.99.17",
  "serde",
  "serde_json",
  "tracing",
@@ -190,7 +190,7 @@ dependencies = [
  "bytestring",
  "cfg-if",
  "cookie",
- "derive_more",
+ "derive_more 0.99.17",
  "encoding_rs",
  "futures-core",
  "futures-util",
@@ -1113,6 +1113,27 @@ dependencies = [
  "quote",
  "rustc_version",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "derive_more"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.66",
+ "unicode-xid",
 ]
 
 [[package]]
@@ -3766,6 +3787,7 @@ dependencies = [
  "actix-session",
  "actix-web",
  "clap",
+ "derive_more 1.0.0",
  "futures",
  "futures-core",
  "hex",
@@ -3790,6 +3812,7 @@ dependencies = [
  "async-recursion",
  "async-stream",
  "async-trait",
+ "derive_more 1.0.0",
  "diesel",
  "diesel_migrations",
  "ext-trait",
@@ -3808,6 +3831,7 @@ dependencies = [
 name = "typhon-types"
 version = "0.0.1"
 dependencies = [
+ "derive_more 1.0.0",
  "lazy_static",
  "regex",
  "serde",
@@ -3826,6 +3850,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "console_error_panic_hook",
+ "derive_more 1.0.0",
  "either",
  "futures",
  "futures-core",

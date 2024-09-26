@@ -233,15 +233,21 @@ pub mod requests {
         use serde::{Deserialize, Serialize};
         use uuid::Uuid;
 
-        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, derive_more::Display)]
         #[serde(rename_all = "lowercase")]
         #[serde(tag = "type")]
         pub enum Kind {
+            #[display("projects")]
             Projects,
+            #[display("jobsets")]
             Jobsets(Jobset),
+            #[display("evaluations")]
             Evaluations(Evaluation),
+            #[display("builds")]
             Builds(Build),
+            #[display("actions")]
             Actions(Action),
+            #[display("runs")]
             Runs(Run),
         }
 
@@ -251,20 +257,6 @@ pub mod requests {
             pub offset: u32,
             #[serde(flatten)]
             pub kind: Kind,
-        }
-
-        impl std::fmt::Display for Kind {
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                let name = match self {
-                    Self::Projects => "projects",
-                    Self::Jobsets(..) => "jobsets",
-                    Self::Evaluations(..) => "evaluations",
-                    Self::Builds(..) => "builds",
-                    Self::Actions(..) => "actions",
-                    Self::Runs(..) => "runs",
-                };
-                write!(f, "{name}")
-            }
         }
 
         #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -352,47 +344,30 @@ pub mod requests {
         Info,
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, derive_more::Display)]
     pub enum Request {
+        #[display("Search through {}", _0.kind)]
         Search(search::Request),
+        #[display("Create project {name} with url {} (flake: {})", decl.url, decl.flake)]
         CreateProject { name: String, decl: ProjectDecl },
+        #[display("{_1:?} for project {_0}")]
         Project(handles::Project, Project),
+        #[display("{_1:?} for jobset {_0}")]
         Jobset(handles::Jobset, Jobset),
+        #[display("{_1:?} for evaluation {_0}")]
         Evaluation(handles::Evaluation, Evaluation),
+        #[display("{_1:?} for job {_0}")]
         Job(handles::Job, Job),
+        #[display("{_1:?} for build {_0}")]
         Build(handles::Build, Build),
+        #[display("{_1:?} for action {_0}")]
         Action(handles::Action, Action),
+        #[display("{_1:?} for run {_0}")]
         Run(handles::Run, Run),
+        #[display("Log in")]
         Login { password: String },
+        #[display("Get current user")]
         User,
-    }
-
-    impl std::fmt::Display for Request {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            match self {
-                Request::Search(search::Request { kind, .. }) => {
-                    write!(f, "Search through {kind}")
-                }
-                Request::CreateProject { name, decl } => {
-                    write!(
-                        f,
-                        "Create{} project {} with url {}",
-                        if !decl.flake { " legacy" } else { "" },
-                        name,
-                        decl.url
-                    )
-                }
-                Request::Project(h, req) => write!(f, "{:?} for project {}", req, h),
-                Request::Jobset(h, req) => write!(f, "{:?} for jobset {}", req, h),
-                Request::Evaluation(h, req) => write!(f, "{:?} for evaluation {}", req, h),
-                Request::Job(h, req) => write!(f, "{:?} for job {}", req, h),
-                Request::Build(h, req) => write!(f, "{:?} for build {}", req, h),
-                Request::Action(h, req) => write!(f, "{:?} for action {}", req, h),
-                Request::Run(h, req) => write!(f, "{:?} for run {}", req, h),
-                Request::Login { .. } => write!(f, "Log in"),
-                Request::User => write!(f, "Get current user"),
-            }
-        }
     }
 }
 
@@ -526,21 +501,14 @@ pub mod responses {
         User(Option<data::User>),
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, derive_more::Display)]
     pub enum ResponseError {
+        #[display("Bad request: {_0}")]
         BadRequest(String),
+        #[display("Internal server error")]
         InternalError,
+        #[display("Resource not found: {_0}")]
         ResourceNotFound(String),
-    }
-
-    impl std::fmt::Display for ResponseError {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            match self {
-                ResponseError::BadRequest(e) => write!(f, "Bad request: {}", e),
-                ResponseError::InternalError => write!(f, "Internal server error"),
-                ResponseError::ResourceNotFound(e) => write!(f, "Resource not found: {}", e),
-            }
-        }
     }
 }
 

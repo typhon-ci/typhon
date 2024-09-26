@@ -30,15 +30,29 @@ impl Default for TaskStatus {
 /** The kind of status a task can have: basically [`TaskStatus`] without
  * any time information. */
 #[derive(
-    Copy, Clone, Debug, Hash, Default, PartialEq, Eq, Serialize, Deserialize, strum::EnumIter,
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    strum::EnumIter,
+    derive_more::Display,
 )]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum TaskStatusKind {
     #[default]
+    #[display("pending")]
     Pending = 0,
+    #[display("success")]
     Success = 1,
+    #[display("failure")]
     Failure = 2,
+    #[display("canceled")]
     Canceled = 3,
 }
 
@@ -135,17 +149,6 @@ impl TryFrom<i32> for TaskStatusKind {
 impl From<TaskStatusKind> for i32 {
     fn from(x: TaskStatusKind) -> i32 {
         (x as u8) as i32
-    }
-}
-
-impl std::fmt::Display for TaskStatusKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Pending => write!(f, "pending"),
-            Self::Success => write!(f, "success"),
-            Self::Failure => write!(f, "failure"),
-            Self::Canceled => write!(f, "canceled"),
-        }
     }
 }
 
