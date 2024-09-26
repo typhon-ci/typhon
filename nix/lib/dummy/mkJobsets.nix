@@ -6,7 +6,7 @@ utils: lib: {
       refs ? { },
     }:
     let
-      jobsets = utils.lib.genAttrs refs (ref: {
+      jobsets = utils.nixpkgsLib.genAttrs refs (ref: {
         url = builtins.flakeRefToString ((builtins.parseFlakeRef url) // { inherit ref; });
         inherit flake;
       });

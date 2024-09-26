@@ -18,7 +18,7 @@ utils: lib: {
             | split("\n")
             | map({(.): {
                 "url": ("git+${url}?ref=" + .),
-                "flake": ${utils.lib.boolToString flake}
+                "flake": ${utils.nixpkgsLib.boolToString flake}
               }})
             | add'
         '';
