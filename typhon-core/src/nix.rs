@@ -366,6 +366,15 @@ pub async fn eval_jobs(url: &str, flake: bool) -> Result<NewJobs, Error> {
     Ok(jobs)
 }
 
+pub fn flake_ref_to_string(flake_ref: &Value) -> Option<String> {
+    let flake_type = flake_ref.get("type")?;
+    let url = match &flake_type {
+        // TODO
+        _ => None?,
+    };
+    Some(url)
+}
+
 pub fn lock(url: &String) -> Result<String, Error> {
     use std::process::Command;
 
@@ -391,30 +400,13 @@ pub fn lock(url: &String) -> Result<String, Error> {
         });
     }
 
-    let locked_info = &serde_json::from_str::<Value>(&stdout).unwrap()["nodes"]["x"]["locked"];
-
-    let mut cmd = Command::new("nix");
-    cmd.args([
-        "eval",
-        "--raw",
-        "--expr",
-        &format!(
-            "builtins.flakeRefToString (builtins.fromJSON ''{}'')",
-            locked_info
-        ),
-    ]);
-    let output = cmd.output().unwrap();
-    let stdout = String::from_utf8(output.stdout)?;
-    let stderr = String::from_utf8(output.stderr)?;
-    if !output.status.success() {
-        return Err(Error::NixCommand {
-            cmd: format!("{:?}", cmd),
-            stdout,
-            stderr,
-        });
-    }
-
-    Ok(stdout)
+    let err = || Error::UnexpectedOutput {
+        context: format!("While locking url {} got malformed output: {}", url, stdout),
+    };
+    let locked_info = serde_json::from_str::<Value>(&stdout).map_err(|_| err())?;
+    let flake_ref =
+        (|| Some(locked_info.get("nodes")?.get("x")?.get("locked")?))().ok_or_else(err)?;
+    Ok(flake_ref_to_string(&flake_ref).ok_or_else(err)?)
 }
 
 pub fn dependencies(drv: &String) -> Result<Vec<String>, Error> {
