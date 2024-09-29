@@ -24,6 +24,7 @@
         sqlite
         ;
     };
+    CURRENT_SYSTEM = system;
     DATABASE_URL = "typhon.sqlite";
     TYPHON_FLAKE = ../typhon-flake;
     shellHook = ''export PATH="$(pwd)/scripts:$PATH"'';
