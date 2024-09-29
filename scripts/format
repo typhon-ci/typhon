@@ -2,5 +2,5 @@
 set -euo pipefail
 
 nixfmt "$TYPHON_ROOT"
-cargo fmt --manifest-path "$TYPHON_ROOT/Cargo.toml" --all
+cargo fmt --all
 leptosfmt "$TYPHON_ROOT/typhon-webapp/"
