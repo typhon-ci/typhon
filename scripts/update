@@ -1,8 +1,8 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -i bash -p cargo-edit node2nix npm-check-updates
 
-NODE_DIR="typhon-webapp/assets"
-NODE2NIX_DIR="nix/npm-nix"
+NODE_DIR="$TYPHON_ROOT/typhon-webapp/assets"
+NODE2NIX_DIR="$TYPHON_ROOT/nix/npm-nix"
 
 # update Rust dependencies
 cargo upgrade -i

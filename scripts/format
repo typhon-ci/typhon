@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-nixfmt .
-cargo fmt
-leptosfmt typhon-webapp/
+nixfmt "$TYPHON_ROOT"
+cargo fmt --manifest-path "$TYPHON_ROOT/Cargo.toml" --all
+leptosfmt "$TYPHON_ROOT/typhon-webapp/"

@@ -25,11 +25,11 @@
         ;
     };
     CURRENT_SYSTEM = system;
-    DATABASE_URL = "typhon.sqlite";
-    TYPHON_FLAKE = ../typhon-flake;
     shellHook = ''
       export TYPHON_ROOT="$(pwd)"
       export PATH="$TYPHON_ROOT/scripts:$PATH"
+      export DATABASE_URL="$TYPHON_ROOT/typhon.sqlite"
+      export TYPHON_FLAKE="$TYPHON_ROOT/typhon-flake"
     '';
   };
 
