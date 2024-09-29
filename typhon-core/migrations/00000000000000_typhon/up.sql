@@ -91,3 +91,28 @@ CREATE TABLE logs (
     id INTEGER NOT NULL PRIMARY KEY,
     stderr TEXT
 );
+
+CREATE TABLE users (
+    fullname TEXT,
+    id INTEGER NOT NULL PRIMARY KEY,
+    password BLOB NOT NULL,
+    username TEXT NOT NULL,
+    unique (username)
+);
+
+CREATE TABLE sessions (
+    expires_at BIGINT,
+    id INTEGER NOT NULL PRIMARY KEY,
+    last_used_at BIGINT,
+    name TEXT NOT NULL,
+    revoked_at BIGINT,
+    token BLOB NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users (id),
+    unique (user_id, name)
+);
+
+CREATE TABLE permissions (
+    id INTEGER NOT NULL PRIMARY KEY,
+    type TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users (id)
+);

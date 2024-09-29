@@ -7,3 +7,6 @@ DROP TABLE builds;
 DROP TABLE actions;
 DROP TABLE tasks;
 DROP TABLE logs;
+DROP TABLE users;
+DROP TABLE sessions;
+DROP TABLE permissions;
