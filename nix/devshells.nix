@@ -27,7 +27,10 @@
     CURRENT_SYSTEM = system;
     DATABASE_URL = "typhon.sqlite";
     TYPHON_FLAKE = ../typhon-flake;
-    shellHook = ''export PATH="$(pwd)/scripts:$PATH"'';
+    shellHook = ''
+      export TYPHON_ROOT="$(pwd)"
+      export PATH="$TYPHON_ROOT/scripts:$PATH"
+    '';
   };
 
   doc = pkgs.mkShell {
