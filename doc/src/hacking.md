@@ -23,7 +23,7 @@ Typhon uses [Actix](https://actix.rs/) for the web server and
 [Diesel](https://diesel.rs/) for the database management. The webapp is written
 with [Leptos](https://leptos.dev/). Typhon is built with `cargo-leptos`.
 
-## Building
+## Building & Running
 
 If you are building Typhon for the first time, first go to
 `typhon-webapp/assets` and run `npm install`.
@@ -34,19 +34,15 @@ Then, to build Typhon, go to the root of the project and run:
 build
 ```
 
-## Testing
-
 To run Typhon, create `/nix/var/nix/gcroots/typhon/` and make sure that you have
 write access to the directory. Then go to the root of the project and run:
 
 ```shell
-serve
+watch
 ```
 
-The server will be available at `http://localhost:3000`, the admin password is
-`password`.
-
-You can also run `watch` to re-compile the server automatically at each
+The server will be available at `http://localhost:3000`, with the admin password
+set to `password`. The server will be compiled automatically at each
 modification of the code.
 
 ## Formatting
