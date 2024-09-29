@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 NODE_DIR="$TYPHON_ROOT/typhon-webapp/assets"
