@@ -4,6 +4,7 @@ use crate::models;
 use crate::nix;
 use crate::responses;
 use crate::schema;
+use crate::task_manager::TaskHandle;
 use crate::tasks;
 use crate::Conn;
 use crate::POOL;
@@ -92,18 +93,6 @@ impl responses::JobInfo {
 impl Evaluation {
     pub fn cancel(&self) {
         self.task.cancel()
-    }
-
-    pub fn finish(self, r: Option<Result<nix::NewJobs, nix::Error>>) -> TaskStatusKind {
-        let mut conn = POOL.get().unwrap();
-        match r {
-            Some(Ok(new_jobs)) => match self.create_new_jobs(&mut conn, new_jobs) {
-                Ok(()) => TaskStatusKind::Success,
-                Err(_) => TaskStatusKind::Failure,
-            },
-            Some(Err(_)) => TaskStatusKind::Failure,
-            None => TaskStatusKind::Canceled,
-        }
     }
 
     pub fn get(conn: &mut Conn, handle: &handles::Evaluation) -> Result<Self, Error> {
@@ -249,20 +238,40 @@ impl Evaluation {
 
     pub async fn run(
         self,
+        handle: TaskHandle,
         sender: mpsc::UnboundedSender<String>,
-    ) -> Result<nix::NewJobs, nix::Error> {
-        let res = nix::eval_jobs(&self.evaluation.url, self.evaluation.flake).await;
-        match &res {
-            Err(e) => {
-                for line in e.to_string().split("\n") {
-                    // TODO: hide internal error messages?
-                    // TODO: error management
-                    let _ = sender.send(line.to_string());
+    ) -> Result<TaskStatusKind, Error> {
+        let url = self.evaluation.url.clone();
+        let flake = self.evaluation.flake;
+        let res = handle
+            .spawn(async move {
+                let res = nix::eval_jobs(&url, flake).await;
+                match &res {
+                    Err(e) => {
+                        for line in e.to_string().split("\n") {
+                            // TODO: hide internal error messages?
+                            // TODO: error management
+                            let _ = sender.send(line.to_string());
+                        }
+                    }
+                    _ => (),
                 }
+                res
+            })
+            .await;
+        let status_kind = tokio::task::spawn_blocking(move || {
+            let mut conn = POOL.get().unwrap();
+            match res {
+                Some(Ok(new_jobs)) => match self.create_new_jobs(&mut conn, new_jobs) {
+                    Ok(()) => TaskStatusKind::Success,
+                    Err(_) => TaskStatusKind::Failure,
+                },
+                Some(Err(_)) => TaskStatusKind::Failure,
+                None => TaskStatusKind::Canceled,
             }
-            _ => (),
-        }
-        res
+        })
+        .await?;
+        Ok(status_kind)
     }
 
     fn create_new_jobs(&self, conn: &mut Conn, new_jobs: nix::NewJobs) -> Result<(), Error> {

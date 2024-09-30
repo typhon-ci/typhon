@@ -157,50 +157,6 @@ impl Project {
             meta: ProjectMetadata,
         }
 
-        let run = {
-            let url = self.project.url.clone();
-            let flake = self.project.flake;
-            move |sender| async move {
-                let url_locked = nix::lock(&url)?;
-
-                let TyphonProject { actions, meta } =
-                    serde_json::from_value(nix::eval(&url_locked, &"typhonProject", flake).await?)
-                        .map_err(|_| Error::BadProjectDecl)?;
-
-                let actions: Option<&String> =
-                    actions.as_ref().map(|m| m.get(&*CURRENT_SYSTEM)).flatten();
-
-                let actions_path = if let Some(x) = actions {
-                    let drv = nix::derivation(nix::Expr::Path(x.clone())).await?;
-                    // FIXME: this should spawn a build
-                    Some(nix::build(&drv.path, sender).await?["out"].clone())
-                    // TODO: check public key used to encrypt secrets
-                } else {
-                    None
-                };
-
-                Ok((url_locked, meta, actions_path))
-            }
-        };
-
-        let finish = {
-            let self_ = self.clone();
-            move |res: Option<Result<(String, ProjectMetadata, Option<String>), Error>>| {
-                let status = match res {
-                    Some(Ok(x)) => self_.finish_refresh(x),
-                    Some(Err(e)) => {
-                        tracing::warn!("refresh error for project {}: {}", self_.handle(), e);
-                        Ok(TaskStatusKind::Failure)
-                    }
-                    None => Ok(TaskStatusKind::Canceled),
-                };
-                (
-                    status.unwrap_or(TaskStatusKind::Failure),
-                    Event::ProjectUpdated(self_.handle()),
-                )
-            }
-        };
-
         let task = tasks::Task::new(conn)?;
         diesel::update(&self.project)
             .set(schema::projects::last_refresh_task_id.eq(task.task.id))
@@ -208,7 +164,50 @@ impl Project {
 
         log_event(Event::ProjectUpdated(self.handle()));
 
-        task.run(conn, run, finish)?;
+        let url = self.project.url.clone();
+        let flake = self.project.flake;
+        let self_ = self.clone();
+        task.run(conn, move |handle, sender| async move {
+            let res = handle
+                .spawn(async move {
+                    let url_locked = nix::lock(&url)?;
+
+                    let TyphonProject { actions, meta } = serde_json::from_value(
+                        nix::eval(&url_locked, &"typhonProject", flake).await?,
+                    )
+                    .map_err(|_| Error::BadProjectDecl)?;
+
+                    let actions: Option<&String> =
+                        actions.as_ref().map(|m| m.get(&*CURRENT_SYSTEM)).flatten();
+
+                    let actions_path = if let Some(x) = actions {
+                        let drv = nix::derivation(nix::Expr::Path(x.clone())).await?;
+                        // FIXME: this should spawn a build
+                        Some(nix::build(&drv.path, sender).await?["out"].clone())
+                        // TODO: check public key used to encrypt secrets
+                    } else {
+                        None
+                    };
+
+                    Ok::<_, Error>((url_locked, meta, actions_path))
+                })
+                .await;
+            let status_kind = match res {
+                Some(Ok(x)) => {
+                    let self_ = self_.clone();
+                    tokio::task::spawn_blocking(move || self_.finish_refresh(x)).await?
+                }
+                Some(Err(e)) => {
+                    tracing::warn!("refresh error for project {}: {}", self_.handle(), e);
+                    Ok(TaskStatusKind::Failure)
+                }
+                None => Ok(TaskStatusKind::Canceled),
+            };
+            Ok((
+                status_kind.unwrap_or(TaskStatusKind::Failure),
+                Some(Event::ProjectUpdated(self_.handle())),
+            ))
+        })?;
 
         Ok(())
     }

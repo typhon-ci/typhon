@@ -63,6 +63,7 @@ pub fn HybridStatus(#[prop(into)] status: Signal<HybridStatusKind>) -> impl Into
                                 TaskStatusKind::Pending => BiLoaderAltRegular,
                                 TaskStatusKind::Failure => BiXCircleSolid,
                                 TaskStatusKind::Canceled => BiStopCircleRegular,
+                                TaskStatusKind::Error => BiRadiationSolid,
                             }
                         }
                     };

@@ -30,7 +30,6 @@ actix-session = { version = "0.9", features = ["cookie-session"] }
 actix-web = "4.6"
 age = { version = "0.10", features = ["armor"] }
 argon2 = "0.5"
-async-recursion = "1.1"
 async-stream = "0.3"
 async-trait = "0.1"
 clap = { version = "4.5", features = ["derive", "env"] }

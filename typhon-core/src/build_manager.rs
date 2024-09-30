@@ -111,32 +111,25 @@ impl State {
         };
         self.join_set.spawn(abort);
 
-        let run = {
-            let drv = drv.clone();
-            let sender = sender.clone();
-            move |sender_log| run_build(drv, sender, sender_log)
-        };
-        let finish = {
-            let drv = drv.clone();
-            let handle = build.handle();
-            let sender = sender.clone();
-            |res| {
-                let status = finish_build(drv, sender, res);
-                (status, Event::BuildFinished(handle))
-            }
-        };
-        build.task.run(&mut self.conn, run, finish)?;
+        let build_handle = build.handle();
+        let sender = sender.clone();
+        build
+            .task
+            .run(&mut self.conn, move |handle, sender_log| async move {
+                let drv_bis = drv.clone();
+                let res = handle
+                    .spawn(run_build(drv_bis, sender.clone(), sender_log))
+                    .await;
+                let _ = sender.send(Msg::Finished(drv, res.clone()));
+                let status_kind = match res {
+                    Some(Some(())) => TaskStatusKind::Success,
+                    Some(None) => TaskStatusKind::Failure,
+                    None => TaskStatusKind::Canceled,
+                };
+                Ok((status_kind, Some(Event::BuildFinished(build_handle))))
+            })?;
 
         Ok(build.build.id)
-    }
-}
-
-fn finish_build(drv: DrvPath, sender: mpsc::UnboundedSender<Msg>, res: Output) -> TaskStatusKind {
-    let _ = sender.send(Msg::Finished(drv, res.clone()));
-    match res {
-        Some(Some(())) => TaskStatusKind::Success,
-        Some(None) => TaskStatusKind::Failure,
-        None => TaskStatusKind::Canceled,
     }
 }
 
