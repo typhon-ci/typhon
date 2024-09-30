@@ -12,11 +12,6 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
     crane.url = "github:ipetkov/crane";
-
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs: import ./nix/outputs.nix { inherit inputs; };

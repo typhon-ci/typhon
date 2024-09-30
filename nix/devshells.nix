@@ -1,16 +1,17 @@
 {
   inputs ? import ./inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ./nixpkgs.nix { inherit inputs system; },
-  rust ? import ./rust.nix { inherit inputs system; },
+  pkgs ? import inputs.nixpkgs { inherit system; },
+  craneLib ? inputs.crane.mkLib pkgs,
 }:
 {
-  default = pkgs.mkShell {
+  default = craneLib.devShell {
     name = "typhon-devshell";
     packages = builtins.attrValues {
-      inherit (rust) rustToolchain;
+      inherit (pkgs.llvmPackages) bintools; # lld
       inherit (pkgs)
         bubblewrap
+        cargo-binutils
         cargo-leptos
         diesel-cli
         leptosfmt
@@ -20,11 +21,11 @@
         nodejs # npm
         pkg-config
         rust-analyzer
-        rustfmt
         sqlite
         ;
     };
     CURRENT_SYSTEM = system;
+    RUSTC_BOOTSTRAP = 1;
     shellHook = ''
       export TYPHON_ROOT="$(pwd)"
       export PATH="$TYPHON_ROOT/scripts:$PATH"
