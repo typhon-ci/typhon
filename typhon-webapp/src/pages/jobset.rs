@@ -105,8 +105,8 @@ pub fn Jobset(
                                     name="project"
                                     value=signal_handle().project.name
                                 />
-                                <input type="hidden" name="jobset" value=signal_handle().name/>
-                                <input type="submit" value="Evaluate"/>
+                                <input type="hidden" name="jobset" value=signal_handle().name />
+                                <input type="submit" value="Evaluate" />
                             </ActionForm>
                         </Show>
                     }

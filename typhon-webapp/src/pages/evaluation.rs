@@ -88,10 +88,10 @@ fn LogTabHeader(
         <div class:tab-header=true class:active=active>
             <A class=format!("body {style}") href=String::from(href)>
                 <span class="status">
-                    <Status status=Signal::derive(move || status().into())/>
+                    <Status status=Signal::derive(move || status().into()) />
                 </span>
                 <span class="title">{title}</span>
-                <TaskStatusDuration status/>
+                <TaskStatusDuration status />
             </A>
             <div class="tooltip">
                 <pre>{serde_json::to_string(&handle)}</pre>
@@ -207,8 +207,8 @@ pub fn JobSubpage(
                                 Some(end) => {
                                     view! {
                                         <>
-                                            {label} {" "} <RelativeTime datetime=end/> in
-                                            <TaskStatusDuration status=status_signal/>
+                                            {label} {" "} <RelativeTime datetime=end />in
+                                            <TaskStatusDuration status=status_signal />
                                         </>
                                     }
                                 }
@@ -219,7 +219,7 @@ pub fn JobSubpage(
                             TaskStatus::Pending { start: None } => view! { <>pending</> },
                             TaskStatus::Pending { start: Some(_) } => {
                                 view! {
-                                    <>running for <TaskStatusDuration status=status_signal/></>
+                                    <>running for <TaskStatusDuration status=status_signal /></>
                                 }
                             }
                             TaskStatus::Success(..) => make("succeeded"),
@@ -231,8 +231,8 @@ pub fn JobSubpage(
 
                 </h2>
             </div>
-            <Icon icon=icondata::BiRefreshRegular/>
-            <Icon icon=icondata::BiCogRegular/>
+            <Icon icon=icondata::BiRefreshRegular />
+            <Icon icon=icondata::BiCogRegular />
         </div>
         <div class="contents">
             <div class="tabs">
@@ -253,7 +253,7 @@ pub fn JobSubpage(
                     .collect::<Vec<_>>()}
             </div>
             <div class="active">
-                {active_log.map(|handle| view! { <LiveLog lines=fetch_log(handle.clone())/> })}
+                {active_log.map(|handle| view! { <LiveLog lines=fetch_log(handle.clone()) /> })}
             </div>
         </div>
     }
@@ -338,11 +338,11 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
             <div class="block">
                 <div class="field">
                     <span class="label">Locked Nix URL</span>
-                    <input class="value" readonly value=info.url style="width: 100%;"/>
+                    <input class="value" readonly value=info.url style="width: 100%;" />
                 </div>
                 <div class="field">
                     <span class="label">Actions path</span>
-                    <input class="value" readonly value=info.actions_path style="width: 100%;"/>
+                    <input class="value" readonly value=info.actions_path style="width: 100%;" />
                 </div>
                 <div class="field">
                     <span class="label">Evaluation handle</span>
@@ -358,9 +358,9 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
                     <div class="value">
                         This evaluation
                         <span class="emph">
-                            {if info.flake { "is using" } else { "is not using" }} flakes
-                        </span> and was created <span class="emph">
-                            <RelativeTime datetime=info.time_created/>
+                            {if info.flake { "is using" } else { "is not using" }}flakes
+                        </span>and was created <span class="emph">
+                            <RelativeTime datetime=info.time_created />
                         </span>
                     </div>
                 </div>
@@ -369,7 +369,7 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
                 <div class="field">
                     <span class="label">Nix evaluation status</span>
                     <div class="value status">
-                        {format!("{:?}", status_kind)} <Status status=move || status_kind/>
+                        {format!("{:?}", status_kind)} <Status status=move || status_kind />
                     </div>
                 </div>
                 <div class="field">
@@ -378,7 +378,7 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
                         {match &status_kind {
                             TaskStatusKind::Success => {
                                 use crate::components::evaluations::StatusMap;
-                                view! { <StatusMap map compact=false/> }
+                                view! { <StatusMap map compact=false /> }
                             }
                             _ => {
                                 view! { <div>"Jobs require the evaluation to be successful!"</div> }
@@ -478,7 +478,7 @@ fn Main(
                                     view! {
                                         <Status status=move || {
                                             TaskStatus::from(last_run.clone()).into()
-                                        }/>
+                                        } />
                                     },
                                     view! { <span>{name}</span> }.into_view(),
                                 )
@@ -512,7 +512,7 @@ fn Main(
                 <ul style="padding: 0;">
                     {mk_item(
                         EvaluationTab::Info,
-                        view! { <Icon icon=icondata::BiHomeAltRegular/> },
+                        view! { <Icon icon=icondata::BiHomeAltRegular /> },
                         view! { Overview }.into_view(),
                     )}
 
@@ -529,7 +529,7 @@ fn Main(
                         EvaluationTab::Info => {
                             view! {
                                 <div>
-                                    <Info info=info.clone()/>
+                                    <Info info=info.clone() />
                                 </div>
                             }
                         }
@@ -543,13 +543,13 @@ fn Main(
                             {
                                 view! {
                                     <div class="term-theme">
-                                        <JobSubpage job log_tab/>
+                                        <JobSubpage job log_tab />
                                     </div>
                                 }
                             } else {
                                 view! {
                                     <div class="term-theme">
-                                        <Icon icon=icondata::BiErrorAltRegular/>
+                                        <Icon icon=icondata::BiErrorAltRegular />
                                         The requested resource was not found.
                                     </div>
                                 }
@@ -628,9 +628,9 @@ fn Main(
             <header class=header_style>
                 <div class="summary">
                     <span class="status">
-                        <Status status=Signal::derive(move || global_status_kind())/>
+                        <Status status=Signal::derive(move || global_status_kind()) />
                     </span>
-                    <span>Evaluation <UuidLabel uuid=info.handle.uuid/></span>
+                    <span>Evaluation <UuidLabel uuid=info.handle.uuid /></span>
                     {crate::utils::FlakeUri::parse(info.url)
                         .map(|flake| {
                             view! {
@@ -643,7 +643,7 @@ fn Main(
                 </div>
                 <button class="rerun-jobs">Re-run all jobs</button>
                 <button class="more">
-                    <Icon icon=icondata::BiDotsHorizontalRoundedRegular/>
+                    <Icon icon=icondata::BiDotsHorizontalRoundedRegular />
                 </button>
             </header>
             {main}
@@ -660,5 +660,5 @@ pub fn Evaluation(
         Signal::derive(move || Request::Evaluation(handle(), requests::Evaluation::Info)),
         |Response::EvaluationInfo(info)| info
     );
-    view! { <Trans error>{move || info().map(|info| view! { <Main info tab/> })}</Trans> }
+    view! { <Trans error>{move || info().map(|info| view! { <Main info tab /> })}</Trans> }
 }

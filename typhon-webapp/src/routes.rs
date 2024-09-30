@@ -320,20 +320,20 @@ pub fn Router() -> impl IntoView {
     let root_page = create_memo(move |_| page().map(Root::<Empty>::from));
     use crate::pages::*;
     let main = move || match root_page() {
-        Ok(Root::Login) => view! { <Login/> },
+        Ok(Root::Login) => view! { <Login /> },
         Ok(Root::Dashboard { tab, page }) => {
-            view! { <Dashboard tab page/> }
+            view! { <Dashboard tab page /> }
         }
-        Ok(Root::Projects) => view! { <Projects/> },
+        Ok(Root::Projects) => view! { <Projects /> },
         Ok(Root::Project(handle)) => {
-            view! { <Project handle/> }
+            view! { <Project handle /> }
         }
         Ok(Root::Jobset { handle, .. }) => {
             let page = create_memo(move |_| match page() {
                 Ok(Root::Jobset { page, .. }) => page,
                 _ => 1,
             });
-            view! { <Jobset handle page/> }
+            view! { <Jobset handle page /> }
         }
         Ok(Root::Evaluation(e)) => {
             let handle = Signal::derive(move || e.handle.clone());
@@ -341,13 +341,13 @@ pub fn Router() -> impl IntoView {
                 Ok(Root::Evaluation(e)) => e.tab,
                 _ => EvaluationTab::Info,
             });
-            view! { <Evaluation handle tab/> }
+            view! { <Evaluation handle tab /> }
         }
-        Err(loc) => view! { <BadLocation loc/> },
+        Err(loc) => view! { <BadLocation loc /> },
     };
     let route = Signal::derive(move || root_page().ok());
     view! {
-        <Header route/>
+        <Header route />
         <main>{main}</main>
     }
 }
