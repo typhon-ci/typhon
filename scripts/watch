@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PASSWORD=$(echo -n "password" | argon2 "Guérande" -id -e)
+COOKIE_SECRET=$(seq 100 | xxd -cu -l 64 -p)
+export PASSWORD COOKIE_SECRET
+
+cargo leptos watch
