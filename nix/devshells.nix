@@ -29,7 +29,7 @@
       export TYPHON_ROOT="$(pwd)"
       export PATH="$TYPHON_ROOT/scripts:$PATH"
       export DATABASE_URL="$TYPHON_ROOT/typhon.sqlite"
-      export TYPHON_FLAKE="$TYPHON_ROOT/typhon-flake"
+      export TYPHON_FLAKE="path:$TYPHON_ROOT/typhon-flake"
     '';
   };
 
