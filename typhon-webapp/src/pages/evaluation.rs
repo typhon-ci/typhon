@@ -4,8 +4,6 @@ use routes::{EvaluationTab, LogTab};
 use typhon_types::data::TaskStatusKind;
 use typhon_types::responses::TaskStatus;
 
-use std::collections::HashMap;
-
 fn fetch_log(log: handles::Log) -> ReadSignal<Option<String>> {
     #[cfg(feature = "ssr")]
     {
@@ -193,7 +191,6 @@ pub fn JobSubpage(
             <div class="name">
                 <h1>
                     <span>{job.handle.name}</span>
-                    <span>{format!(" ({})", job.handle.system)}</span>
                 </h1>
                 <h2>
 
@@ -257,24 +254,6 @@ pub fn JobSubpage(
             </div>
         </div>
     }
-}
-
-fn collect_jobs(
-    jobs: HashMap<responses::JobSystemName, responses::JobInfo>,
-) -> Vec<(String, Vec<(String, responses::JobInfo)>)> {
-    let mut hashmap: HashMap<String, Vec<(String, responses::JobInfo)>> = HashMap::new();
-    for (key, value) in jobs {
-        hashmap
-            .entry(key.system)
-            .or_insert(vec![])
-            .push((key.name, value));
-    }
-    let mut res = hashmap.into_iter().collect::<Vec<_>>();
-    for (_, x) in &mut res {
-        x.sort_unstable_by(|(a, _), (b, _)| Ord::cmp(a, b));
-    }
-    res.sort_unstable_by(|(a, _), (b, _)| Ord::cmp(a, b));
-    res
 }
 
 #[component]
@@ -456,39 +435,33 @@ fn Main(
             </li>
         }
     };
-    let items = collect_jobs(info.jobs.clone());
+    let mut jobs = info.jobs.clone().into_iter().collect::<Vec<_>>();
+    jobs.sort_unstable_by(|(a, _), (b, _)| Ord::cmp(a, b));
 
-    let job_items = items
-        .iter()
-        .map(move |(system, jobs)| {
-            let system = system.clone();
-            view! {
-                <section>
-                    <h1>{system}</h1>
-                    <ul style="padding: 0;">
-                        {jobs
-                            .into_iter()
-                            .map(|(name, info)| {
-                                let last_run = info.last_run.clone();
-                                mk_item(
-                                    EvaluationTab::Job {
-                                        handle: info.handle.clone(),
-                                        log_tab: LogTab::default(),
-                                    },
-                                    view! {
-                                        <Status status=move || {
-                                            TaskStatus::from(last_run.clone()).into()
-                                        }/>
-                                    },
-                                    view! { <span>{name}</span> }.into_view(),
-                                )
-                            })
-                            .collect::<Vec<_>>()}
-                    </ul>
-                </section>
-            }
-        })
-        .collect::<Vec<_>>();
+    let job_items = view! {
+        <section>
+            <ul style="padding: 0;">
+                {jobs
+                    .into_iter()
+                    .map(|(name, info)| {
+                        let last_run = info.last_run.clone();
+                        mk_item(
+                            EvaluationTab::Job {
+                                handle: info.handle.clone(),
+                                log_tab: LogTab::default(),
+                            },
+                            view! {
+                                <Status status=move || {
+                                    TaskStatus::from(last_run.clone()).into()
+                                }/>
+                            },
+                            view! { <span>{name}</span> }.into_view(),
+                        )
+                    })
+                    .collect::<Vec<_>>()}
+            </ul>
+        </section>
+    };
     let style = style! {
         nav {
             padding: 16px;

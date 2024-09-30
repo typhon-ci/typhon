@@ -42,9 +42,8 @@ CREATE TABLE jobs (
     id INTEGER NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     out TEXT NOT NULL,
-    system TEXT NOT NULL,
     tries INTEGER NOT NULL,
-    UNIQUE (evaluation_id, system, name)
+    UNIQUE (evaluation_id, name)
 );
 
 CREATE TABLE runs (

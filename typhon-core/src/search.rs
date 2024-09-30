@@ -102,18 +102,17 @@ pub fn search(
                     schema::jobs::table
                         .inner_join(schema::evaluations::table.inner_join(schema::projects::table)),
                 ).select(
-                    (schema::evaluations::uuid, schema::jobs::system, schema::jobs::name, schema::runs::num)
+                    (schema::evaluations::uuid, schema::jobs::name, schema::runs::num)
                 ).order(schema::runs::time_created.desc()),
             filters(s): [
                 s.project_name.map(|x| schema::projects::name.eq(x)),
                 s.jobset_name.map(|x| schema::evaluations::jobset_name.eq(x)),
                 s.evaluation_uuid.map(|x| schema::evaluations::uuid.eq(x.to_string())),
                 s.job_name.map(|x| schema::jobs::name.eq(x)),
-                s.job_system.map(|x| schema::jobs::system.eq(x)),
             ],
-            |(eval, job_system, job_name, run): (String, _, _, i32)| {
+            |(eval, job, run): (String, String, i32)| {
                 handles::run((
-                    Uuid::from_str(&eval).unwrap(), job_system, job_name, run as u32
+                    Uuid::from_str(&eval).unwrap(), job, run as u32
                 ))
             },
             Results::Runs
