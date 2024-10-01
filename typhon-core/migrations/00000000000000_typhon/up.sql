@@ -1,5 +1,4 @@
 CREATE TABLE projects (
-    actions_path TEXT,
     description TEXT DEFAULT '' NOT NULL,
     flake BOOL NOT NULL,
     homepage TEXT DEFAULT '' NOT NULL,
@@ -23,11 +22,11 @@ CREATE TABLE jobsets (
 );
 
 CREATE TABLE evaluations (
-    actions_path TEXT,
     flake BOOL NOT NULL,
     id INTEGER NOT NULL PRIMARY KEY,
     jobset_name TEXT NOT NULL,
     project_id INTEGER NOT NULL REFERENCES projects (id),
+    project_url_locked TEXT NOT NULL,
     task_id INTEGER NOT NULL REFERENCES tasks (id),
     time_created BIGINT NOT NULL,
     url TEXT NOT NULL,
@@ -70,8 +69,8 @@ CREATE TABLE actions (
     id INTEGER NOT NULL PRIMARY KEY,
     input TEXT NOT NULL,
     name TEXT NOT NULL,
-    path TEXT NOT NULL,
     project_id INTEGER NOT NULL REFERENCES projects (id),
+    project_url_locked TEXT NOT NULL,
     task_id INTEGER NOT NULL REFERENCES tasks (id),
     time_created BIGINT NOT NULL,
     uuid TEXT NOT NULL,

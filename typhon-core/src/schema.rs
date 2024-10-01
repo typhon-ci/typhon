@@ -5,8 +5,8 @@ diesel::table! {
         id -> Integer,
         input -> Text,
         name -> Text,
-        path -> Text,
         project_id -> Integer,
+        project_url_locked -> Text,
         task_id -> Integer,
         time_created -> BigInt,
         uuid -> Text,
@@ -25,11 +25,11 @@ diesel::table! {
 
 diesel::table! {
     evaluations (id) {
-        actions_path -> Nullable<Text>,
         flake -> Bool,
         id -> Integer,
         jobset_name -> Text,
         project_id -> Integer,
+        project_url_locked -> Text,
         task_id -> Integer,
         time_created -> BigInt,
         url -> Text,
@@ -68,7 +68,6 @@ diesel::table! {
 
 diesel::table! {
     projects (id) {
-        actions_path -> Nullable<Text>,
         description -> Text,
         flake -> Bool,
         homepage -> Text,
