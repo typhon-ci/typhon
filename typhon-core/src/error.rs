@@ -3,30 +3,59 @@ use crate::handles;
 use crate::nix;
 use crate::task_manager;
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum Error {
+    #[display("Access denied")]
     AccessDenied,
+    #[display("Action {_0} encountered an error")]
     ActionError(actions::Error),
+    #[display("Action {_0} was not found")]
     ActionNotFound(handles::Action),
+    #[display("Build {_0} was not found")]
     BuildNotFound(handles::Build),
+    #[display("Run {_0} was not found")]
     RunNotFound(handles::Run),
+    #[display("Bad project declaration")]
     BadProjectDecl,
+    #[display("Bad jobset declaration: {_0}")]
     BadJobsetDecl(String),
+    #[display("Evaluation {_0} was not found")]
     EvaluationNotFound(handles::Evaluation),
+    #[display("Illegal project handle: {_0}")]
     IllegalProjectHandle(handles::Project),
+    #[display("Job {_0} is already running")]
     JobAlreadyRunning(handles::Job),
+    #[display("Job {_0} was not found")]
     JobNotFound(handles::Job),
+    #[display("Jobset {_0} was not found")]
     JobsetNotFound(handles::Jobset),
+    #[display("Log {_0} was not found")]
     LogNotFound(handles::Log),
+    #[display("Nix error: {_0}")]
     NixError(nix::Error),
+    #[display("Project {_0} already exists")]
     ProjectAlreadyExists(handles::Project),
+    #[display("Project {_0} was not found")]
     ProjectNotFound(handles::Project),
+    #[display("ToDo")]
     Todo,
+    #[display("Unexpected database error: {_0}")]
     UnexpectedDatabaseError(diesel::result::Error),
+    #[display("Unexpected time error: {_0}")]
     UnexpectedTimeError(time::error::ComponentRange),
+    #[display("Failed to log in")]
     LoginError,
+    #[display("Task error: {_0}")]
     TaskError(task_manager::Error),
-    BadWebhookOutput,
+    #[display("{}", display_webhook_failure(_0))]
+    WebhookFailure(Option<String>),
+}
+
+fn display_webhook_failure(output: &Option<String>) -> String {
+    match output {
+        Some(stdout) => format!("Bad webhook output: {stdout}"),
+        None => "Webhook failure".to_string(),
+    }
 }
 
 impl Error {
@@ -39,50 +68,6 @@ impl Error {
             | TaskError(_)
             | Todo => true,
             _ => false,
-        }
-    }
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        use Error::*;
-        match self {
-            AccessDenied => write!(f, "Access denied"),
-            ActionError(e) => write!(f, "Action error: {}", e),
-            ActionNotFound(h) => write!(f, "Action not found: {}", h),
-            BuildNotFound(h) => write!(f, "Build not found: {}", h),
-            RunNotFound(h) => write!(f, "Run not found: {}", h),
-            BadProjectDecl => write!(f, "Bad project declaration"),
-            BadJobsetDecl(s) => write!(f, "Bad jobset declaration: {}", s),
-            IllegalProjectHandle(handle) => {
-                write!(f, "The project name [{}] is illegal. Legal project names are sequences of alphanumerical characters that may contain dashes [-] or underscores [_].", handle.name)
-            }
-            JobAlreadyRunning(job_handle) => {
-                write!(f, "Job {} is already running", job_handle)
-            }
-            JobNotFound(job_handle) => {
-                write!(f, "Job {} not found", job_handle)
-            }
-            JobsetNotFound(jobset_handle) => {
-                write!(f, "Jobset {} not found", jobset_handle)
-            }
-            LogNotFound(log_handle) => {
-                write!(f, "Log {} not found", log_handle)
-            }
-            EvaluationNotFound(evaluation_handle) => {
-                write!(f, "Evaluation {} not found", evaluation_handle)
-            }
-            ProjectAlreadyExists(project_handle) => {
-                write!(f, "Project {} already exists", project_handle)
-            }
-            ProjectNotFound(project_handle) => write!(f, "Project {} not found", project_handle),
-            NixError(e) => write!(f, "Nix error: {}", e),
-            LoginError => write!(f, "Login error"),
-            Todo => write!(f, "Unspecified error"),
-            UnexpectedDatabaseError(e) => write!(f, "Database error: {}", e),
-            UnexpectedTimeError(e) => write!(f, "Time error: {}", e),
-            TaskError(e) => write!(f, "Task error: {}", e),
-            BadWebhookOutput => write!(f, "Bad webhook output"),
         }
     }
 }
@@ -143,7 +128,7 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | NixError(_)
             | ProjectAlreadyExists(_)
             | LoginError
-            | BadWebhookOutput => BadRequest(format!("{}", self)),
+            | WebhookFailure(_) => BadRequest(format!("{}", self)),
         }
     }
 }

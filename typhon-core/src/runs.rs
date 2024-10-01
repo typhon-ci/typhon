@@ -77,7 +77,6 @@ impl Run {
                     .as_hyphenated()
                     .to_string()),
             )
-            .filter(schema::jobs::system.eq(&handle.job.system))
             .filter(schema::jobs::name.eq(&handle.job.name))
             .filter(schema::runs::num.eq(handle.num as i32))
             .select((
@@ -137,7 +136,6 @@ impl Run {
     pub fn handle(&self) -> handles::Run {
         handles::run((
             Uuid::from_str(&self.evaluation.uuid).unwrap(),
-            self.job.system.clone(),
             self.job.name.clone(),
             self.run.num as u32,
         ))
@@ -228,7 +226,6 @@ impl Run {
             "out": self.job.out,
             "project": self.project.name,
             "status": status.to_string(),
-            "system": self.job.system,
             "url": self.evaluation.url,
         }))
     }

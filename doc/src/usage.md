@@ -89,7 +89,7 @@ For instance, let's declare GNU hello as your only job:
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
   in {
-    typhonJobs.${system} = {
+    typhonJobs = {
       inherit (pkgs) hello;
     };
   };

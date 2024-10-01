@@ -18,7 +18,8 @@ pub enum Expr {
     Path(String),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, derive_more::Display)]
+#[display("Evaluation error: {self:#?}")]
 pub enum Error {
     SerdeJson(String), // serde_json::Error is not Clone
     UnexpectedOutput {
@@ -32,12 +33,6 @@ pub enum Error {
     },
     ExpectedDrvGotAttrset(Expr),
     BuildFailed,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Evaluation error: {:#?}", self)
-    }
 }
 
 impl From<serde_json::Error> for Error {
@@ -238,15 +233,10 @@ pub async fn derivation_json(expr: &Expr) -> Result<serde_json::Value, Error> {
     Ok(serde_json::from_str(&cmd.sync_stdout().await?).unwrap())
 }
 
-#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, derive_more::Display)]
+#[display("{path}")]
 pub struct DrvPath {
     path: String,
-}
-
-impl std::fmt::Display for DrvPath {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.path)
-    }
 }
 
 impl DrvPath {
@@ -335,52 +325,33 @@ pub async fn eval(url: &str, path: &str, flake: bool) -> Result<serde_json::Valu
     )?)
 }
 
-pub type NewJobs = HashMap<(String, String), (Derivation, bool)>;
+pub type NewJobs = HashMap<String, (Derivation, bool)>;
 
 pub async fn eval_jobs(url: &str, flake: bool) -> Result<NewJobs, Error> {
     let json = eval(url, "typhonJobs", flake).await?;
-    let mut jobs: HashMap<(String, String), (Derivation, bool)> = HashMap::new();
-    for system in json.as_object().unwrap().keys() {
-        for name in json[system].as_object().unwrap().keys() {
-            jobs.insert(
-                (system.clone(), name.clone()),
-                (
-                    derivation(Expr::Flake {
-                        flake,
-                        url: url.to_string(),
-                        path: format!("typhonJobs.{system}.{name}"),
-                    })
-                    .await?,
-                    eval(
-                        url,
-                        &format!("typhonJobs.{system}.{name}.passthru.typhonDist"),
-                        flake,
-                    )
-                    .await
-                    .map(|json| json.as_bool().unwrap_or(false))
-                    .unwrap_or(false),
-                ),
-            );
-        }
+    let mut jobs: NewJobs = HashMap::new();
+    for name in json.as_object().unwrap().keys() {
+        jobs.insert(
+            name.clone(),
+            (
+                derivation(Expr::Flake {
+                    flake,
+                    url: url.to_string(),
+                    path: format!("typhonJobs.{name}"),
+                })
+                .await?,
+                eval(
+                    url,
+                    &format!("typhonJobs.{name}.passthru.typhonDist"),
+                    flake,
+                )
+                .await
+                .map(|json| json.as_bool().unwrap_or(false))
+                .unwrap_or(false),
+            ),
+        );
     }
     Ok(jobs)
-}
-
-pub fn current_system() -> String {
-    String::from_utf8(
-        std::process::Command::new("nix")
-            .args([
-                "eval",
-                "--impure",
-                "--raw",
-                "--expr",
-                "builtins.currentSystem",
-            ])
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap()
 }
 
 pub fn lock(url: &String) -> Result<String, Error> {

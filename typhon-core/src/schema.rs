@@ -45,7 +45,6 @@ diesel::table! {
         id -> Integer,
         name -> Text,
         out -> Text,
-        system -> Text,
         tries -> Integer,
     }
 }

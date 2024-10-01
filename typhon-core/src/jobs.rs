@@ -24,7 +24,6 @@ impl Job {
         let (job, (evaluation, project)) = schema::jobs::table
             .inner_join(schema::evaluations::table.inner_join(schema::projects::table))
             .filter(schema::evaluations::uuid.eq(handle.evaluation.uuid.to_string()))
-            .filter(schema::jobs::system.eq(&handle.system))
             .filter(schema::jobs::name.eq(&handle.name))
             .first(conn)
             .optional()?
@@ -41,26 +40,20 @@ impl Job {
         use uuid::Uuid;
         handles::Job {
             evaluation: handles::evaluation(Uuid::from_str(&self.evaluation.uuid).unwrap()),
-            system: self.job.system.clone(),
             name: self.job.name.clone(),
         }
     }
 
     pub fn info(&self, conn: &mut Conn) -> Result<responses::JobInfo, Error> {
         let handle = self.handle();
-        let system_name = responses::JobSystemName {
-            system: self.job.system.clone(),
-            name: self.job.name.clone(),
-        };
         crate::evaluations::Evaluation::jobs(
             &handles::project(self.project.name.clone()),
             &handle.evaluation,
             self.evaluation.id,
-            Some(handle.system.clone()),
             Some(handle.name.clone()),
             conn,
         )?
-        .get(&system_name)
+        .get(&handle.name)
         .cloned()
         .ok_or(Error::JobNotFound(handle))
     }

@@ -1,7 +1,7 @@
 {
   inputs ? import ../inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ../nixpkgs.nix { inherit inputs system; },
+  pkgs ? import inputs.nixpkgs { inherit system; },
 }:
 pkgs.stdenv.mkDerivation {
   name = "typhon-doc";

@@ -19,7 +19,8 @@ use std::future::Future;
 use std::pin::Pin;
 
 struct ResponseWrapper(Response);
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
+#[display("{_0}")]
 struct ResponseErrorWrapper(ResponseError);
 
 impl From<actix_web::error::BlockingError> for ResponseErrorWrapper {
@@ -31,12 +32,6 @@ impl From<actix_web::error::BlockingError> for ResponseErrorWrapper {
 impl From<error::Error> for ResponseErrorWrapper {
     fn from(e: error::Error) -> ResponseErrorWrapper {
         ResponseErrorWrapper(e.into())
-    }
-}
-
-impl std::fmt::Display for ResponseErrorWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
     }
 }
 
@@ -175,25 +170,25 @@ r!(
             Evaluation::Info,
         );
 
-    job_info(path: web::Path<(Uuid,String,String)>) =>
+    job_info(path: web::Path<(Uuid,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Info,
         );
 
-    //run_cancel(path: web::Path<(Uuid,String,String,u32)>) =>
+    //run_cancel(path: web::Path<(Uuid,String,u32)>) =>
     //    Request::Run(
     //        handles::run(path.into_inner()),
     //        Run::Cancel,
     //    );
 
-    run_info(path: web::Path<(Uuid,String,String,u32)>) =>
+    run_info(path: web::Path<(Uuid,String,u32)>) =>
         Request::Run(
             handles::run(path.into_inner()),
             Run::Info,
         );
 
-    job_rerun(path: web::Path<(Uuid,String,String)>) =>
+    job_rerun(path: web::Path<(Uuid,String)>) =>
         Request::Job(
             handles::job(path.into_inner()),
             Job::Rerun,
@@ -217,10 +212,10 @@ r!(
 
 async fn dist(
     user: UserWrapper,
-    path: web::Path<(Uuid, String, String, String)>,
+    path: web::Path<(Uuid, String, String)>,
 ) -> Result<impl Responder, ResponseErrorWrapper> {
-    let (evaluation, system, job, path) = path.into_inner();
-    let handle = handles::job((evaluation, system, job));
+    let (evaluation, job, path) = path.into_inner();
+    let handle = handles::job((evaluation, job));
     let req = Request::Job(handle, Job::Info);
     let rsp = handle_request(user.0, req)
         .await
@@ -316,14 +311,8 @@ async fn webhook(
             .collect::<Result<HashMap<_, _>, ResponseErrorWrapper>>()?,
         body,
     };
-
     let handle = handles::project(path.into_inner());
-    let requests = web::block(move || typhon_core::webhook(handle, input)).await??;
-    for req in requests {
-        handle_request(User::Admin, req)
-            .await
-            .map_err(ResponseErrorWrapper)?;
-    }
+    web::block(move || typhon_core::webhook(handle, input)).await??;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -360,7 +349,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/cancel", web::post().to(evaluation_cancel))
                     .route("/log", web::get().to(log_routes::evaluation))
                     .service(
-                        web::scope("/jobs/{system}/{job}")
+                        web::scope("/jobs/{job}")
                             .route("", web::get().to(job_info))
                             .route("/rerun", web::get().to(job_rerun))
                             .route("/dist/{path:.*}", web::get().to(dist))

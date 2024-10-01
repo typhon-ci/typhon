@@ -60,7 +60,7 @@ pub(crate) fn Projects() -> impl IntoView {
         <Trans error>
             <div class="is-table">
                 <div class="header">
-                    <div class="summary">{count} projects</div>
+                    <div class="summary">{count}projects</div>
                     <div class="header-columns">
                         <div class="column id">"Identifier"</div>
                         <div class="column name">"Name"</div>
@@ -106,22 +106,22 @@ pub(crate) fn Projects() -> impl IntoView {
                         <label class="label" for="name">
                             "Identifier"
                         </label>
-                        <input name="name" class="input" id="name"/>
+                        <input name="name" class="input" id="name" />
                     </div>
                     <div>
                         <label class="label" for="url">
                             "URL"
                         </label>
-                        <input name="url" class="input" id="url"/>
+                        <input name="url" class="input" id="url" />
                     </div>
                     <div>
                         <label class="label" for="flake">
                             "Flake"
                         </label>
-                        <input name="flake" class="input" id="flake" type="checkbox" checked=true/>
+                        <input name="flake" class="input" id="flake" type="checkbox" checked=true />
                     </div>
                     <button type="submit">
-                        <Icon icon=icondata::BiPlusCircleSolid/>
+                        <Icon icon=icondata::BiPlusCircleSolid />
                         "Add"
                     </button>
                 </ActionForm>

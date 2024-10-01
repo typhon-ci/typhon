@@ -77,7 +77,7 @@ pub fn Login() -> impl IntoView {
                     <h2>"Log In"</h2>
                     <div>
                         <label for="password">"Password"</label>
-                        <input type="password" placeholder="Password" name="password"/>
+                        <input type="password" placeholder="Password" name="password" />
                     </div>
                     <button type="submit">"Log In"</button>
                     {move || {

@@ -1,12 +1,10 @@
 {
   inputs ? import ../inputs.nix,
   system ? builtins.currentSystem or "unknown-system",
-  pkgs ? import ../nixpkgs.nix { inherit inputs system; },
-  rust ? import ../rust.nix { inherit inputs system; },
+  pkgs ? import inputs.nixpkgs { inherit inputs system; },
+  craneLib ? inputs.crane.mkLib pkgs,
 }:
 let
-  inherit (rust) craneLib;
-
   cargoToml = builtins.fromTOML (builtins.readFile ../../Cargo.toml);
 
   args = {
@@ -17,9 +15,36 @@ let
       "Cargo.lock"
       "typhon.*"
     ];
+    RUSTC_BOOTSTRAP = 1;
   };
 
-  cargoArtifacts = craneLib.buildDepsOnly args;
+  nativeBuildInputs = [
+    pkgs.cargo-leptos
+    pkgs.cargo-binutils
+    pkgs.llvmPackages.bintools
+    pkgs.binaryen
+  ];
+
+  leptosToml = pkgs.writeText "leptos.toml" ''
+    [[workspace.metadata.leptos]]
+    name = "typhon"
+    bin-package = "typhon"
+    lib-package = "typhon-webapp"
+    lib-features = ["hydrate"]
+  '';
+
+  cargoArtifacts = craneLib.buildDepsOnly (
+    args
+    // {
+      extraDummyScript = ''
+        chmod +w $out/Cargo.toml
+        cat ${leptosToml} >> $out/Cargo.toml
+        mv $out/typhon/src/bin/crane-dummy-typhon/main.rs $out/typhon/src/
+      '';
+      inherit nativeBuildInputs;
+      buildPhaseCargoCommand = "cargo leptos build --release -vvv";
+    }
+  );
 
   nodeDependencies = (import ../npm-nix { inherit system pkgs; }).nodeDependencies;
 in
@@ -27,10 +52,8 @@ craneLib.buildPackage (
   args
   // {
     inherit cargoArtifacts;
-    nativeBuildInputs = [
-      pkgs.cargo-leptos
+    nativeBuildInputs = nativeBuildInputs ++ [
       pkgs.sqlite.dev
-      pkgs.binaryen
       pkgs.makeWrapper
     ];
     buildPhaseCargoCommand = "cargo leptos build --release -vvv";
@@ -38,10 +61,13 @@ craneLib.buildPackage (
       mkdir -p $out/bin
       cp target/release/typhon $out/bin/
       cp -r target/site $out/bin/
+      cp -r ${nodeDependencies}/lib/node_modules $out/bin/site
+      chmod +w -R $out/bin/site/node_modules
       wrapProgram $out/bin/typhon --set LEPTOS_SITE_ROOT $out/bin/site
     '';
-    TYPHON_FLAKE = ../../typhon-flake;
+    CURRENT_SYSTEM = system;
+    TYPHON_FLAKE = "path:${../../typhon-flake}";
+    doCheck = false;
     doNotLinkInheritedArtifacts = true;
-    preFixup = "cp -r ${nodeDependencies}/lib/node_modules $out/bin/site";
   }
 )
