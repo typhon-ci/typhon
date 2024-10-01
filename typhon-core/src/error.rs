@@ -51,10 +51,10 @@ pub enum Error {
     WebhookFailure(Option<String>),
 }
 
-fn display_webhook_failure(output: &Option<String>) -> &str {
+fn display_webhook_failure(output: &Option<String>) -> String {
     match output {
-        Some(stdout) => concat!("Bad webhook output: {stdout}"),
-        None => "Webhook failure",
+        Some(stdout) => format!("Bad webhook output: {stdout}"),
+        None => "Webhook failure".to_string(),
     }
 }
 
