@@ -2,10 +2,7 @@
   description = "Typhon";
 
   inputs = {
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
+    flake-compat.url = "https://git.lix.systems/api/v1/repos/lix-project/flake-compat/archive/main.tar.gz";
 
     flake-schemas.url = "github:determinatesystems/flake-schemas";
 
