@@ -13,6 +13,7 @@ actix-session = { workspace = true, optional = true }
 async-stream.workspace = true
 async-trait.workspace = true
 console_error_panic_hook = { workspace = true, optional = true }
+derive_more.workspace = true
 either.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true

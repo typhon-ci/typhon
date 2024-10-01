@@ -36,7 +36,7 @@ pub fn PendingEvaluations(page: u32) -> impl IntoView {
     view! {
         <h1>"Pending evaluations:"</h1>
         <Trans error>
-            <Evaluations count evaluations/>
+            <Evaluations count evaluations />
         </Trans>
         <Pagination
             max=10
@@ -74,9 +74,9 @@ pub fn Dashboard(tab: DashboardTab, page: u32) -> impl IntoView {
             page: 1,
         })>Actions</A>
         {match tab {
-            DashboardTab::Builds => view! { <PendingBuilds page/> }.into_view(),
-            DashboardTab::Evaluations => view! { <PendingEvaluations page/> }.into_view(),
-            DashboardTab::Actions => view! { <PendingActions page/> }.into_view(),
+            DashboardTab::Builds => view! { <PendingBuilds page /> }.into_view(),
+            DashboardTab::Evaluations => view! { <PendingEvaluations page /> }.into_view(),
+            DashboardTab::Actions => view! { <PendingActions page /> }.into_view(),
         }}
     }
 }

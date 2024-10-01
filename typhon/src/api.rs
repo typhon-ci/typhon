@@ -19,7 +19,8 @@ use std::future::Future;
 use std::pin::Pin;
 
 struct ResponseWrapper(Response);
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
+#[display("{_0}")]
 struct ResponseErrorWrapper(ResponseError);
 
 impl From<actix_web::error::BlockingError> for ResponseErrorWrapper {
@@ -31,12 +32,6 @@ impl From<actix_web::error::BlockingError> for ResponseErrorWrapper {
 impl From<error::Error> for ResponseErrorWrapper {
     fn from(e: error::Error) -> ResponseErrorWrapper {
         ResponseErrorWrapper(e.into())
-    }
-}
-
-impl std::fmt::Display for ResponseErrorWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
     }
 }
 
@@ -316,14 +311,8 @@ async fn webhook(
             .collect::<Result<HashMap<_, _>, ResponseErrorWrapper>>()?,
         body,
     };
-
     let handle = handles::project(path.into_inner());
-    let requests = web::block(move || typhon_core::webhook(handle, input)).await??;
-    for req in requests {
-        handle_request(User::Admin, req)
-            .await
-            .map_err(ResponseErrorWrapper)?;
-    }
+    web::block(move || typhon_core::webhook(handle, input)).await??;
     Ok(HttpResponse::Ok().finish())
 }
 

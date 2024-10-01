@@ -1,6 +1,10 @@
 utils: lib: {
   mkWebhook =
-    { webhookSecretName }:
+    {
+      flake,
+      urlPrefix,
+      webhookSecretName,
+    }:
     lib.builders.mkActionScript (
       { pkgs, system }:
       {
@@ -22,19 +26,19 @@ utils: lib: {
           event=$(echo "$headers" | jq -r '."x-github-event"')
           [ "$event" == "push" ] || { echo '[]'; exit 0; }
 
-          name=$(echo "$body" | jq '.ref|split("/")|.[2:]|join("/")')
+          ref=$(echo "$body" | jq -r '.ref|split("/")|.[2:]|join("/")')
           before=$(echo "$body" | jq -r '.before')
           after=$(echo "$body" | jq -r '.after')
           null="0000000000000000000000000000000000000000"
 
           if [ "$before" == "$null" ]
           then
-            echo "$name" | jq '[{"command":"UpdateJobsets"}, {"command":"EvaluateJobset","name":.}]'
+            echo 'null' | jq --arg ref "$ref" '[{"command":"NewJobset", "name":$ref, "decl":{"flake":${utils.nixpkgsLib.boolToString flake},"url":("${urlPrefix}"+$ref)}}, {"command":"EvaluateJobset", "name":$ref}]'
           elif [ "$after" == "$null" ]
           then
-            echo 'null' | jq '[{"command":"UpdateJobsets"}]'
+            echo 'null' | jq --arg ref "$ref" '[{"command":"DeleteJobset", "name":$ref}]'
           else
-            echo "$name" | jq '[{"command":"EvaluateJobset","name":.}]'
+            echo 'null' | jq --arg ref "$ref" '[{"command":"EvaluateJobset", "name":$ref}]'
           fi
         '';
       }

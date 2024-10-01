@@ -17,30 +17,22 @@ use std::process::Stdio;
 use std::str::FromStr;
 use tokio::sync::mpsc;
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum Error {
+    #[display("Invalid key")]
     InvalidKey,
+    #[display("Wrong secrets format")]
     InvalidSecrets,
+    #[display("Outputted non-UTF8 characters")]
     NonUtf8,
+    #[display("Action script not found")]
     ScriptNotFound,
+    #[display("Secrets file not found")]
     SecretsNotFound,
+    #[display("Secrets file encrypted with wrong key")]
     WrongRecipient,
+    #[display("Unexpected error")]
     Unexpected,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        use Error::*;
-        match self {
-            InvalidKey => write!(f, "Invalid key"),
-            InvalidSecrets => write!(f, "Wrong secrets format"),
-            NonUtf8 => write!(f, "Action outputted non-UTF8 characters"),
-            ScriptNotFound => write!(f, "Action script not found"),
-            SecretsNotFound => write!(f, "Secrets file not found"),
-            WrongRecipient => write!(f, "Secrets file uncrypted with wrong key"),
-            Unexpected => write!(f, "Unexpected error"),
-        }
-    }
 }
 
 mod sandboxed_command {
@@ -226,6 +218,9 @@ impl Action {
 pub mod webhooks {
     use crate::handles;
     use crate::requests;
+
+    use typhon_types::requests::JobsetDecl;
+
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
 
@@ -238,20 +233,24 @@ pub mod webhooks {
     #[derive(Clone, Deserialize)]
     #[serde(tag = "command")]
     pub enum Command {
-        UpdateJobsets,
         EvaluateJobset { name: String },
+        NewJobset { name: String, decl: JobsetDecl },
+        DeleteJobset { name: String },
     }
 
     impl Command {
         pub fn lift(self, project: handles::Project) -> requests::Request {
             match self {
-                Command::UpdateJobsets => {
-                    requests::Request::Project(project, requests::Project::UpdateJobsets)
-                }
                 Command::EvaluateJobset { name } => requests::Request::Jobset(
                     handles::Jobset { project, name },
                     requests::Jobset::Evaluate(true),
                 ),
+                Command::NewJobset { name, decl } => {
+                    requests::Request::Project(project, requests::Project::NewJobset { name, decl })
+                }
+                Command::DeleteJobset { name } => {
+                    requests::Request::Project(project, requests::Project::DeleteJobset { name })
+                }
             }
         }
     }

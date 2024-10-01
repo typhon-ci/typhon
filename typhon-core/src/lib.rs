@@ -171,6 +171,10 @@ pub fn handle_request_aux(
                 requests::Project::Refresh => project.refresh(conn)?,
                 requests::Project::SetDecl(decl) => project.set_decl(conn, decl)?,
                 requests::Project::UpdateJobsets => project.update_jobsets(conn)?,
+                requests::Project::NewJobset { name, decl } => {
+                    project.new_jobset(conn, name, decl)?
+                }
+                requests::Project::DeleteJobset { name } => project.delete_jobset(conn, name)?,
             };
             Response::Ok
         }
@@ -280,7 +284,7 @@ pub fn log(handle: handles::Log) -> Result<Option<impl Stream<Item = String>>, E
 pub fn webhook(
     project_handle: handles::Project,
     input: actions::webhooks::Input,
-) -> Result<Vec<requests::Request>, Error> {
+) -> Result<(), Error> {
     let mut conn = POOL.get().unwrap();
 
     tracing::debug!("handling webhook {:?}", input);
@@ -292,21 +296,24 @@ pub fn webhook(
         e
     })?;
 
-    let res = project.webhook(&mut conn, input).map_err(|e| {
+    project.webhook(&mut conn, input).map_err(|e| {
         if e.is_internal() {
-            tracing::error!("webhook raised error: {:?}", e);
+            tracing::error!(
+                "webhook for project {} raised error: {:?}",
+                project.project.name,
+                e,
+            );
+        } else {
+            tracing::debug!(
+                "webhook for project {} raised error: {:?}",
+                project.project.name,
+                e,
+            );
         }
         e
     })?;
 
-    if res.is_none() {
-        tracing::warn!("bad webhook for project {}", project_handle);
-    }
-
-    match res {
-        Some(requests) => Ok(requests),
-        None => Err(error::Error::BadWebhookOutput)?,
-    }
+    Ok(())
 }
 
 pub async fn shutdown() {

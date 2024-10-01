@@ -18,7 +18,8 @@ pub enum Expr {
     Path(String),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, derive_more::Display)]
+#[display("Evaluation error: {self:#?}")]
 pub enum Error {
     SerdeJson(String), // serde_json::Error is not Clone
     UnexpectedOutput {
@@ -32,12 +33,6 @@ pub enum Error {
     },
     ExpectedDrvGotAttrset(Expr),
     BuildFailed,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Evaluation error: {:#?}", self)
-    }
 }
 
 impl From<serde_json::Error> for Error {
@@ -238,15 +233,10 @@ pub async fn derivation_json(expr: &Expr) -> Result<serde_json::Value, Error> {
     Ok(serde_json::from_str(&cmd.sync_stdout().await?).unwrap())
 }
 
-#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, derive_more::Display)]
+#[display("{path}")]
 pub struct DrvPath {
     path: String,
-}
-
-impl std::fmt::Display for DrvPath {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.path)
-    }
 }
 
 impl DrvPath {

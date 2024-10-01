@@ -11,6 +11,7 @@ actix-files.workspace = true
 actix-session.workspace = true
 actix-web.workspace = true
 clap.workspace = true
+derive_more.workspace = true
 futures-core.workspace = true
 futures.workspace = true
 leptos = { workspace = true, features = ["ssr"] }
