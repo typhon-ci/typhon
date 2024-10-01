@@ -325,33 +325,31 @@ pub async fn eval(url: &str, path: &str, flake: bool) -> Result<serde_json::Valu
     )?)
 }
 
-pub type NewJobs = HashMap<(String, String), (Derivation, bool)>;
+pub type NewJobs = HashMap<String, (Derivation, bool)>;
 
 pub async fn eval_jobs(url: &str, flake: bool) -> Result<NewJobs, Error> {
     let json = eval(url, "typhonJobs", flake).await?;
-    let mut jobs: HashMap<(String, String), (Derivation, bool)> = HashMap::new();
-    for system in json.as_object().unwrap().keys() {
-        for name in json[system].as_object().unwrap().keys() {
-            jobs.insert(
-                (system.clone(), name.clone()),
-                (
-                    derivation(Expr::Flake {
-                        flake,
-                        url: url.to_string(),
-                        path: format!("typhonJobs.{system}.{name}"),
-                    })
-                    .await?,
-                    eval(
-                        url,
-                        &format!("typhonJobs.{system}.{name}.passthru.typhonDist"),
-                        flake,
-                    )
-                    .await
-                    .map(|json| json.as_bool().unwrap_or(false))
-                    .unwrap_or(false),
-                ),
-            );
-        }
+    let mut jobs: NewJobs = HashMap::new();
+    for name in json.as_object().unwrap().keys() {
+        jobs.insert(
+            name.clone(),
+            (
+                derivation(Expr::Flake {
+                    flake,
+                    url: url.to_string(),
+                    path: format!("typhonJobs.{name}"),
+                })
+                .await?,
+                eval(
+                    url,
+                    &format!("typhonJobs.{name}.passthru.typhonDist"),
+                    flake,
+                )
+                .await
+                .map(|json| json.as_bool().unwrap_or(false))
+                .unwrap_or(false),
+            ),
+        );
     }
     Ok(jobs)
 }

@@ -5,7 +5,6 @@ utils: lib: {
       repo,
       jobset ? "main",
       job,
-      system ? "x86_64-linux",
       branch ? "gh-pages",
       customDomain ? null,
     }:
@@ -30,7 +29,7 @@ utils: lib: {
     in
     lib.compose.match [
       {
-        inherit jobset job system;
+        inherit jobset job;
         action = lib.github.mkPushResult {
           inherit
             owner

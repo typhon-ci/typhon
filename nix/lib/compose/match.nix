@@ -3,9 +3,6 @@ utils: lib: {
     branches:
     lib.builders.mkActionScript (
       { pkgs, system }:
-      let
-        system_ = system;
-      in
       {
         path = [ pkgs.jq ];
         script =
@@ -13,12 +10,11 @@ utils: lib: {
             aux =
               {
                 jobset ? ".*",
-                system ? ".*",
                 job ? ".*",
                 action,
               }:
               ''
-                [[ "$jobset" =~ ${jobset} && "$system" =~ ${system} && "$job" =~ ${job} ]] && { echo "$stdin" | ${action.${system_}}/bin/action; exit $?; } || true
+                [[ "$jobset" =~ ${jobset} && "$job" =~ ${job} ]] && { echo "$stdin" | ${action.${system}}/bin/action; exit $?; } || true
               '';
           in
           ''
@@ -28,7 +24,6 @@ utils: lib: {
             declare -A input="($input)"
 
             jobset=''${input[jobset]}
-            system=''${input[system]}
             job=''${input[job]}
 
           ''

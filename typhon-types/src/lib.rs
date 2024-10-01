@@ -1,4 +1,3 @@
-mod helpers;
 mod task_status;
 
 pub mod handles {
@@ -34,7 +33,6 @@ pub mod handles {
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
     pub struct Job {
         pub evaluation: Evaluation,
-        pub system: String,
         pub name: String,
     }
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
@@ -138,7 +136,7 @@ pub mod handles {
     impl_display!(Job);
     impl From<Job> for Vec<String> {
         fn from(x: Job) -> Self {
-            [x.evaluation.into(), vec![x.system, x.name]].concat()
+            [x.evaluation.into(), vec![x.name]].concat()
         }
     }
     impl_display!(Run);
@@ -192,16 +190,15 @@ pub mod handles {
     pub fn evaluation(uuid: Uuid) -> Evaluation {
         Evaluation { uuid }
     }
-    pub fn job((evaluation, system, name): (Uuid, String, String)) -> Job {
+    pub fn job((evaluation, name): (Uuid, String)) -> Job {
         Job {
             evaluation: selfmod::evaluation(evaluation),
-            system,
             name,
         }
     }
-    pub fn run((evaluation, system, job, num): (Uuid, String, String, u32)) -> Run {
+    pub fn run((evaluation, job, num): (Uuid, String, u32)) -> Run {
         Run {
-            job: selfmod::job((evaluation, system, job)),
+            job: selfmod::job((evaluation, job)),
             num,
         }
     }
@@ -289,7 +286,6 @@ pub mod requests {
         pub struct Run {
             pub evaluation_uuid: Option<Uuid>,
             pub job_name: Option<String>,
-            pub job_system: Option<String>,
             pub jobset_name: Option<String>,
             pub project_name: Option<String>,
         }
@@ -418,19 +414,12 @@ pub mod responses {
         pub url: String,
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-    pub struct JobSystemName {
-        pub system: String,
-        pub name: String,
-    }
-
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct EvaluationInfo {
         pub handle: handles::Evaluation,
         pub actions_path: Option<String>,
         pub flake: bool,
-        #[serde(with = "crate::helpers::serialize_jobs")]
-        pub jobs: HashMap<JobSystemName, JobInfo>,
+        pub jobs: HashMap<String, JobInfo>,
         pub jobset_name: String,
         pub project: handles::Project,
         pub status: TaskStatus,
@@ -445,7 +434,6 @@ pub mod responses {
         pub dist: bool,
         pub drv: String,
         pub out: String,
-        pub system: String,
         pub last_run: RunInfo,
         pub run_count: u32,
     }

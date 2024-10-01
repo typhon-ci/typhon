@@ -74,7 +74,6 @@ impl responses::JobInfo {
     ) -> Self {
         let job_handle = handles::Job {
             evaluation: eval_handle.clone(),
-            system: job.system.clone(),
             name: job.name.clone(),
         };
         Self {
@@ -82,7 +81,6 @@ impl responses::JobInfo {
             dist: job.dist,
             drv: job.drv,
             out: job.out,
-            system: job.system,
             last_run: responses::RunInfo::new(project_handle, &job_handle, run, begin, build, end),
             run_count: job.tries as u32,
         }
@@ -130,10 +128,9 @@ impl Evaluation {
         project_handle: &handles::Project,
         eval_handle: &handles::Evaluation,
         eval_id: i32,
-        filter_system: Option<String>,
         filter_name: Option<String>,
         conn: &mut Conn,
-    ) -> Result<HashMap<responses::JobSystemName, responses::JobInfo>, Error> {
+    ) -> Result<HashMap<String, responses::JobInfo>, Error> {
         let (begin_action, end_action, begin_task, build_task, end_task, subruns) = diesel::alias!(
             schema::actions as begin_action,
             schema::actions as end_action,
@@ -174,9 +171,6 @@ impl Evaluation {
             )
             .filter(schema::jobs::evaluation_id.eq(eval_id))
             .into_boxed();
-        if let Some(system) = filter_system {
-            query = query.filter(schema::jobs::system.eq(system));
-        }
         if let Some(name) = filter_name {
             query = query.filter(schema::jobs::name.eq(name));
         }
@@ -204,9 +198,9 @@ impl Evaluation {
             .into_iter()
             .map(
                 |(job, run, begin, build, end): (models::Job, models::Run, _, _, _)| {
-                    let (system, name) = (job.system.clone(), job.name.clone());
+                    let name = job.name.clone();
                     (
-                        responses::JobSystemName { system, name },
+                        name,
                         responses::JobInfo::new(
                             project_handle,
                             &eval_handle,
@@ -232,7 +226,6 @@ impl Evaluation {
                     &handles::project(self.project.name.clone()),
                     &self.handle(),
                     self.evaluation.id,
-                    None,
                     None,
                     conn,
                 )?
@@ -269,7 +262,7 @@ impl Evaluation {
         let created_runs = conn.transaction::<Vec<crate::runs::Run>, Error, _>(|conn| {
             let created_jobs: Vec<crate::jobs::Job> = new_jobs
                 .into_iter()
-                .map(|((system, name), (drv, dist))| {
+                .map(|(name, (drv, dist))| {
                     let new_job = models::NewJob {
                         dist,
                         drv: &drv.path.to_string(),
@@ -281,7 +274,6 @@ impl Evaluation {
                             .last()
                             .expect("TODO: derivations can have multiple outputs")
                             .1,
-                        system: &system,
                         tries: 0,
                     };
                     let job = diesel::insert_into(schema::jobs::table)

@@ -244,10 +244,9 @@ impl TryFrom<Location> for Root {
                 ["evaluation", uuid, rest @ ..] if let Ok(uuid) = uuid::Uuid::from_str(uuid) => {
                     let handle = handles::evaluation(uuid);
                     let tab = match rest {
-                        [system, name, log_tab @ ..] => {
+                        [name, log_tab @ ..] => {
                             let handle = handles::Job {
                                 evaluation: handle.clone(),
-                                system: system.to_string(),
                                 name: name.to_string(),
                             };
                             let log_tab = match log_tab {
@@ -261,7 +260,6 @@ impl TryFrom<Location> for Root {
                             EvaluationTab::Job { handle, log_tab }
                         }
                         [] => EvaluationTab::Info,
-                        _ => Err(r)?,
                     };
                     Self::Evaluation(EvaluationPage { handle, tab })
                 }
@@ -290,12 +288,7 @@ impl From<Root> for String {
                 match e.tab {
                     EvaluationTab::Job { handle, log_tab } => {
                         let log_tab: &str = log_tab.into();
-                        format!(
-                            "{}/{}/{}",
-                            encode(&handle.system),
-                            encode(&handle.name),
-                            log_tab,
-                        )
+                        format!("{}/{}", encode(&handle.name), log_tab)
                     }
                     EvaluationTab::Info => "".into(),
                 }

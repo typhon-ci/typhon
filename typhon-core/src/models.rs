@@ -94,7 +94,6 @@ pub struct Job {
     pub id: i32,
     pub name: String,
     pub out: String,
-    pub system: String,
     pub tries: i32,
 }
 
@@ -106,7 +105,6 @@ pub struct NewJob<'a> {
     pub evaluation_id: i32,
     pub name: &'a str,
     pub out: &'a str,
-    pub system: &'a str,
     pub tries: i32,
 }
 
