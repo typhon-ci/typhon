@@ -2,6 +2,7 @@
 members = [
   "typhon",
   "typhon-core",
+  "typhon-core-bis",
   "typhon-types",
   "typhon-webapp",
 ]

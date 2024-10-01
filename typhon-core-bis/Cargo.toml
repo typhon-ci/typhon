@@ -1,0 +1,6 @@
+[package]
+name = "typhon-core-bis"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
