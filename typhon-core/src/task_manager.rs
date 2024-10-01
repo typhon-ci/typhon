@@ -5,15 +5,10 @@ use tokio::sync::watch;
 use std::collections::HashMap;
 use std::future::Future;
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum Error {
+    #[display("Task manager is shutting down")]
     ShuttingDown,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Task manager is shutting down")
-    }
 }
 
 enum Msg<Id> {

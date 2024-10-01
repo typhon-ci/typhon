@@ -155,22 +155,14 @@ impl Default for LogTab {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 pub enum DashboardTab {
+    #[display("evaluations")]
     Evaluations,
+    #[display("builds")]
     Builds,
+    #[display("actions")]
     Actions,
-}
-
-impl std::fmt::Display for DashboardTab {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let x = match self {
-            DashboardTab::Evaluations => "evaluations",
-            DashboardTab::Builds => "builds",
-            DashboardTab::Actions => "actions",
-        };
-        write!(f, "{x}")
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

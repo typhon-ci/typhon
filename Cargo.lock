@@ -3859,6 +3859,7 @@ dependencies = [
  "actix-session",
  "actix-web",
  "clap",
+ "derive_more 1.0.0",
  "futures",
  "futures-core",
  "hex",
@@ -3883,6 +3884,7 @@ dependencies = [
  "async-recursion",
  "async-stream",
  "async-trait",
+ "derive_more 1.0.0",
  "diesel",
  "diesel_migrations",
  "ext-trait",
@@ -3901,6 +3903,7 @@ dependencies = [
 name = "typhon-types"
 version = "0.0.1"
 dependencies = [
+ "derive_more 1.0.0",
  "lazy_static",
  "regex",
  "serde",
@@ -3919,6 +3922,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "console_error_panic_hook",
+ "derive_more 1.0.0",
  "either",
  "futures",
  "futures-core",
