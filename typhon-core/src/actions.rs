@@ -226,6 +226,9 @@ impl Action {
 pub mod webhooks {
     use crate::handles;
     use crate::requests;
+
+    use typhon_types::requests::JobsetDecl;
+
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
 
@@ -238,20 +241,24 @@ pub mod webhooks {
     #[derive(Clone, Deserialize)]
     #[serde(tag = "command")]
     pub enum Command {
-        UpdateJobsets,
         EvaluateJobset { name: String },
+        NewJobset { name: String, decl: JobsetDecl },
+        DeleteJobset { name: String },
     }
 
     impl Command {
         pub fn lift(self, project: handles::Project) -> requests::Request {
             match self {
-                Command::UpdateJobsets => {
-                    requests::Request::Project(project, requests::Project::UpdateJobsets)
-                }
                 Command::EvaluateJobset { name } => requests::Request::Jobset(
                     handles::Jobset { project, name },
                     requests::Jobset::Evaluate(true),
                 ),
+                Command::NewJobset { name, decl } => {
+                    requests::Request::Project(project, requests::Project::NewJobset { name, decl })
+                }
+                Command::DeleteJobset { name } => {
+                    requests::Request::Project(project, requests::Project::DeleteJobset { name })
+                }
             }
         }
     }
