@@ -40,7 +40,8 @@ craneLib.buildPackage (
       cp -r target/site $out/bin/
       wrapProgram $out/bin/typhon --set LEPTOS_SITE_ROOT $out/bin/site
     '';
-    TYPHON_FLAKE = ../../typhon-flake;
+    CURRENT_SYSTEM = system;
+    TYPHON_FLAKE = "path:${../../typhon-flake}";
     doNotLinkInheritedArtifacts = true;
     preFixup = "cp -r ${nodeDependencies}/lib/node_modules $out/bin/site";
   }

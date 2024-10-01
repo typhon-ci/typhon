@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+nixfmt "$TYPHON_ROOT"
+cargo fmt --all
+leptosfmt "$TYPHON_ROOT/typhon-webapp/"
