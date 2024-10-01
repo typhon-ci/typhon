@@ -107,7 +107,7 @@ pub fn LiveLog(#[prop(into)] lines: leptos::ReadSignal<Option<String>>) -> impl 
             })
             .unwrap_or_else(|| vec![])
     });
-    view! { <Log contents/> }
+    view! { <Log contents /> }
 }
 
 #[component]
@@ -197,12 +197,11 @@ pub fn Log(#[prop(into)] contents: Signal<Vec<String>>) -> impl IntoView {
                                             };
                                             view! {
                                                 <span class="icon">
-                                                    <Icon icon/>
+                                                    <Icon icon />
                                                 </span>
                                             }
                                         })
-                                }}
-                                {line.contents}
+                                }} {line.contents}
                             </pre>
                         </div>
                     }

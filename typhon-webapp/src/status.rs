@@ -19,7 +19,7 @@ pub fn Status(success: bool) -> impl IntoView {
     };
     view! { class=styler_class,
         <span class="status" class:success=success>
-            <Icon icon/>
+            <Icon icon />
         </span>
     }
 }

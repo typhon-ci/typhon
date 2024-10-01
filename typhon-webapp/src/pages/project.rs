@@ -101,12 +101,12 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
                 <div class="header">
                     <Show when=move || { user().is_some() }>
                         <ActionForm action=update_jobsets>
-                            <input type="hidden" name="name" value=handle_name/>
-                            <input type="submit" value="Update jobsets"/>
+                            <input type="hidden" name="name" value=handle_name />
+                            <input type="submit" value="Update jobsets" />
                         </ActionForm>
                         <ActionForm action=refresh>
-                            <input type="hidden" name="name" value=handle_name/>
-                            <input type="submit" value="Refresh"/>
+                            <input type="hidden" name="name" value=handle_name />
+                            <input type="submit" value="Refresh" />
 
                         </ActionForm>
                     </Show>
@@ -116,7 +116,7 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
                                 info.last_refresh
                                     .map(|status| {
                                         let status: data::TaskStatusKind = status.into();
-                                        view! { <Status status=move || status.clone()/> }
+                                        view! { <Status status=move || status.clone() /> }
                                     })
                             })
                             .flatten()
@@ -129,7 +129,7 @@ pub(crate) fn Project(handle: handles::Project) -> impl IntoView {
                         each=jobsets
                         key=|handle| handle.name.clone()
                         children=move |handle| {
-                            view! { <Jobset handle/> }
+                            view! { <Jobset handle /> }
                         }
                     />
 

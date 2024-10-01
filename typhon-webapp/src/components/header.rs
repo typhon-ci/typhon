@@ -125,8 +125,8 @@ pub fn Header(#[prop(into)] route: Signal<Option<routes::Root<routes::Empty>>>) 
     let user: Signal<Option<typhon_types::data::User>> = use_context().unwrap();
     view! {
         <div class=style>
-            <TyphonLogo/>
-            <Nav route/>
+            <TyphonLogo />
+            <Nav route />
             <Transition fallback=move || {
                 view! { <span>"Loading..."</span> }
             }>

@@ -1,4 +1,5 @@
 # This file originates from node2nix
+
 {
   lib,
   stdenv,
@@ -10,6 +11,7 @@
   writeTextFile,
   writeShellScript,
 }:
+
 let
   # Workaround to cope with utillinux in Nixpkgs 20.09 and util-linux in Nixpkgs master
   utillinux = if pkgs ? utillinux then pkgs.utillinux else pkgs.util-linux;
@@ -36,6 +38,7 @@ let
       src,
       ...
     }:
+
     stdenv.mkDerivation {
       name = "node-tarball-${name}-${version}";
       inherit src;
@@ -525,6 +528,7 @@ let
       meta ? { },
       ...
     }@args:
+
     let
       extraArgs = removeAttrs args [
         "name"
@@ -649,6 +653,7 @@ let
       buildPhase ? "true",
       ...
     }@args:
+
     let
       extraArgs = removeAttrs args [
         "name"
@@ -742,6 +747,7 @@ let
       buildPhase ? "true",
       ...
     }@args:
+
     let
       nodeDependencies = buildNodeDependencies args;
       extraArgs = removeAttrs args [

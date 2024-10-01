@@ -36,7 +36,7 @@ pub fn RelativeTime(#[prop(into)] datetime: time::OffsetDateTime) -> impl IntoVi
     let duration = move || now() - datetime;
     view! {
         <time datetime=move || format!("{}s", duration().whole_seconds())>
-            <Icon icon=icondata::BiCalendarEventRegular/>
+            <Icon icon=icondata::BiCalendarEventRegular />
             {move || human_approx_duration(duration())}
         </time>
     }
@@ -86,6 +86,6 @@ pub fn TaskStatusDuration(#[prop(into)] status: Signal<TaskStatus>) -> impl Into
                 Some(now() - start)
             }
             _ => None,
-        })/>
+        }) />
     }
 }

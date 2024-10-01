@@ -76,7 +76,7 @@ pub fn StatusMap(map: HashMap<TaskStatusKind, u32>, compact: bool) -> impl IntoV
                                     <span class="count" data-status=format!("{:?}", &k)>
                                         {n}
                                     </span>
-                                    <Status status=move || k/>
+                                    <Status status=move || k />
                                 </div>
                             }
                         })
@@ -153,7 +153,7 @@ pub fn FlakeURI(#[prop(into)] uri: String) -> impl IntoView {
                 <div class="wrapper">
                     <span class="commit">Commit <code>{commit[..8].to_string()}</code></span>
                     <Tag href=format!("https://github.com/{owner}/{repo}")>
-                        <Icon icon=icondata::BiGithub/>
+                        <Icon icon=icondata::BiGithub />
                         {text}
                     </Tag>
                 </div>
@@ -225,27 +225,27 @@ pub fn Evaluation(handle: handles::Evaluation) -> impl IntoView {
                                         view! {
                                             <HybridStatus status=Signal::derive(move || {
                                                 status_kind.clone()
-                                            })/>
+                                            }) />
                                         }
                                     }
 
                                 </div>
                                 <div class="titles">
                                     <A href class="first">
-                                        <FlakeURI uri=info.url/>
+                                        <FlakeURI uri=info.url />
                                     </A>
                                     <div class="second">
-                                        Evaluation <UuidLabel uuid=info.handle.uuid/>
+                                        Evaluation <UuidLabel uuid=info.handle.uuid />
                                     </div>
                                 </div>
                                 <div class="jobs-summary">
-                                    <StatusMap map=status_infos.map compact=true/>
+                                    <StatusMap map=status_infos.map compact=true />
                                 </div>
                                 <div class="informations">
-                                    <RelativeTime datetime=created/>
+                                    <RelativeTime datetime=created />
                                     <div>
-                                        <Icon icon=icondata::BiTimerRegular/>
-                                        <Duration duration/>
+                                        <Icon icon=icondata::BiTimerRegular />
+                                        <Duration duration />
                                     </div>
                                 </div>
                             </div>
@@ -273,7 +273,7 @@ pub fn Evaluations(
     view! { class=style,
         <div class="jobset-contents is-table">
             <div class="header">
-                <div class="title">{count} evaluations</div>
+                <div class="title">{count}evaluations</div>
                 <div class="buttons">{buttons.map(|buttons| buttons())}</div>
             </div>
             <div class="rows">
@@ -281,7 +281,7 @@ pub fn Evaluations(
                     each=evaluations
                     key=|handle| handle.uuid.clone()
                     children=move |handle| {
-                        view! { <Evaluation handle/> }
+                        view! { <Evaluation handle /> }
                     }
                 />
 
