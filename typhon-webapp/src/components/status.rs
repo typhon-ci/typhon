@@ -11,7 +11,7 @@ pub enum HybridStatusKind {
 #[component]
 pub fn Status(#[prop(into)] status: Signal<TaskStatusKind>) -> impl IntoView {
     let status = Signal::derive(move || HybridStatusKind::EvalSucceeded { build: status() });
-    view! { <HybridStatus status=status/> }
+    view! { <HybridStatus status=status /> }
 }
 
 #[component]
@@ -66,7 +66,7 @@ pub fn HybridStatus(#[prop(into)] status: Signal<HybridStatusKind>) -> impl Into
                             }
                         }
                     };
-                    view! { <Icon icon=Icon::from(icon)/> }
+                    view! { <Icon icon=Icon::from(icon) /> }
                 }}
 
             </span>

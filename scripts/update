@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NODE_DIR="$TYPHON_ROOT/typhon-webapp/assets"
+NODE2NIX_DIR="$TYPHON_ROOT/nix/npm-nix"
+NIXPKGS="github:nixos/nixpkgs/nixos-unstable"
+
+# update Rust dependencies
+cargo install cargo-edit
+cargo upgrade -i
+cargo update
+
+# update Node dependencies
+nix run "$NIXPKGS#npm-check-updates" -- -u --cwd "$NODE_DIR"
+npm install --prefix "$NODE_DIR"
+
+# update Nix dependencies
+nix flake update
+nix run "$NIXPKGS#node2nix" -- -18 -i "$NODE_DIR/package.json" -o "$NODE2NIX_DIR/node-packages.nix" -c "$NODE2NIX_DIR/default.nix" -e "$NODE2NIX_DIR/node-env.nix"
+nixfmt "$NODE2NIX_DIR"

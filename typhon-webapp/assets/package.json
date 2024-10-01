@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "AGPL-3.0",
   "dependencies": {
-      "@fontsource/roboto": "^5.0.13",
-      "@fontsource/jetbrains-mono": "^5.0.20"
+      "@fontsource/roboto": "^5.1.0",
+      "@fontsource/jetbrains-mono": "^5.1.0"
   }
 }

@@ -47,8 +47,15 @@ pub enum Error {
     LoginError,
     #[display("Task error: {_0}")]
     TaskError(task_manager::Error),
-    #[display("Bad webhook output")]
-    BadWebhookOutput,
+    #[display("{}", display_webhook_failure(_0))]
+    WebhookFailure(Option<String>),
+}
+
+fn display_webhook_failure(output: &Option<String>) -> &str {
+    match output {
+        Some(stdout) => concat!("Bad webhook output: {stdout}"),
+        None => "Webhook failure",
+    }
 }
 
 impl Error {
@@ -121,7 +128,7 @@ impl Into<typhon_types::responses::ResponseError> for Error {
             | NixError(_)
             | ProjectAlreadyExists(_)
             | LoginError
-            | BadWebhookOutput => BadRequest(format!("{}", self)),
+            | WebhookFailure(_) => BadRequest(format!("{}", self)),
         }
     }
 }

@@ -311,14 +311,8 @@ async fn webhook(
             .collect::<Result<HashMap<_, _>, ResponseErrorWrapper>>()?,
         body,
     };
-
     let handle = handles::project(path.into_inner());
-    let requests = web::block(move || typhon_core::webhook(handle, input)).await??;
-    for req in requests {
-        handle_request(User::Admin, req)
-            .await
-            .map_err(ResponseErrorWrapper)?;
-    }
+    web::block(move || typhon_core::webhook(handle, input)).await??;
     Ok(HttpResponse::Ok().finish())
 }
 

@@ -4,18 +4,6 @@
   pkgs ? import ./nixpkgs.nix { inherit inputs system; },
   rust ? import ./rust.nix { inherit inputs system; },
 }:
-let
-  env = ''
-    export PASSWORD=$(echo -n "password" | argon2 "Guérande" -id -e)
-    export COOKIE_SECRET=$(seq 100 | xxd -cu -l 64 -p)
-    export TIMESTAMP="sec"
-    export VERBOSE=3
-  '';
-  build = pkgs.writeShellScriptBin "build" "cargo leptos build";
-  serve = pkgs.writeShellScriptBin "serve" "${env}cargo leptos serve";
-  watch = pkgs.writeShellScriptBin "watch" "${env}cargo leptos watch";
-  format = pkgs.writeShellScriptBin "format" "nixfmt . ; cargo fmt ; leptosfmt typhon*/";
-in
 {
   default = pkgs.mkShell {
     name = "typhon-devshell";
@@ -35,16 +23,14 @@ in
         rustfmt
         sqlite
         ;
-      inherit
-        build
-        serve
-        watch
-        format
-        ;
     };
     CURRENT_SYSTEM = system;
-    DATABASE_URL = "typhon.sqlite";
-    TYPHON_FLAKE = ../typhon-flake;
+    shellHook = ''
+      export TYPHON_ROOT="$(pwd)"
+      export PATH="$TYPHON_ROOT/scripts:$PATH"
+      export DATABASE_URL="$TYPHON_ROOT/typhon.sqlite"
+      export TYPHON_FLAKE="path:$TYPHON_ROOT/typhon-flake"
+    '';
   };
 
   doc = pkgs.mkShell {

@@ -296,6 +296,12 @@ pub mod requests {
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct JobsetDecl {
+        pub flake: bool,
+        pub url: String,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct ProjectDecl {
         pub flake: bool,
         pub url: String,
@@ -308,6 +314,8 @@ pub mod requests {
         Refresh,
         SetDecl(ProjectDecl),
         UpdateJobsets,
+        NewJobset { name: String, decl: JobsetDecl },
+        DeleteJobset { name: String },
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

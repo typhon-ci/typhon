@@ -26,8 +26,8 @@ typhon-core = { path = "./typhon-core" }
 typhon-types = { path = "./typhon-types" }
 typhon-webapp = { path = "./typhon-webapp" }
 actix-files = "0.6"
-actix-session = { version = "0.9", features = ["cookie-session"] }
-actix-web = "4.6"
+actix-session = { version = "0.10", features = ["cookie-session"] }
+actix-web = "4.9"
 age = { version = "0.10", features = ["armor"] }
 argon2 = "0.5"
 async-recursion = "1.1"
@@ -38,44 +38,44 @@ console_error_panic_hook = "0.1"
 derive_more = { version = "1.0", features = ["display"] }
 diesel = { version = "2.2", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "r2d2"] }
 diesel_migrations = "2.2"
-either = "1.12"
-ext-trait = "1.0"
+either = "1.13"
+ext-trait = "2.0"
 futures = "0.3"
 futures-core = "0.3"
 futures-util = "0.3"
 gloo-console = "0.3"
-gloo-net = "0.5"
+gloo-net = "0.6"
 gloo-storage = "0.3"
 gloo-utils = "0.2"
 hex = "0.4"
-icondata = "0.3"
+icondata = "0.4"
 im = "15.1"
 itertools = "0.13"
 js-sys = "0.3"
-lazy_static = "1.4"
+lazy_static = "1.5"
 leptos = "0.6"
 leptos_actix = "0.6"
 leptos_icons = "0.3"
 leptos_meta = "0.6"
 leptos_router = "0.6"
-regex = "1.10"
+regex = "1.11"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 serde_json = "1.0"
 serde_repr = "0.1"
-serde_with = "3.8"
+serde_with = "3.9"
 stderrlog = "0.6"
 strip-ansi-escapes = "0.2"
 strum = "0.26"
 stylers = "1.0.0-alpha"
 time = { version = "0.3", features = ["serde"] }
-tokio = { version = "1.38", features = ["full"] }
+tokio = { version = "1.40", features = ["full"] }
 tokio-stream = "0.1"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-web = "0.1"
 urlencoding = "2.1"
-uuid = { version = "1.8", features = ["v7", "serde"] }
+uuid = { version = "1.10", features = ["v7", "serde"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 wasm-streams = "0.4"
