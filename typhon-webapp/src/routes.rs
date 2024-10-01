@@ -268,7 +268,6 @@ impl TryFrom<Location> for Root {
                             EvaluationTab::Job { handle, log_tab }
                         }
                         [] => EvaluationTab::Info,
-                        _ => Err(r)?,
                     };
                     Self::Evaluation(EvaluationPage { handle, tab })
                 }
