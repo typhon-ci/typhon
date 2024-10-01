@@ -4,9 +4,10 @@ utils: lib: {
       actions ? { },
       meta ? { },
       secrets ? null,
+      jobs ? (self: name: self.typhonJobs)
     }:
     {
-      inherit meta;
+      inherit meta jobs;
       actions = lib.eachSystem (
         system:
         let
