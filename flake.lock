@@ -28,21 +28,6 @@
         "url": "https://git.lix.systems/api/v1/repos/lix-project/flake-compat/archive/main.tar.gz"
       }
     },
-    "flake-schemas": {
-      "locked": {
-        "lastModified": 1721999734,
-        "narHash": "sha256-G5CxYeJVm4lcEtaO87LKzOsVnWeTcHGKbKxNamNWgOw=",
-        "owner": "determinatesystems",
-        "repo": "flake-schemas",
-        "rev": "0a5c42297d870156d9c57d8f99e476b738dcd982",
-        "type": "github"
-      },
-      "original": {
-        "owner": "determinatesystems",
-        "repo": "flake-schemas",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1727348695,
@@ -63,7 +48,6 @@
       "inputs": {
         "crane": "crane",
         "flake-compat": "flake-compat",
-        "flake-schemas": "flake-schemas",
         "nixpkgs": "nixpkgs"
       }
     }
