@@ -17,12 +17,17 @@ Here is a sample NixOS module that deploys a Typhon instance:
 ```nix
 { pkgs, ... }:
 
-let typhon = builtins.getFlake "github:typhon-ci/typhon";
-in {
+let
+  typhon = builtins.getFlake "github:typhon-ci/typhon";
+in
+{
   imports = [ typhon.nixosModules.default ];
 
   # enable experimental features
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
 
   # install Nix >= 2.18 if necessary
   nix.package = pkgs.nixVersions.nix_2_18;
@@ -69,3 +74,5 @@ Optional:
   instance.
 - `services.typhon.package`: a derivation to override the package used for the
   Typhon instance.
+- `services.typhon.environmentFile`: a string that points to a file specifying
+  environmental variables

@@ -49,6 +49,11 @@ in
           builtins.toString (pkgs.writeText "typhon-password" cfg.hashedPassword);
       description = "Path to a file containing the Argon2id hash of the admin password";
     };
+    environmentFile = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "Specify environmentFile for systemd service";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -90,6 +95,7 @@ in
         pkgs.openssh
       ];
       serviceConfig = {
+        EnvironmentFile = cfg.environmentFile;
         ExecStart = pkgs.writeShellScript "typhon-start" ''
           cd ${cfg.home}
           DATABASE_URL="typhon.sqlite" ${cfg.package}/bin/typhon -p "$(cat ${cfg.hashedPasswordFile})" -v
