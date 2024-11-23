@@ -22,6 +22,7 @@
         pkg-config
         rust-analyzer
         sqlite
+        xxd
         ;
     };
     CURRENT_SYSTEM = system;
