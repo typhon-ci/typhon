@@ -60,7 +60,15 @@ pub(crate) fn Projects() -> impl IntoView {
         <Trans error>
             <div class="is-table">
                 <div class="header">
-                    <div class="summary">{count}projects</div>
+                    <div class="summary">
+                        {
+                            match count.get() {
+                                0 => "No projects".to_string(),
+                                1 => "1 project".to_string(),
+                                num @ _ => format!("{} projects", num),
+                            }
+                        }
+                    </div>
                     <div class="header-columns">
                         <div class="column id">"Identifier"</div>
                         <div class="column name">"Name"</div>
