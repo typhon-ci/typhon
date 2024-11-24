@@ -337,7 +337,7 @@ fn Info(info: responses::EvaluationInfo) -> impl IntoView {
                     <div class="value">
                         This evaluation
                         <span class="emph">
-                            {if info.flake { "is using" } else { "is not using" }}flakes
+                            {if info.flake { "is using" } else { "is not using" }} flakes
                         </span>and was created <span class="emph">
                             <RelativeTime datetime=info.time_created />
                         </span>

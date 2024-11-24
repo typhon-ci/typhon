@@ -273,7 +273,7 @@ pub fn Evaluations(
     view! { class=style,
         <div class="jobset-contents is-table">
             <div class="header">
-                <div class="title">{count}evaluations</div>
+                <div class="title">{count} evaluations</div>
                 <div class="buttons">{buttons.map(|buttons| buttons())}</div>
             </div>
             <div class="rows">
